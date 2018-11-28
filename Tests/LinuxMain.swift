@@ -1,14 +1,14 @@
 import XCTest
-@testable import SmokeDynamoTests
+@testable import SmokeDynamoDBTests
 
 XCTMain([
-    testCase(DynamoHistoricalClientTests.allTests),
+    testCase(DynamoDBHistoricalClientTests.allTests),
     testCase(DynamoDBTableUpdateItemConditionallyAtKeyTests.allTests),
-    testCase(DynamoEncoderDecoderTests.allTests),
+    testCase(DynamoDBEncoderDecoderTests.allTests),
     testCase(InMemoryDynamoDBTableTests.allTests),
     testCase(SimulateConcurrencyDynamoDBTableTests.allTests),
-    testCase(StringDynamoKeyTests.allTests),
-    testCase(SmokeDynamoTests.allTests),
+    testCase(StringDynamoDBKeyTests.allTests),
+    testCase(SmokeDynamoDBTests.allTests),
     testCase(TypedDatabaseItemRowWithItemVersionProtocolTests.allTests).allTests,
     testCase(DynamoDBTableClobberVersionedItemWithHistoricalRowTests.allTests),
 ])

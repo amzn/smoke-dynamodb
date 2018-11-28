@@ -56,7 +56,7 @@ fileprivate func testHistoricalItemProvider(_ item: DatabaseRowType) -> Database
                                    andValue: item.rowValue)
 }
 
-class DynamoHistoricalClientTests: XCTestCase {
+class DynamoDBHistoricalClientTests: XCTestCase {
 
     func testInsertItemSuccessSync() throws {
         
