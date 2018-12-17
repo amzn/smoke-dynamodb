@@ -21,7 +21,7 @@ For consistency in naming across the library, SmokeDynamoDB will case DynamoDB t
 
 This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBTable` protocol. In a production scenario, operations can be performed using `AwsDynamoDBTable`-
 
-```
+```swift
 let table = AwsDynamoDBTable(credentialsProvider: credentialsProvider,
                              region: region, endpointHostName: dynamodbEndpointHostName,
                              tableName: dynamodbTableName)
@@ -33,7 +33,7 @@ For testing `InMemoryDynamoDBTable` can be used to locally verify what rows will
 
 An item can be inserted into the DynamoDB table using the following-
 
-```
+```swift
 struct PayloadType: Codable, Equatable {
     let firstly: String
     let secondly: String
@@ -61,11 +61,11 @@ By default, this operation will fail if an item with the same partition key and 
 
 **Note:** The `StandardCompositePrimaryKey` will place the partition key in the attribute called *PB* and the sort key in an attribute called *SK*. Custom partition and sort key attribute names can be used by dropping down to the underlying `CompositePrimaryKey` type and the `PrimaryKeyAttributes` protocol.
 
-## Retreival 
+## Retrieval 
 
 An item can be retrieved from the DynamoDB table using the following-
 
-```
+```swift
 let retrievedItem: StandardTypedDatabaseItem<PayloadType>? = try table.getItemSync(forKey: key)
 ```
 
@@ -75,7 +75,7 @@ The `getItemSync` (or `getItemAsync`) operation return an optional `TypedDatabas
 
 An item can be updated in the DynamoDB table using the following-
 
-```
+```swift
 let updatedPayload = PayloadType(firstly: "firstlyX2", secondly: "secondlyX2")
 let updatedDatabaseItem = retrievedItem.createUpdatedItem(withValue: updatedPayload)
 try table.updateItemSync(newItem: updatedDatabaseItem, existingItem: retrievedItem)
@@ -97,7 +97,7 @@ By default, this operation will fail if an item with the same partition key and 
 
 `conditionallyUpdateItemSync` and `conditionallyUpdateItemAsync` operations will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can throw an exception to indicate that the current row is unable to be updated.
 
-```
+```swift
 try table.conditionallyUpdateItemSync(forKey: key, updatedPayloadProvider: updatedPayloadProvider)
 ```
 
@@ -105,7 +105,7 @@ try table.conditionallyUpdateItemSync(forKey: key, updatedPayloadProvider: updat
 
 An item can be deleted in the DynamoDB table using the following-
 
-```
+```swift
 try table.deleteItemSync(forKey: key)
 ```
 
@@ -115,7 +115,7 @@ The `deleteItemSync` and `deleteItemAsync` operations will succeed even if the s
 
 All or a subset of the rows from a parition can be retreived using a query-
 
-```
+```swift
 struct ExpectedCodableTypes: PossibleItemTypes {
     public static var types: [Codable.Type] = [PayloadType.self]
 }
@@ -144,7 +144,7 @@ This package contains a number of convenience functions for storing versions of 
 
 `insertItemWithHistoricalRowSync` and `insertItemWithHistoricalRowAsync` operations provide a single call to insert both a primary and historical item-
 
-```
+```swift
 try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
 ```
 
@@ -152,7 +152,7 @@ try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalI
 
 `updateItemWithHistoricalRowSync` and `updateItemWithHistoricalRowAsync` operations provide a single call to update a primary item and insert a historical item-
 
-```
+```swift
 try table.updateItemWithHistoricalRowSync(primaryItem: updatedItem, 
                                           existingItem: databaseItem, 
                                           historicalItem: historicalItem)
@@ -162,7 +162,7 @@ try table.updateItemWithHistoricalRowSync(primaryItem: updatedItem,
 
 `clobberItemWithHistoricalRowSync` and `clobberItemWithHistoricalRowAsync` operations will attempt to insert or update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row (if it exists) until the appropriate `insert` or  `update` operation succeeds. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table. The primary item may not exist in the database table to begin with.
 
-```
+```swift
 try table.clobberItemWithHistoricalRowSync(primaryItemProvider: primaryItemProvider,
                                            historicalItemProvider: historicalItemProvider)
 ```
@@ -175,7 +175,7 @@ These operations can fail with an concurrency error if the `insert` or  `update`
 
 `conditionallyUpdateItemWithHistoricalRowSync` and `conditionallyUpdateItemWithHistoricalRowAsync` operations will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can thrown an exception to indicate that the current row is unable to be updated. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table.
 
-```
+```swift
 try table.conditionallyUpdateItemWithHistoricalRowSync(
     forPrimaryKey: dKey,
     primaryItemProvider: conditionalUpdatePrimaryItemProvider,
@@ -192,7 +192,7 @@ These operations can fail with an concurrency error if the  `update` operation r
 
 `clobberVersionedItemWithHistoricalRowSync` and `clobberVersionedItemWithHistoricalRowAsync` operations provide a mechanism for managing mutable database rows and storing all previous versions of that row in a historical partition. These operations store the primary item under a "version zero" sort key with a payload that replicates the current version of the row. This historical partition contains rows for each version, including the current version under a sort key for that version.
 
-```
+```swift
 let payload1 = PayloadType(firstly: "firstly", secondly: "secondly")
 let partitionKey = "partitionId"
 let historicalPartitionPrefix = "historical"
@@ -269,7 +269,7 @@ The main entities provided by this package are
 
 The CompositePrimaryKey struct defines the partition and sort key values for a row in the database. It is also used to serialize and deserialize these values. For convenience, this package provides a typealias called `StandardCompositePrimaryKey` that uses a partition key with an attribute name of *PK* and a sort key with an attribute name of *SK*. This struct can be instantiated as shown-
 
-```
+```swift
 let key = StandardCompositePrimaryKey(partitionKey: "partitionKeyValue",
                                       sortKey: "sortKeyValue")
 ```
@@ -286,7 +286,7 @@ Similar to CompositePrimaryKey, this package provides a typealias called `Standa
 
 This struct can be instantiated as shown-
 
-```
+```swift
 let newDatabaseItem = StandardTypedDatabaseItem.newItem(withKey: compositePrimaryKey, andValue: rowValueType)
 ```
 
@@ -294,7 +294,7 @@ Here *compositePrimaryKey* must be of type `CompositePrimaryKey` and *rowValueTy
 
 The *createUpdatedItem* function on this struct can be used to create an updated version of this row-
 
-```
+```swift
 let updatedDatabaseItem = newDatabaseItem.createUpdatedItem(withValue: updatedValue)
 ```
 
@@ -304,7 +304,7 @@ This function will create a new instance of TypedDatabaseItem with the same key 
 
 The DynamoDBTable protocol provides a number of functions for interacting with the DynamoDB tables. Typically the `AwsDynamoDBTable` implementation of this protocol is instantiated using a `CredentialProvider` (such as one from the `smoke-aws-credentials` module to automatically handle rotating credentials), the service region and endpoint and the table name to use.
 
-```
+```swift
 let dynamodbClient = AwsDynamoDBTable(credentials: credentials,
                                     region: region, endpoint: dynamodbEndpoint,
                                     tableName: dynamodbTableName)
@@ -318,7 +318,7 @@ Internally AwsDynamoDBTable uses a custom Decoder and Encoder to serialize types
 
 `CompositePrimaryKey`, `TypedDatabaseItem` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `DynamoDBRowIdentity` protocol. This protocol can be used to use custom attribute names for the partition and sort keys.
 
-```
+```swift
 public struct MyDynamoDBRowIdentity: DynamoDBRowIdentity {
     public static var paritionKeyAttributeName: String {
         return "MyPartitionAttributeName"
@@ -333,7 +333,7 @@ public struct MyDynamoDBRowIdentity: DynamoDBRowIdentity {
 
 If the `Codable` type is used for a row type also conforms to the `CustomRowTypeIdentifier`, the *rowTypeIdentifier* property of this type will be used as the RowType recorded in the database row.
 
-```
+```swift
 struct TypeB: Codable, CustomRowTypeIdentifier {
     static var rowTypeIdentifier: String? = "TypeBCustom"
     
