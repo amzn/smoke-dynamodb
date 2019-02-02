@@ -9,6 +9,6 @@ XCTMain([
     testCase(SimulateConcurrencyDynamoDBTableTests.allTests),
     testCase(StringDynamoDBKeyTests.allTests),
     testCase(SmokeDynamoDBTests.allTests),
-    testCase(TypedDatabaseItemRowWithItemVersionProtocolTests.allTests).allTests,
+    testCase(TypedDatabaseItemRowWithItemVersionProtocolTests.allTests),
     testCase(DynamoDBTableClobberVersionedItemWithHistoricalRowTests.allTests),
 ])
