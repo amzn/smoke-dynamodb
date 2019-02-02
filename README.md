@@ -1,3 +1,17 @@
+<p align="center">
+<a href="https://travis-ci.com/amzn/smoke-dynamodb">
+<img src="https://travis-ci.com/amzn/smoke-dynamodb.svg?branch=master" alt="Build - Master Branch">
+</a>
+<img src="https://img.shields.io/badge/os-linux-green.svg?style=flat" alt="Linux">
+<a href="http://swift.org">
+<img src="https://img.shields.io/badge/swift-4.1-orange.svg?style=flat" alt="Swift 4.1 Compatible">
+</a>
+<a href="http://swift.org">
+<img src="https://img.shields.io/badge/swift-4.2-orange.svg?style=flat" alt="Swift 4.1 Compatible">
+</a>
+<img src="https://img.shields.io/badge/license-Apache2-blue.svg?style=flat" alt="Apache 2">
+</p>
+
 SmokeDynamoDB is a library to make it easy to use DynamoDB from Swift-based applications, with a particular focus on usage with polymorphic database tables (tables that don't have a single schema for all rows.
 
 # Basic Usage
@@ -42,7 +56,7 @@ struct PayloadType: Codable, Equatable {
 let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                       sortKey: "sortId")
 let payload = PayloadType(firstly: "firstly", secondly: "secondly")
-let databaseItem = DefaultIdentityTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
 try table.insertItemSync(databaseItem)
 ```
@@ -206,7 +220,7 @@ func generateSortKey(withVersion version: Int) -> String {
 try table.clobberVersionedItemWithHistoricalRowSync(forPrimaryKey: partitionKey,
                                                     andHistoricalKey: historicalPartitionKey,
                                                     item: payload1,
-                                                    rowIdentity: StandardDynamoDBRowIdentity.self,
+                                                    primaryKeyType: StandardPrimaryKeyAttributes.self,
                                                     generateSortKey: generateSortKey)
                                                              
 // the v0 row, copy of version 1
@@ -228,7 +242,7 @@ let payload2 = PayloadType(firstly: "thirdly", secondly: "fourthly")
 try table.clobberVersionedItemWithHistoricalRowSync(forPrimaryKey: partitionKey,
                                                     andHistoricalKey: historicalPartitionKey,
                                                     item: payload2,
-                                                    rowIdentity: StandardDynamoDBRowIdentity.self,
+                                                    primaryKeyType: StandardPrimaryKeyAttributes.self,
                                                     generateSortKey: generateSortKey)
         
 // the v0 row, copy of version 2
@@ -314,12 +328,12 @@ Internally AwsDynamoDBTable uses a custom Decoder and Encoder to serialize types
 
 # Customization
 
-## DynamoRowIdentity
+## PrimaryKeyAttributes
 
-`CompositePrimaryKey`, `TypedDatabaseItem` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `DynamoDBRowIdentity` protocol. This protocol can be used to use custom attribute names for the partition and sort keys.
+`CompositePrimaryKey`, `TypedDatabaseItem` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `PrimaryKeyAttributes` protocol. This protocol can be used to use custom attribute names for the partition and sort keys.
 
 ```swift
-public struct MyDynamoDBRowIdentity: DynamoDBRowIdentity {
+public struct MyPrimaryKeyAttributes: PrimaryKeyAttributes {
     public static var paritionKeyAttributeName: String {
         return "MyPartitionAttributeName"
     }
