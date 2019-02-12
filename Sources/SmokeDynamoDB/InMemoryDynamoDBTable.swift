@@ -74,7 +74,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     }
     
     public func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: (Error?) -> ())
+                                                          completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try insertItemSync(item)
@@ -102,7 +102,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     }
     
     public func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                           completion: (Error?) -> ())
+                                                           completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try clobberItemSync(item)
@@ -147,7 +147,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     
     public func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                           existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: (Error?) -> ())
+                                                          completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try updateItemSync(newItem: newItem, existingItem: existingItem)
@@ -180,7 +180,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     }
     
     public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+                                                       completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 let item: TypedDatabaseItem<AttributesType, ItemType>? = try getItemSync(forKey: key)
@@ -196,7 +196,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     }
     
     public func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: (Error?) -> ())
+                                                completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             do {
                 try deleteItemSync(forKey: key)
@@ -263,9 +263,10 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
         return items
     }
     
-    public func queryAsync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                          sortKeyCondition: AttributeCondition?,
-                                                          completion: (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
+    public func queryAsync<AttributesType, PossibleTypes>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] =
@@ -330,7 +331,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
             sortKeyCondition: AttributeCondition?,
             limit: Int,
             exclusiveStartKey: String?,
-            completion: (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
