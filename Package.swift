@@ -36,6 +36,6 @@ let package = Package(
             dependencies: ["LoggerAPI", "DynamoDBClient", "SmokeHTTPClient"]),
         .testTarget(
             name: "SmokeDynamoDBTests",
-            dependencies: ["SmokeDynamoDB"]),
+            dependencies: ["SmokeDynamoDB", "SmokeHTTPClient"]),
     ]
 )
