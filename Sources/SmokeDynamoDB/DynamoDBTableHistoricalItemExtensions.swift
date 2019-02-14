@@ -21,7 +21,7 @@ import LoggerAPI
 import SmokeHTTPClient
 
 public extension DynamoDBTable {
-    
+
     /**
      * Historical items exist across multiple rows. This method provides an interface to record all
      * rows in a single call.
@@ -31,7 +31,7 @@ public extension DynamoDBTable {
         try insertItemSync(primaryItem)
         try insertItemSync(historicalItem)
     }
-    
+
     public func insertItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                            historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                            completion: @escaping (Error?) -> ()) throws {
@@ -39,7 +39,7 @@ public extension DynamoDBTable {
             if let error = error {
                 return completion(error)
             }
-            
+
             do {
                 try self.insertItemAsync(historicalItem, completion: completion)
             } catch {
@@ -47,14 +47,14 @@ public extension DynamoDBTable {
             }
         }
     }
-    
+
     public func updateItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                           existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                           historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try updateItemSync(newItem: primaryItem, existingItem: existingItem)
         try insertItemSync(historicalItem)
     }
-    
+
     public func updateItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                            existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                            historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
@@ -63,7 +63,7 @@ public extension DynamoDBTable {
             if let error = error {
                 return completion(error)
             }
-            
+
             do {
                 try self.insertItemAsync(historicalItem, completion: completion)
             } catch {
@@ -71,7 +71,7 @@ public extension DynamoDBTable {
             }
         }
     }
-    
+
     /**
      * This operation will attempt to update the primary item, repeatedly calling the
      * `primaryItemProvider` to retrieve an updated version of the current row (if it
@@ -88,19 +88,19 @@ public extension DynamoDBTable {
             primaryItemProvider: (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) throws {
-        
+
         let primaryItem = primaryItemProvider(nil)
-        
+
         guard retries > 0 else {
             throw SmokeDynamoDBError.concurrencyError(partitionKey: primaryItem.compositePrimaryKey.partitionKey,
                                                     sortKey: primaryItem.compositePrimaryKey.sortKey,
                                                     message: "Unable to complete request to clobber versioned item in specified number of attempts")
         }
-        
+
         if let existingItem: TypedDatabaseItem<AttributesType, ItemType> = try getItemSync(forKey: primaryItem.compositePrimaryKey) {
-            
+
             let newItem: TypedDatabaseItem<AttributesType, ItemType> = primaryItemProvider(existingItem)
-            
+
             do {
                 try updateItemWithHistoricalRowSync(primaryItem: newItem, existingItem: existingItem, historicalItem: historicalItemProvider(newItem))
             } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
@@ -119,7 +119,7 @@ public extension DynamoDBTable {
             }
         }
     }
-    
+
     /**
      * This operation will attempt to update the primary item, repeatedly calling the
      * `primaryItemProvider` to retrieve an updated version of the current row (if it
@@ -137,15 +137,15 @@ public extension DynamoDBTable {
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10,
             completion: @escaping (Error?) -> ()) throws {
-        
+
         let primaryItem = primaryItemProvider(nil)
-        
+
         guard retries > 0 else {
             throw SmokeDynamoDBError.concurrencyError(partitionKey: primaryItem.compositePrimaryKey.partitionKey,
                                                     sortKey: primaryItem.compositePrimaryKey.sortKey,
                                                     message: "Unable to complete request to clobber versioned item in specified number of attempts")
         }
-        
+
         func insertOrUpdateItemResultHander(error: Error?) {
             if let theError = error, case SmokeDynamoDBError.conditionalCheckFailed = theError {
                 do {
@@ -160,14 +160,14 @@ public extension DynamoDBTable {
                 completion(error)
             }
         }
-        
+
         func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
             case .response(let existingItemOptional):
                 do {
                     if let existingItem = existingItemOptional {
                         let newItem: TypedDatabaseItem<AttributesType, ItemType> = primaryItemProvider(existingItem)
-                    
+
                         try updateItemWithHistoricalRowAsync(primaryItem: newItem, existingItem: existingItem,
                                                              historicalItem: historicalItemProvider(newItem),
                                                              completion: insertOrUpdateItemResultHander)
@@ -183,10 +183,10 @@ public extension DynamoDBTable {
                 completion(error)
             }
         }
-        
+
         try getItemAsync(forKey: primaryItem.compositePrimaryKey, completion: handleGetItemResult)
     }
-    
+
     /**
       Operations will attempt to update the primary item, repeatedly calling the
       `primaryItemProvider` to retrieve an updated version of the current row
@@ -195,7 +195,7 @@ public extension DynamoDBTable {
       row is unable to be updated. The `historicalItemProvider` is called to
       provide the historical item based on the primary item that was
       inserted into the database table.
- 
+
      - Parameters:
         - compositePrimaryKey: The composite key for the version to update.
         - primaryItemProvider: Function to provide the updated item or throw if the current item can't be updated.
@@ -205,14 +205,14 @@ public extension DynamoDBTable {
         compositePrimaryKey: CompositePrimaryKey<AttributesType>,
         primaryItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
         historicalItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
-        withRetries retries: Int = 10) throws {
-        
+        withRetries retries: Int = 10) throws -> TypedDatabaseItem<AttributesType, ItemType> {
+
         guard retries > 0 else {
             throw SmokeDynamoDBError.concurrencyError(partitionKey: compositePrimaryKey.partitionKey,
                                                     sortKey: compositePrimaryKey.sortKey,
                                                     message: "Unable to complete request to update versioned item in specified number of attempts")
         }
-        
+
         // get the existing item
         guard let existingItem: TypedDatabaseItem<AttributesType, ItemType> =
             try getItemSync(forKey: compositePrimaryKey) else {
@@ -220,14 +220,16 @@ public extension DynamoDBTable {
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
         }
-        
+
         let updatedItem = try primaryItemProvider(existingItem)
         let historicalItem = historicalItemProvider(updatedItem)
-        
+
         do {
             try updateItemWithHistoricalRowSync(primaryItem: updatedItem,
                                             existingItem: existingItem,
                                             historicalItem: historicalItem)
+
+            return updatedItem
         } catch SmokeDynamoDBError.conditionalCheckFailed {
             // try again
             return try conditionallyUpdateItemWithHistoricalRowSync(compositePrimaryKey: compositePrimaryKey,
@@ -236,7 +238,7 @@ public extension DynamoDBTable {
                                                                     withRetries: retries - 1)
         }
     }
-    
+
     /**
       Operations will attempt to update the primary item, repeatedly calling the
       `primaryItemProvider` to retrieve an updated version of the current row
@@ -245,7 +247,7 @@ public extension DynamoDBTable {
       row is unable to be updated. The `historicalItemProvider` is called to
       provide the historical item based on the primary item that was
       inserted into the database table.
- 
+
      - Parameters:
         - compositePrimaryKey: The composite key for the version to update.
         - primaryItemProvider: Function to provide the updated item or throw if the current item can't be updated.
@@ -256,14 +258,14 @@ public extension DynamoDBTable {
         primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
         historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
         withRetries retries: Int = 10,
-        completion: @escaping (Error?) -> ()) throws {
-        
+        completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) throws {
+
         guard retries > 0 else {
             throw SmokeDynamoDBError.concurrencyError(partitionKey: compositePrimaryKey.partitionKey,
                                                     sortKey: compositePrimaryKey.sortKey,
                                                     message: "Unable to complete request to update versioned item in specified number of attempts")
         }
-        
+
         func handleUpdateItemResult(error: Error?) {
             if let theError = error, case SmokeDynamoDBError.conditionalCheckFailed = theError {
                 do {
@@ -274,13 +276,13 @@ public extension DynamoDBTable {
                                                                              withRetries: retries - 1,
                                                                              completion: completion)
                 } catch {
-                    completion(error)
+                    completion( HTTPResult.error( error ) )
                 }
-            } else {
-                completion(error)
+            } else if let theError = error {
+                completion( HTTPResult.error( theError ) )
             }
         }
-        
+
         func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
             case .response(let existingItemOptional):
@@ -288,26 +290,27 @@ public extension DynamoDBTable {
                     let error = SmokeDynamoDBError.conditionalCheckFailed(paritionKey: compositePrimaryKey.partitionKey,
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
-                    
-                    return completion(error)
+
+                    return completion( HTTPResult.error( error ) )
                 }
-                
+
                 do {
                     let updatedItem = try primaryItemProvider(existingItem)
                     let historicalItem = historicalItemProvider(updatedItem)
-                    
+
                     try updateItemWithHistoricalRowAsync(primaryItem: updatedItem,
                                                          existingItem: existingItem,
                                                          historicalItem: historicalItem,
                                                          completion: handleUpdateItemResult)
+                    completion( HTTPResult.response( updatedItem ) )
                 } catch {
-                    completion(error)
+                    completion( HTTPResult.error( error ) )
                 }
             case .error(let error):
-                completion(error)
+                completion( HTTPResult.error( error ) )
             }
         }
-        
+
         try getItemAsync(forKey: compositePrimaryKey, completion: handleGetItemResult)
     }
 }
