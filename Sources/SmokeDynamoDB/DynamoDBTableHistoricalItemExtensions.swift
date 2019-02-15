@@ -240,6 +240,43 @@ public extension DynamoDBTable {
     }
 
     /**
+     Create a completion handler to pass to `updateItemWithHistoricalRowAsync` from
+     `conditionallyUpdateItemWithHistoricalRowAsync`, capturing the current updatedItem and passing it to the outer
+     completion handler when `updateItemWithHistoricalRowAsync` completes with no error.
+     */
+    private func getUpdateItemResultCompletionHandler<AttributesType, ItemType>(
+            forPrimaryKey compositePrimaryKey: CompositePrimaryKey<AttributesType>,
+            updatedItem: TypedDatabaseItem<AttributesType, ItemType>,
+            primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
+            historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
+            withRetries retries: Int,
+            completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) -> (Error?) -> () {
+        func handleUpdateItemResult(error: Error?) {
+            // If there was a failure due to conditionalCheckFailed
+            if let theError = error, case SmokeDynamoDBError.conditionalCheckFailed = theError {
+                do {
+                    // try again
+                    return try conditionallyUpdateItemWithHistoricalRowAsync(forPrimaryKey: compositePrimaryKey,
+                                                                             primaryItemProvider: primaryItemProvider,
+                                                                             historicalItemProvider: historicalItemProvider,
+                                                                             withRetries: retries - 1,
+                                                                             completion: completion)
+                } catch let updateError {
+                    completion(.error(updateError))
+                }
+            // otherwise if there was an error, propagate it to the outer completion handler
+            } else if let theError = error {
+                completion(.error(theError))
+            // otherwise there was no error; call the outer completion handler with the item that was committed to the database
+            } else {
+                completion(.response(updatedItem))
+            }
+        }
+
+        return handleUpdateItemResult
+    }
+
+    /**
       Operations will attempt to update the primary item, repeatedly calling the
       `primaryItemProvider` to retrieve an updated version of the current row
       until the appropriate  `update` operation succeeds. The
@@ -266,23 +303,6 @@ public extension DynamoDBTable {
                                                     message: "Unable to complete request to update versioned item in specified number of attempts")
         }
 
-        func handleUpdateItemResult(error: Error?) {
-            if let theError = error, case SmokeDynamoDBError.conditionalCheckFailed = theError {
-                do {
-                    // try again
-                    return try conditionallyUpdateItemWithHistoricalRowAsync(forPrimaryKey: compositePrimaryKey,
-                                                                             primaryItemProvider: primaryItemProvider,
-                                                                             historicalItemProvider: historicalItemProvider,
-                                                                             withRetries: retries - 1,
-                                                                             completion: completion)
-                } catch {
-                    completion( HTTPResult.error( error ) )
-                }
-            } else if let theError = error {
-                completion( HTTPResult.error( theError ) )
-            }
-        }
-
         func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
             case .response(let existingItemOptional):
@@ -291,23 +311,30 @@ public extension DynamoDBTable {
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
 
-                    return completion( HTTPResult.error( error ) )
+                    return completion( .error( error ) )
                 }
 
                 do {
                     let updatedItem = try primaryItemProvider(existingItem)
                     let historicalItem = historicalItemProvider(updatedItem)
 
+                    let completionHandler = getUpdateItemResultCompletionHandler(
+                        forPrimaryKey: compositePrimaryKey,
+                        updatedItem: updatedItem,
+                        primaryItemProvider: primaryItemProvider,
+                        historicalItemProvider: historicalItemProvider,
+                        withRetries: retries,
+                        completion: completion )
+
                     try updateItemWithHistoricalRowAsync(primaryItem: updatedItem,
                                                          existingItem: existingItem,
                                                          historicalItem: historicalItem,
-                                                         completion: handleUpdateItemResult)
-                    completion( HTTPResult.response( updatedItem ) )
+                                                         completion: completionHandler)
                 } catch {
-                    completion( HTTPResult.error( error ) )
+                    completion( .error( error ) )
                 }
             case .error(let error):
-                completion( HTTPResult.error( error ) )
+                completion( .error( error ) )
             }
         }
 

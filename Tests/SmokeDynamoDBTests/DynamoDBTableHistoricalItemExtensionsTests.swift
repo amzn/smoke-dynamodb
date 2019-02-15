@@ -462,13 +462,17 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         try table.insertItemSync(databaseItem)
 
         var isCompleted = false
-        func completionHandler(result: HTTPResult<DatabaseRowType>) {
+        func completionHandler( result: HTTPResult<DatabaseRowType> ) {
             switch result {
-            case .response(_):
-                isCompleted = true
-            case .error(_):
+            case .response( let result ):
+                // the result returned is the updated item
+                XCTAssertEqual( result.rowStatus.rowVersion, 2 )
+                XCTAssertEqual( result.rowValue.itemVersion, 2 )
+            case .error:
                 XCTFail()
             }
+
+            isCompleted = true
         }
 
         try table.conditionallyUpdateItemWithHistoricalRowAsync(
@@ -526,11 +530,15 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         var isCompleted = false
         func completionHandler(result: HTTPResult<DatabaseRowType>) {
             switch result {
-            case .response(_):
-                isCompleted = true
-            case .error(_):
+            case .response( let result ):
+                // the result returned is the updated item
+                XCTAssertEqual( result.rowStatus.rowVersion, 7 )
+                XCTAssertEqual( result.rowValue.itemVersion, 2 )
+            case .error:
                 XCTFail()
             }
+
+            isCompleted = true
         }
 
         try table.conditionallyUpdateItemWithHistoricalRowAsync(
@@ -594,16 +602,11 @@ class DynamoDBHistoricalClientTests: XCTestCase {
             forPrimaryKey: dKey,
             primaryItemProvider: conditionalUpdatePrimaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider) { result in
-                switch result {
-                case .error(let error):
-                    guard case SmokeDynamoDBError.concurrencyError = error else {
-                        return XCTFail("Expected error not thrown")
-                    }
-
-                    isCompleted = true
-                default:
-                    break
+                guard case let .error(theError) = result, case SmokeDynamoDBError.concurrencyError = theError else {
+                    return XCTFail( "Expected error not thrown" )
                 }
+
+                isCompleted = true
             }
 
         let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
@@ -694,16 +697,11 @@ class DynamoDBHistoricalClientTests: XCTestCase {
             forPrimaryKey: dKey,
             primaryItemProvider: primaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider) { result in
-                switch result {
-                case .error(let error):
-                    guard case TestError.everythingIsWrong = error else {
-                        return XCTFail("Expected error not thrown")
-                    }
-
-                    isCompleted = true
-                default:
-                    break
+                guard case let .error(theError) = result, case TestError.everythingIsWrong = theError else {
+                    return XCTFail( "Expected error not thrown" )
                 }
+
+                isCompleted = true
             }
 
         let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
