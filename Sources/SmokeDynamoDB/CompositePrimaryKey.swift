@@ -18,12 +18,12 @@
 import Foundation
 
 public protocol PrimaryKeyAttributes {
-    static var paritionKeyAttributeName: String { get }
+    static var partitionKeyAttributeName: String { get }
     static var sortKeyAttributeName: String { get }
 }
 
 public struct StandardPrimaryKeyAttributes: PrimaryKeyAttributes {
-    public static var paritionKeyAttributeName: String {
+    public static var partitionKeyAttributeName: String {
         return "PK"
     }
     public static var sortKeyAttributeName: String {
@@ -66,13 +66,13 @@ public struct CompositePrimaryKey<AttributesType: PrimaryKeyAttributes>: Codable
     
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: DynamoDBAttributesTypeCodingKey.self)
-        partitionKey = try values.decode(String.self, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.paritionKeyAttributeName)!)
+        partitionKey = try values.decode(String.self, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.partitionKeyAttributeName)!)
         sortKey = try values.decode(String.self, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.sortKeyAttributeName)!)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: DynamoDBAttributesTypeCodingKey.self)
-        try container.encode(partitionKey, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.paritionKeyAttributeName)!)
+        try container.encode(partitionKey, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.partitionKeyAttributeName)!)
         try container.encode(sortKey, forKey: DynamoDBAttributesTypeCodingKey(stringValue: AttributesType.sortKeyAttributeName)!)
     }
 }

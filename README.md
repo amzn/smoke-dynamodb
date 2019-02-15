@@ -337,7 +337,7 @@ Internally AwsDynamoDBTable uses a custom Decoder and Encoder to serialize types
 
 ```swift
 public struct MyPrimaryKeyAttributes: PrimaryKeyAttributes {
-    public static var paritionKeyAttributeName: String {
+    public static var partitionKeyAttributeName: String {
         return "MyPartitionAttributeName"
     }
     public static var sortKeyAttributeName: String {

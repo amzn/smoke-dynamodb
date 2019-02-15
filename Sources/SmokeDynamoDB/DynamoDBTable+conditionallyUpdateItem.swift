@@ -46,7 +46,7 @@ public extension DynamoDBTable {
         }
         
         guard let databaseItem: TypedDatabaseItem<AttributesType, ItemType> = try getItemSync(forKey: key) else {
-            throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: key.partitionKey,
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
                                                           sortKey: key.sortKey,
                                                           message: "Item not present in database.")
         }
@@ -80,7 +80,7 @@ public extension DynamoDBTable {
             switch result {
             case .response(let databaseItemOptional):
                 guard let databaseItem = databaseItemOptional else {
-                    let error = SmokeDynamoDBError.conditionalCheckFailed(paritionKey: key.partitionKey,
+                    let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
                                                                         sortKey: key.sortKey,
                                                                         message: "Item not present in database.")
                     return completion(error)

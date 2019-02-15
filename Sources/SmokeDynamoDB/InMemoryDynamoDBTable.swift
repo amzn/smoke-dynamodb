@@ -21,7 +21,7 @@ import SmokeHTTPClient
 public protocol PolymorphicDatabaseItemConvertable {
     var createDate: Date { get }
     var rowStatus: RowStatus { get }
-    
+
     func convertToPolymorphicItem<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes>() throws
         -> PolymorphicDatabaseItem<AttributesType, PossibleTypes>
 }
@@ -34,7 +34,7 @@ extension TypedDatabaseItem: PolymorphicDatabaseItemConvertable {
             let context = DecodingError.Context(codingPath: [], debugDescription: description)
             throw DecodingError.typeMismatch(TargetAttributesType.self, context)
         }
-        
+
         return PolymorphicDatabaseItem<TargetAttributesType, PossibleTypes>(compositePrimaryKey: convertedCompositePrimaryKey,
                                                                             createDate: createDate,
                                                                             rowStatus: rowStatus,
@@ -43,179 +43,179 @@ extension TypedDatabaseItem: PolymorphicDatabaseItemConvertable {
 }
 
 public class InMemoryDynamoDBTable: DynamoDBTable {
-    
+
     public var store: [String: [String: PolymorphicDatabaseItemConvertable]] = [:]
-    
+
     public init() {
-        
+
     }
-    
+
     public func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let partition = store[item.compositePrimaryKey.partitionKey]
-        
+
         // if there is already a partition
         var updatedPartition: [String: PolymorphicDatabaseItemConvertable]
         if let partition = partition {
             updatedPartition = partition
-            
+
             // if the row already exists
             if partition[item.compositePrimaryKey.sortKey] != nil {
-                throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: item.compositePrimaryKey.partitionKey,
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
                                                               sortKey: item.compositePrimaryKey.sortKey,
                                                               message: "Row already exists.")
             }
-            
+
             updatedPartition[item.compositePrimaryKey.sortKey] = item
         } else {
             updatedPartition = [item.compositePrimaryKey.sortKey: item]
         }
-        
+
         store[item.compositePrimaryKey.partitionKey] = updatedPartition
     }
-    
+
     public func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                           completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try insertItemSync(item)
-                
+
                 completion(nil)
             } catch {
                 completion(error)
             }
     }
-    
+
     public func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let partition = store[item.compositePrimaryKey.partitionKey]
-        
+
         // if there is already a partition
         var updatedPartition: [String: PolymorphicDatabaseItemConvertable]
         if let partition = partition {
             updatedPartition = partition
-            
+
             updatedPartition[item.compositePrimaryKey.sortKey] = item
         } else {
             updatedPartition = [item.compositePrimaryKey.sortKey: item]
         }
-        
+
         store[item.compositePrimaryKey.partitionKey] = updatedPartition
     }
-    
+
     public func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                            completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try clobberItemSync(item)
-                
+
                 completion(nil)
             } catch {
                 completion(error)
             }
     }
-    
+
     public func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let partition = store[newItem.compositePrimaryKey.partitionKey]
-        
+
         // if there is already a partition
         var updatedPartition: [String: PolymorphicDatabaseItemConvertable]
         if let partition = partition {
             updatedPartition = partition
-            
+
             // if the row already exists
             if let acutallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
                 if existingItem.rowStatus.rowVersion != acutallyExistingItem.rowStatus.rowVersion {
-                    throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: newItem.compositePrimaryKey.partitionKey,
+                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                                   sortKey: newItem.compositePrimaryKey.sortKey,
                                                                   message: "Trying to overwrite incorrect version.")
                 }
             } else {
-                throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: newItem.compositePrimaryKey.partitionKey,
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                               sortKey: newItem.compositePrimaryKey.sortKey,
                                                               message: "Existing item does not exist.")
             }
-            
+
             updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
         } else {
-            throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: newItem.compositePrimaryKey.partitionKey,
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                           sortKey: newItem.compositePrimaryKey.sortKey,
                                                           message: "Existing item does not exist.")
         }
-        
+
         store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
     }
-    
+
     public func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                           existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                           completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 try updateItemSync(newItem: newItem, existingItem: existingItem)
-                
+
                 completion(nil)
             } catch {
                 completion(error)
             }
     }
-    
+
     public func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
         -> TypedDatabaseItem<AttributesType, ItemType>? {
             if let partition = store[key.partitionKey] {
-                
+
                 guard let value = partition[key.sortKey] else {
                     return nil
                 }
-                
+
                 guard let item = value as? TypedDatabaseItem<AttributesType, ItemType> else {
                     let foundType = type(of: value)
                     let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
                     let context = DecodingError.Context(codingPath: [], debugDescription: description)
                     throw DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
                 }
-                
+
                 return item
             }
-            
+
             return nil
     }
-    
+
     public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
                                                        completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 let item: TypedDatabaseItem<AttributesType, ItemType>? = try getItemSync(forKey: key)
-                
+
                 completion(.response(item))
             } catch {
                 completion(.error(error))
             }
     }
-    
+
     public func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
         store[key.partitionKey]?[key.sortKey] = nil
     }
-    
+
     public func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                                 completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             do {
                 try deleteItemSync(forKey: key)
-                
+
                 completion(nil)
             } catch {
                 completion(error)
             }
     }
-    
+
     // swiftlint:disable cyclomatic_complexity
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
-        
+
         if let partition = store[partitionKey] {
             sortKeyIteration: for (sortKey, value) in partition {
-                
+
                 if let currentSortKeyCondition = sortKeyCondition {
                     switch currentSortKeyCondition {
                     case .equals(let value):
@@ -255,14 +255,14 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                         }
                     }
                 }
-                
+
                 items.append(try value.convertToPolymorphicItem())
             }
         }
-        
+
         return items
     }
-    
+
     public func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
@@ -272,13 +272,13 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] =
                     try querySync(forPartitionKey: partitionKey,
                                   sortKeyCondition: sortKeyCondition)
-                
+
                 completion(.response(items))
             } catch {
                 completion(.error(error))
             }
     }
-    
+
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?,
                                                          limit: Int,
@@ -289,19 +289,19 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
             let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = try querySync(
                 forPartitionKey: partitionKey,
                 sortKeyCondition: sortKeyCondition)
-            
+
             let startIndex: Int
             // if there is an exclusiveStartKey
             if let exclusiveStartKey = exclusiveStartKey {
                 guard let storedStartIndex = Int(exclusiveStartKey) else {
                     fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
                 }
-                
+
                 startIndex = storedStartIndex
             } else {
                 startIndex = 0
             }
-            
+
             let endIndex: Int
             let lastEvaluatedKey: String?
             if startIndex + limit < items.count {
@@ -311,10 +311,10 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                 endIndex = items.count
                 lastEvaluatedKey = nil
             }
-            
+
             return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
     }
-    
+
     private func getItemAsPolymorphicDatabaseItemConvertable<ConvertableType>(value: Any) throws
         -> ConvertableType where ConvertableType: PolymorphicDatabaseItemConvertable {
         guard let polymorphicDatabaseItemConvertable = value as? ConvertableType else {
@@ -322,10 +322,10 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
             let context = DecodingError.Context(codingPath: [], debugDescription: description)
             throw DecodingError.typeMismatch(ConvertableType.self, context)
         }
-        
+
         return polymorphicDatabaseItemConvertable
     }
-    
+
     public func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
@@ -339,7 +339,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                                   sortKeyCondition: sortKeyCondition,
                                   limit: limit,
                                   exclusiveStartKey: exclusiveStartKey)
-                
+
                 completion(.response(result))
             } catch {
                 completion(.error(error))
