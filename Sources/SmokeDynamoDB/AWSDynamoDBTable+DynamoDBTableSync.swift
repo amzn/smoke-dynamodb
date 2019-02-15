@@ -135,7 +135,7 @@ public extension AWSDynamoDBTable {
         do {
             _ = try dynamodb.putItemSync(input: putItemInput)
         } catch DynamoDBError.conditionalCheckFailed(let errorPayload) {
-            throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: compositePrimaryKey.partitionKey,
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                           sortKey: compositePrimaryKey.sortKey,
                                                           message: errorPayload.message)
         } catch {

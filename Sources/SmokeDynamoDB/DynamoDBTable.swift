@@ -23,7 +23,7 @@ import SmokeHTTPClient
  */
 public enum SmokeDynamoDBError: Error {
     case databaseError(reason: String)
-    case conditionalCheckFailed(paritionKey: String, sortKey: String, message: String?)
+    case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
     case typeMismatch(expected: String, provided: String)
     case unexpectedType(provided: String)
     case concurrencyError(partitionKey: String, sortKey: String, message: String?)
@@ -44,53 +44,53 @@ public enum AttributeCondition {
 }
 
 public protocol DynamoDBTable {
-    
+
     /**
      * Insert item is a non-destructive API. If an item already exists with the specified key this
      * API should fail.
      */
     func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
-    
+
     func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                    completion: @escaping (Error?) -> ()) throws
-    
+
     /**
      * Clobber item is destructive API. Regardless of what is present in the database the provided
      * item will be inserted.
      */
     func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
-    
+
     func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                     completion: @escaping (Error?) -> ()) throws
-    
+
     /**
      * Update item requires having gotten an item from the database previously and will not update
      * if the item at the specified key is not the existing item provided.
      */
     func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
-    
+
     func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                    existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                    completion: @escaping (Error?) -> ()) throws
-    
+
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
     func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> TypedDatabaseItem<AttributesType, ItemType>?
-    
+
     func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
                                                 completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
-    
+
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response.
      */
     func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws
-    
+
     func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                          completion: @escaping (Error?) -> ()) throws
-    
+
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
@@ -100,12 +100,12 @@ public protocol DynamoDBTable {
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                   sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>]
-    
+
     func queryAsync<AttributesType, PossibleTypes>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
-    
+
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
@@ -116,7 +116,7 @@ public protocol DynamoDBTable {
                                                   limit: Int,
                                                   exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
-    
+
     func queryAsync<AttributesType, PossibleTypes>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,

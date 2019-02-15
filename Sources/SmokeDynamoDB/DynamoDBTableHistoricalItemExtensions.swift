@@ -216,7 +216,7 @@ public extension DynamoDBTable {
         // get the existing item
         guard let existingItem: TypedDatabaseItem<AttributesType, ItemType> =
             try getItemSync(forKey: compositePrimaryKey) else {
-                throw SmokeDynamoDBError.conditionalCheckFailed(paritionKey: compositePrimaryKey.partitionKey,
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
         }
@@ -287,7 +287,7 @@ public extension DynamoDBTable {
             switch result {
             case .response(let existingItemOptional):
                 guard let existingItem = existingItemOptional else {
-                    let error = SmokeDynamoDBError.conditionalCheckFailed(paritionKey: compositePrimaryKey.partitionKey,
+                    let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
 

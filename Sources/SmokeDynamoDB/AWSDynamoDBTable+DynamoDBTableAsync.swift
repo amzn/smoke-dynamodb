@@ -214,7 +214,7 @@ public extension AWSDynamoDBTable {
                 case .error(let error):
                     switch error {
                     case DynamoDBError.conditionalCheckFailed(let errorPayload):
-                        completion(SmokeDynamoDBError.conditionalCheckFailed(paritionKey: compositePrimaryKey.partitionKey,
+                        completion(SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                                            sortKey: compositePrimaryKey.sortKey,
                                                                            message: errorPayload.message))
                     default:
