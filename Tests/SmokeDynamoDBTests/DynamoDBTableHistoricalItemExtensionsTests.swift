@@ -438,15 +438,21 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = testPrimaryItemProvider(nil)
         try table.insertItemSync(databaseItem)
 
-        let inserted = try table.conditionallyUpdateItemWithHistoricalRowSync(
+        let updated = try table.conditionallyUpdateItemWithHistoricalRowSync(
             compositePrimaryKey: dKey,
             primaryItemProvider: conditionalUpdatePrimaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider)
 
+        let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
         XCTAssertEqual(inserted.rowValue.rowValue.firstly, "firstly_1")
         XCTAssertEqual(inserted.rowValue.rowValue.secondly, "secondly_1")
         XCTAssertEqual(inserted.rowStatus.rowVersion, 2)
         XCTAssertEqual(inserted.rowValue.itemVersion, 2)
+
+        XCTAssertEqual(updated.rowValue.rowValue.firstly, inserted.rowValue.rowValue.firstly)
+        XCTAssertEqual(updated.rowValue.rowValue.secondly, inserted.rowValue.rowValue.secondly)
+        XCTAssertEqual(updated.rowStatus.rowVersion, inserted.rowStatus.rowVersion)
+        XCTAssertEqual(updated.rowValue.itemVersion, inserted.rowValue.itemVersion)
 
         let historicalInserted: DatabaseRowType = (try table.getItemSync(forKey: historicalCompositePrimaryKey))!
         XCTAssertEqual(historicalInserted.rowValue.rowValue.firstly, "firstly_1")
@@ -504,18 +510,24 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = testPrimaryItemProvider(nil)
         try table.insertItemSync(databaseItem)
 
-        let updatedItem = try table.conditionallyUpdateItemWithHistoricalRowSync(
+        let updated = try table.conditionallyUpdateItemWithHistoricalRowSync(
             compositePrimaryKey: dKey,
             primaryItemProvider: conditionalUpdatePrimaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider)
 
-        XCTAssertEqual(updatedItem.rowValue.rowValue.firstly, "firstly_6")
-        XCTAssertEqual(updatedItem.rowValue.rowValue.secondly, "secondly_6")
+        let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
+        XCTAssertEqual(inserted.rowValue.rowValue.firstly, "firstly_6")
+        XCTAssertEqual(inserted.rowValue.rowValue.secondly, "secondly_6")
         // the row version has been updated by the SimulateConcurrencyDynamoDBTable an
         // additional 5 fives, item updated by conditionallyUpdateItemWithHistoricalRow
         // (which increments itemVersion) only once
-        XCTAssertEqual(updatedItem.rowStatus.rowVersion, 7)
-        XCTAssertEqual(updatedItem.rowValue.itemVersion, 2)
+        XCTAssertEqual(inserted.rowStatus.rowVersion, 7)
+        XCTAssertEqual(inserted.rowValue.itemVersion, 2)
+
+        XCTAssertEqual(updated.rowValue.rowValue.firstly, inserted.rowValue.rowValue.firstly)
+        XCTAssertEqual(updated.rowValue.rowValue.secondly, inserted.rowValue.rowValue.secondly)
+        XCTAssertEqual(updated.rowStatus.rowVersion, inserted.rowStatus.rowVersion)
+        XCTAssertEqual(updated.rowValue.itemVersion, inserted.rowValue.itemVersion)
     }
 
     func testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrencyAsync() throws {
