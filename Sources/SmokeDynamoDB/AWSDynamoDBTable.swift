@@ -40,14 +40,16 @@ public class AWSDynamoDBTable: DynamoDBTable {
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, endpointHostName: String,
-                tableName: String) {
+                tableName: String,
+                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
 
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
                                           awsRegion: region,
-                                          endpointHostName: endpointHostName)
+                                          endpointHostName: endpointHostName,
+                                          eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
         Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
@@ -55,10 +57,12 @@ public class AWSDynamoDBTable: DynamoDBTable {
 
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion, endpointHostName: String,
-                tableName: String) {
+                tableName: String,
+                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                           awsRegion: region,
-                                          endpointHostName: endpointHostName)
+                                          endpointHostName: endpointHostName,
+                                          eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
         Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
