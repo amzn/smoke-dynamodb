@@ -17,6 +17,24 @@
 
 SmokeDynamoDB is a library to make it easy to use DynamoDB from Swift-based applications, with a particular focus on usage with polymorphic database tables (tables that don't have a single schema for all rows.
 
+# Getting Started
+
+## Step 1: Add the SmokeDynamoDB dependency
+
+SmokeDynamoDB uses the Swift Package Manager. To use the framework, add the following dependency
+to your Package.swift-
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/amzn/smoke-dynamodb.git", .upToNextMajor(from: "1.0.0"))
+]
+
+
+.target(
+    name: ...,
+    dependencies: [..., "SmokeDynamoDB"]),
+```
+
 # Basic Usage
 
 ## Naming Schema
