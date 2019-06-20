@@ -21,7 +21,7 @@ public protocol PossibleItemTypes {
     static var types: [Codable.Type] { get }
 }
 
-public struct PolymorphicDatabaseItem<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes> : Decodable {
+public struct PolymorphicDatabaseItem<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes>: Decodable {
     public let compositePrimaryKey: CompositePrimaryKey<AttributesType>
     public let createDate: Date
     public let rowStatus: RowStatus

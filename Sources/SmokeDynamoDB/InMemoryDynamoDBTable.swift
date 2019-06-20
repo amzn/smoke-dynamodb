@@ -1,3 +1,4 @@
+// swiftlint:disable cyclomatic_complexity
 // Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License").
@@ -207,14 +208,17 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
             }
     }
 
-    // swiftlint:disable cyclomatic_complexity
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
 
         if let partition = store[partitionKey] {
-            sortKeyIteration: for (sortKey, value) in partition {
+            let sortedPartition = partition.sorted(by: { (left, right) -> Bool in
+                return left.key < right.key
+            })
+            
+            sortKeyIteration: for (sortKey, value) in sortedPartition {
 
                 if let currentSortKeyCondition = sortKeyCondition {
                     switch currentSortKeyCondition {
