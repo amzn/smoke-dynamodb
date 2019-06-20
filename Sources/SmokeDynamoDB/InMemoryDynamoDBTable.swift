@@ -214,7 +214,11 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
 
         if let partition = store[partitionKey] {
-            sortKeyIteration: for (sortKey, value) in partition {
+            let sortedPartition = partition.sorted(by: { (left, right) -> Bool in
+                return left.key < right.key
+            })
+            
+            sortKeyIteration: for (sortKey, value) in sortedPartition {
 
                 if let currentSortKeyCondition = sortKeyCondition {
                     switch currentSortKeyCondition {

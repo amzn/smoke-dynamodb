@@ -103,9 +103,10 @@ public extension AWSDynamoDBTable {
                                                          exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
         where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            let queryInput = try getQueryInput(forPartitionKey: partitionKey, primaryKeyType: AttributesType.self,
-                                           sortKeyCondition: sortKeyCondition, limit: limit,
-                                           exclusiveStartKey: exclusiveStartKey)
+            let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
+                                                                              primaryKeyType: AttributesType.self,
+                                                                              sortKeyCondition: sortKeyCondition, limit: limit,
+                                                                              exclusiveStartKey: exclusiveStartKey)
             let queryOutput = try dynamodb.querySync(input: queryInput)
             
             let lastEvaluatedKey: String?

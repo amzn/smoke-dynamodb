@@ -20,6 +20,13 @@ import Foundation
 public protocol PrimaryKeyAttributes {
     static var partitionKeyAttributeName: String { get }
     static var sortKeyAttributeName: String { get }
+    static var indexName: String? { get }
+}
+
+public extension PrimaryKeyAttributes {
+    static var indexName: String? {
+        return nil
+    }
 }
 
 public struct StandardPrimaryKeyAttributes: PrimaryKeyAttributes {
