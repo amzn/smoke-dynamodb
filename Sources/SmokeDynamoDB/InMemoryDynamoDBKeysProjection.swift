@@ -102,9 +102,9 @@ public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
     }
 
     public func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?,
-                                                         limit: Int?,
-                                                         exclusiveStartKey: String?) throws
+                                          sortKeyCondition: AttributeCondition?,
+                                          limit: Int?,
+                                          exclusiveStartKey: String?) throws
         -> ([CompositePrimaryKey<AttributesType>], String?)
         where AttributesType: PrimaryKeyAttributes {
             // get all the results

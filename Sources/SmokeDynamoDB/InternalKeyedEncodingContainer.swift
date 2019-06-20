@@ -18,7 +18,7 @@
 import Foundation
 import DynamoDBModel
 
-internal struct InternalKeyedEncodingContainer<K: CodingKey> : KeyedEncodingContainerProtocol {
+internal struct InternalKeyedEncodingContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
     typealias Key = K
 
     private let enclosingContainer: InternalSingleValueEncodingContainer

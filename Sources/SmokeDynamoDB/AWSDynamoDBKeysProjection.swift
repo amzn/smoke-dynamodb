@@ -82,4 +82,3 @@ public class AWSDynamoDBKeysProjection: DynamoDBKeysProjection {
         dynamodb.wait()
     }
 }
-

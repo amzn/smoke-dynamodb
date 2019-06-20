@@ -84,4 +84,3 @@ public extension AWSDynamoDBKeysProjection {
             }
     }
 }
-

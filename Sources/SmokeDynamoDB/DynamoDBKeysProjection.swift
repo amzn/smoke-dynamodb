@@ -31,7 +31,7 @@ public protocol DynamoDBKeysProjection {
        the query.
      */
     func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                                  sortKeyCondition: AttributeCondition?) throws
+                                   sortKeyCondition: AttributeCondition?) throws
         -> [CompositePrimaryKey<AttributesType>]
 
     func queryAsync<AttributesType>(
@@ -45,9 +45,9 @@ public protocol DynamoDBKeysProjection {
        function will return paginated results based on the limit and exclusiveStartKey provided.
      */
     func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                                  sortKeyCondition: AttributeCondition?,
-                                                  limit: Int?,
-                                                  exclusiveStartKey: String?) throws
+                                   sortKeyCondition: AttributeCondition?,
+                                   limit: Int?,
+                                   exclusiveStartKey: String?) throws
         -> ([CompositePrimaryKey<AttributesType>], String?)
 
     func queryAsync<AttributesType>(
