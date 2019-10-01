@@ -24,13 +24,13 @@ import LoggerAPI
 /// DynamoDBTable conformance sync functions
 public extension AWSDynamoDBTable {
     
-    public func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let putItemInput = try getInputForInsert(item)
         
         try putItemSync(forInput: putItemInput, withKey: item.compositePrimaryKey)
     }
     
-    public func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let attributes = try getAttributes(forItem: item)
         
         let putItemInput = DynamoDBModel.PutItemInput(item: attributes,
@@ -39,14 +39,14 @@ public extension AWSDynamoDBTable {
         try putItemSync(forInput: putItemInput, withKey: item.compositePrimaryKey)
     }
     
-    public func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+    func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let putItemInput = try getInputForUpdateItem(newItem: newItem, existingItem: existingItem)
         
         try putItemSync(forInput: putItemInput, withKey: newItem.compositePrimaryKey)
     }
     
-    public func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
+    func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
         -> TypedDatabaseItem<AttributesType, ItemType>? {
             let putItemInput = try getInputForGetItem(forKey: key)
             
@@ -64,14 +64,14 @@ public extension AWSDynamoDBTable {
             }
     }
     
-    public func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
+    func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
         let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
         Log.verbose("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
         _ = try dynamodb.deleteItemSync(input: deleteItemInput)
     }
     
-    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
+    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
           
@@ -97,7 +97,7 @@ public extension AWSDynamoDBTable {
         }
     }
     
-    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
+    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?,
                                                          limit: Int,
                                                          exclusiveStartKey: String?) throws

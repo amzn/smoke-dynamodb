@@ -20,13 +20,13 @@ import Foundation
 /// Extension for Arrays of Strings
 public extension Array where Element == String {
     // Transforms the Array into a Dynamo key - putting dots between each element.
-    public var dynamodbKey: String {
+    var dynamodbKey: String {
         // return all elements joined with dots
         return self.joined(separator: ".")
     }
 
     // Transforms an Array into a DynamoDB key prefix - a DynamoDB key with a dot on the end.
-    public var dynamodbKeyPrefix: String {
+    var dynamodbKeyPrefix: String {
         
         let dynamodbKey = self.dynamodbKey
         if dynamodbKey.count == 0 {
