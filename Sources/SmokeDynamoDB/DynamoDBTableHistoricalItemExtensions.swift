@@ -27,14 +27,14 @@ public extension DynamoDBTable {
      * rows in a single call.
      */
     func insertItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+                                                                   historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try insertItemSync(primaryItem)
         try insertItemSync(historicalItem)
     }
 
     func insertItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           completion: @escaping (Error?) -> ()) throws {
+                                                                    historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    completion: @escaping (Error?) -> ()) throws {
         try insertItemAsync(primaryItem) { error in
             if let error = error {
                 return completion(error)
@@ -49,16 +49,16 @@ public extension DynamoDBTable {
     }
 
     func updateItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+                                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                   historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try updateItemSync(newItem: primaryItem, existingItem: existingItem)
         try insertItemSync(historicalItem)
     }
 
     func updateItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           completion: @escaping (Error?) -> ()) throws {
+                                                                    existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    completion: @escaping (Error?) -> ()) throws {
         try updateItemAsync(newItem: primaryItem, existingItem: existingItem) { error in
             if let error = error {
                 return completion(error)

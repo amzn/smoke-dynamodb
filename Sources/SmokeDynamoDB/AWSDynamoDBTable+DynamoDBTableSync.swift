@@ -40,7 +40,7 @@ public extension AWSDynamoDBTable {
     }
     
     func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                         existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let putItemInput = try getInputForUpdateItem(newItem: newItem, existingItem: existingItem)
         
         try putItemSync(forInput: putItemInput, withKey: newItem.compositePrimaryKey)
@@ -72,7 +72,7 @@ public extension AWSDynamoDBTable {
     }
     
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?) throws
+                                                  sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
           
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
@@ -98,9 +98,9 @@ public extension AWSDynamoDBTable {
     }
     
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?,
-                                                         limit: Int,
-                                                         exclusiveStartKey: String?) throws
+                                                  sortKeyCondition: AttributeCondition?,
+                                                  limit: Int,
+                                                  exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
         where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,

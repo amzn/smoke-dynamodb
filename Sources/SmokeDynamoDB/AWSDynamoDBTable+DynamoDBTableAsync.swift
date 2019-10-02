@@ -25,7 +25,7 @@ import LoggerAPI
 public extension AWSDynamoDBTable {
     
     func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
+                                                   completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForInsert(item)
         
@@ -34,7 +34,7 @@ public extension AWSDynamoDBTable {
     }
     
     func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                           completion: @escaping (Error?) -> ())
+                                                    completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let attributes = try getAttributes(forItem: item)
         
@@ -45,8 +45,8 @@ public extension AWSDynamoDBTable {
     }
     
     func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
+                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                   completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForUpdateItem(newItem: newItem, existingItem: existingItem)
         
@@ -54,7 +54,7 @@ public extension AWSDynamoDBTable {
     }
     
     func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+                                                completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForGetItem(forKey: key)
             
@@ -84,7 +84,7 @@ public extension AWSDynamoDBTable {
     }
     
     func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (Error?) -> ())
+                                         completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
