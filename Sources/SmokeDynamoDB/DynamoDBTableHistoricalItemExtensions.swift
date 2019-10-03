@@ -26,15 +26,15 @@ public extension DynamoDBTable {
      * Historical items exist across multiple rows. This method provides an interface to record all
      * rows in a single call.
      */
-    public func insertItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    func insertItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                   historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try insertItemSync(primaryItem)
         try insertItemSync(historicalItem)
     }
 
-    public func insertItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           completion: @escaping (Error?) -> ()) throws {
+    func insertItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    completion: @escaping (Error?) -> ()) throws {
         try insertItemAsync(primaryItem) { error in
             if let error = error {
                 return completion(error)
@@ -48,17 +48,17 @@ public extension DynamoDBTable {
         }
     }
 
-    public func updateItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                          historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    func updateItemWithHistoricalRowSync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                   historicalItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try updateItemSync(newItem: primaryItem, existingItem: existingItem)
         try insertItemSync(historicalItem)
     }
 
-    public func updateItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                           completion: @escaping (Error?) -> ()) throws {
+    func updateItemWithHistoricalRowAsync<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                    completion: @escaping (Error?) -> ()) throws {
         try updateItemAsync(newItem: primaryItem, existingItem: existingItem) { error in
             if let error = error {
                 return completion(error)
@@ -84,7 +84,7 @@ public extension DynamoDBTable {
      * Clobbering a historical item requires knowledge of existing rows to accurately record
      * historical data.
      */
-    public func clobberItemWithHistoricalRowSync<AttributesType, ItemType>(
+    func clobberItemWithHistoricalRowSync<AttributesType, ItemType>(
             primaryItemProvider: (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) throws {
@@ -132,7 +132,7 @@ public extension DynamoDBTable {
      * Clobbering a historical item requires knowledge of existing rows to accurately record
      * historical data.
      */
-    public func clobberItemWithHistoricalRowAsync<AttributesType, ItemType>(
+    func clobberItemWithHistoricalRowAsync<AttributesType, ItemType>(
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10,
@@ -201,7 +201,7 @@ public extension DynamoDBTable {
         - primaryItemProvider: Function to provide the updated item or throw if the current item can't be updated.
         - historicalItemProvider: Function to provide the historical item for the primary item.
      */
-    public func conditionallyUpdateItemWithHistoricalRowSync<AttributesType, ItemType>(
+    func conditionallyUpdateItemWithHistoricalRowSync<AttributesType, ItemType>(
         compositePrimaryKey: CompositePrimaryKey<AttributesType>,
         primaryItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
         historicalItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
@@ -290,7 +290,7 @@ public extension DynamoDBTable {
         - primaryItemProvider: Function to provide the updated item or throw if the current item can't be updated.
         - historicalItemProvider: Function to provide the historical item for the primary item.
      */
-    public func conditionallyUpdateItemWithHistoricalRowAsync<AttributesType, ItemType>(
+    func conditionallyUpdateItemWithHistoricalRowAsync<AttributesType, ItemType>(
         forPrimaryKey compositePrimaryKey: CompositePrimaryKey<AttributesType>,
         primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
         historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,

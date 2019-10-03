@@ -34,7 +34,7 @@ public extension DynamoDBTable {
          withRetries: the number of times to attempt to retry the update before failing.
          updatedPayloadProvider: the provider that will return updated payloads.
      */
-    public func conditionallyUpdateItemSync<AttributesType, ItemType: Codable>(
+    func conditionallyUpdateItemSync<AttributesType, ItemType: Codable>(
         forKey key: CompositePrimaryKey<AttributesType>,
         withRetries retries: Int = 10,
         updatedPayloadProvider: (ItemType) throws -> ItemType) throws {
@@ -64,7 +64,7 @@ public extension DynamoDBTable {
         }
     }
     
-    public func conditionallyUpdateItemAsync<AttributesType, ItemType: Codable>(
+    func conditionallyUpdateItemAsync<AttributesType, ItemType: Codable>(
         forKey key: CompositePrimaryKey<AttributesType>,
         withRetries retries: Int = 10,
         updatedPayloadProvider: @escaping (ItemType) throws -> ItemType,

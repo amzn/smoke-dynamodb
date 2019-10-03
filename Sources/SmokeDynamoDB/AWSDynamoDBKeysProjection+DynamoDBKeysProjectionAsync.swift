@@ -24,7 +24,7 @@ import LoggerAPI
 /// DynamoDBKeysProjection conformance async functions
 public extension AWSDynamoDBKeysProjection {
     
-    public func queryAsync<AttributesType>(
+    func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         completion: @escaping (HTTPResult<[CompositePrimaryKey<AttributesType>]>) -> ())
@@ -76,7 +76,7 @@ public extension AWSDynamoDBKeysProjection {
                           completion: handleQueryResult)
     }
     
-    public func queryAsync<AttributesType>(
+    func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         limit: Int?,

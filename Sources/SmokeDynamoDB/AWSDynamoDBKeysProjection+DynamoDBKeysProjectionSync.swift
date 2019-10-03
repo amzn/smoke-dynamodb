@@ -24,8 +24,8 @@ import LoggerAPI
 /// DynamoDBKeysProjection conformance sync functions
 public extension AWSDynamoDBKeysProjection {
     
-    public func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?) throws
+    func querySync<AttributesType>(forPartitionKey partitionKey: String,
+                                   sortKeyCondition: AttributeCondition?) throws
         -> [CompositePrimaryKey<AttributesType>] {
           
         var items: [CompositePrimaryKey<AttributesType>] = []
@@ -50,10 +50,10 @@ public extension AWSDynamoDBKeysProjection {
         }
     }
     
-    public func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?,
-                                          limit: Int?,
-                                          exclusiveStartKey: String?) throws
+    func querySync<AttributesType>(forPartitionKey partitionKey: String,
+                                   sortKeyCondition: AttributeCondition?,
+                                   limit: Int?,
+                                   exclusiveStartKey: String?) throws
         -> ([CompositePrimaryKey<AttributesType>], String?)
         where AttributesType: PrimaryKeyAttributes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,

@@ -24,8 +24,8 @@ import LoggerAPI
 /// DynamoDBTable conformance async functions
 public extension AWSDynamoDBTable {
     
-    public func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
+    func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                   completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForInsert(item)
         
@@ -33,8 +33,8 @@ public extension AWSDynamoDBTable {
                              completion: completion)
     }
     
-    public func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                           completion: @escaping (Error?) -> ())
+    func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                    completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let attributes = try getAttributes(forItem: item)
         
@@ -44,17 +44,17 @@ public extension AWSDynamoDBTable {
             try putItemAsync(forInput: putItemInput, withKey: item.compositePrimaryKey, completion: completion)
     }
     
-    public func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
+    func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                   completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForUpdateItem(newItem: newItem, existingItem: existingItem)
         
             try putItemAsync(forInput: putItemInput, withKey: newItem.compositePrimaryKey, completion: completion)
     }
     
-    public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+    func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                                completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForGetItem(forKey: key)
             
@@ -83,8 +83,8 @@ public extension AWSDynamoDBTable {
             }
     }
     
-    public func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (Error?) -> ())
+    func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                         completion: @escaping (Error?) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
@@ -100,7 +100,7 @@ public extension AWSDynamoDBTable {
             }
     }
     
-    public func queryAsync<AttributesType, PossibleTypes>(
+    func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
@@ -152,7 +152,7 @@ public extension AWSDynamoDBTable {
                           completion: handleQueryResult)
     }
     
-    public func queryAsync<AttributesType, PossibleTypes>(
+    func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             limit: Int, exclusiveStartKey: String?,

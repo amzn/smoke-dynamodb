@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
           "branch": null,
-          "revision": "c868898a601a2e7484377ba18b18fa215719cef9",
-          "version": "1.19.9"
+          "revision": "36a4d11942ed209129427185c25dabb03007eb92",
+          "version": "1.25.3"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
           "branch": null,
-          "revision": "60bc2c4c88700ff46f2cfd1f766c4ac8319488a9",
-          "version": "1.0.0"
+          "revision": "705553c6f59d15f8b9fe2fd458a0ad3755ef9bc4",
+          "version": "1.0.1"
         }
       },
       {
@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
           "branch": null,
-          "revision": "f4240bf022a69815241a883c03645444b58ac553",
-          "version": "1.1.0"
+          "revision": "eba9b323b5ba542c119ff17382a4ce737bcdc0b8",
+          "version": "0.0.0"
         }
       },
       {
@@ -78,8 +78,8 @@
         "repositoryURL": "https://github.com/LiveUI/XMLCoding.git",
         "state": {
           "branch": null,
-          "revision": "8c760e960a5e53a5338c2871c4fcdf06b8c5ace4",
-          "version": "0.4.0"
+          "revision": "f0fbfe17e73f329e13a6133ff5437f7b174049fd",
+          "version": "0.4.1"
         }
       }
     ]

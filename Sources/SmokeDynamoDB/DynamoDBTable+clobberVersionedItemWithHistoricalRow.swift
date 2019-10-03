@@ -34,7 +34,7 @@ public extension DynamoDBTable {
         - generateSortKey: generator to provide a sort key for a provided
                            version number.
      */
-    public func clobberVersionedItemWithHistoricalRowSync<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
+    func clobberVersionedItemWithHistoricalRowSync<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
         forPrimaryKey partitionKey: String,
         andHistoricalKey historicalKey: String,
         item: ItemType,
@@ -87,7 +87,7 @@ public extension DynamoDBTable {
                            version number.
      - completion: completion handler providing an error that was thrown or nil
      */
-    public func clobberVersionedItemWithHistoricalRowAsync<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
+    func clobberVersionedItemWithHistoricalRowAsync<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
         forPrimaryKey partitionKey: String,
         andHistoricalKey historicalKey: String,
         item: ItemType,
