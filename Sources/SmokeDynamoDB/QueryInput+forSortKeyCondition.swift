@@ -24,6 +24,7 @@ extension QueryInput {
                                                                  primaryKeyType: AttributesType.Type,
                                                                  sortKeyCondition: AttributeCondition?,
                                                                  limit: Int?,
+                                                                 scanIndexForward: Bool,
                                                                  exclusiveStartKey: String?) throws
         -> DynamoDBModel.QueryInput where AttributesType: PrimaryKeyAttributes {
         let expressionAttributeValues: [String: DynamoDBModel.AttributeValue]
@@ -73,7 +74,7 @@ extension QueryInput {
 
         let inputExclusiveStartKey: [String: DynamoDBModel.AttributeValue]?
         if let exclusiveStartKey = exclusiveStartKey?.data(using: .utf8) {
-            inputExclusiveStartKey = try AWSDynamoDBTable.jsonDecoder.decode([String: DynamoDBModel.AttributeValue].self,
+            inputExclusiveStartKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonDecoder.decode([String: DynamoDBModel.AttributeValue].self,
                                                             from: exclusiveStartKey)
         } else {
             inputExclusiveStartKey = nil
@@ -85,6 +86,7 @@ extension QueryInput {
                                         indexName: primaryKeyType.indexName,
                                         keyConditionExpression: keyConditionExpression,
                                         limit: limit,
+                                        scanIndexForward: scanIndexForward,
                                         tableName: targetTableName)
     }
 }

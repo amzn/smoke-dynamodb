@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  DynamoDBTableHistoricalItemExtensionsTests.swift
+//  DynamoDBCompositePrimaryKeyTableHistoricalItemExtensionsTests.swift
 //      DynamoDB Historical Client Extension Tests
 //  SmokeDynamoDBTests
 //
@@ -42,6 +42,12 @@ fileprivate func primaryItemProviderProvider(_ defaultItem: DatabaseRowType) ->
     return primaryItemProvider
 }
 
+let dKey = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
+let dPayload = TestTypeA(firstly: "firstly", secondly: "secondly")
+let dVersionedPayload = RowWithItemVersion.newItem(withValue: dPayload)
+
+let defaultItem = StandardTypedDatabaseItem.newItem(withKey: dKey, andValue: dVersionedPayload)
+
 private let testPrimaryItemProvider = primaryItemProviderProvider(defaultItem)
 
 fileprivate func testHistoricalItemProvider(_ item: DatabaseRowType) -> DatabaseRowType {
@@ -51,7 +57,7 @@ fileprivate func testHistoricalItemProvider(_ item: DatabaseRowType) -> Database
                                    andValue: item.rowValue)
 }
 
-class DynamoDBHistoricalClientTests: XCTestCase {
+class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
 
     func testInsertItemSuccessSync() throws {
 
@@ -62,7 +68,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
         let inserted : DatabaseRowType = try table.getItemSync(forKey: databaseItem.compositePrimaryKey)!
@@ -79,7 +85,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         var isCompleted = false
         func completionHandler(error: Error?) {
@@ -106,7 +112,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
 
@@ -128,7 +134,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         var isInsert1Completed = false
         func completionHandler(error: Error?) {
@@ -164,7 +170,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
 
@@ -185,7 +191,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         var isInsertCompleted = false
         func insertCompletionHandler(error: Error?) {
@@ -229,7 +235,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
 
@@ -255,7 +261,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: versionedPayload)
         let historicalItem = testHistoricalItemProvider(databaseItem)
 
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         var isInsertCompleted = false
         func insertCompletionHandler(error: Error?) {
@@ -301,7 +307,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testClobberItemSuccessSync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         let databaseItem = testPrimaryItemProvider(nil)
 
@@ -312,7 +318,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testClobberItemSuccessAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         let databaseItem = testPrimaryItemProvider(nil)
 
@@ -338,8 +344,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
 
         let databaseItem = testPrimaryItemProvider(nil)
 
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5)
 
         try table.clobberItemWithHistoricalRowSync(primaryItemProvider: testPrimaryItemProvider,
@@ -352,8 +358,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
 
         let databaseItem = testPrimaryItemProvider(nil)
 
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5)
 
         var isCompleted = false
@@ -375,8 +381,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
 
     func testClobberItemFailureSync() throws {
 
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 12)
 
         do {
@@ -393,8 +399,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
 
     func testClobberItemFailureAsync() throws {
 
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 12)
 
         var isCompleted = false
@@ -427,7 +433,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowSync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         let databaseItem = testPrimaryItemProvider(nil)
         try table.insertItemSync(databaseItem)
@@ -456,7 +462,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
 
         let databaseItem = testPrimaryItemProvider(nil)
         try table.insertItemSync(databaseItem)
@@ -496,8 +502,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrencySync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
 
@@ -512,7 +518,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
         XCTAssertEqual(inserted.rowValue.rowValue.firstly, "firstly_6")
         XCTAssertEqual(inserted.rowValue.rowValue.secondly, "secondly_6")
-        // the row version has been updated by the SimulateConcurrencyDynamoDBTable an
+        // the row version has been updated by the SimulateConcurrencyDynamoDBCompositePrimaryKeyTable an
         // additional 5 fives, item updated by conditionallyUpdateItemWithHistoricalRow
         // (which increments itemVersion) only once
         XCTAssertEqual(inserted.rowStatus.rowVersion, 7)
@@ -525,8 +531,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrencyAsync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
 
@@ -555,7 +561,7 @@ class DynamoDBHistoricalClientTests: XCTestCase {
         let inserted: DatabaseRowType = (try table.getItemSync(forKey: databaseItem.compositePrimaryKey))!
         XCTAssertEqual(inserted.rowValue.rowValue.firstly, "firstly_6")
         XCTAssertEqual(inserted.rowValue.rowValue.secondly, "secondly_6")
-        // the row version has been updated by the SimulateConcurrencyDynamoDBTable an
+        // the row version has been updated by the SimulateConcurrencyDynamoDBCompositePrimaryKeyTable an
         // additional 5 fives, item updated by conditionallyUpdateItemWithHistoricalRow
         // (which increments itemVersion) only once
         XCTAssertEqual(inserted.rowStatus.rowVersion, 7)
@@ -565,8 +571,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrencySync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 50,
                                                      simulateOnInsertItem: false)
 
@@ -595,8 +601,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrencyAsync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 50,
                                                      simulateOnInsertItem: false)
 
@@ -630,8 +636,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderErrorSync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
 
@@ -675,8 +681,8 @@ class DynamoDBHistoricalClientTests: XCTestCase {
     }
 
     func testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderErrorAsync() throws {
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
 

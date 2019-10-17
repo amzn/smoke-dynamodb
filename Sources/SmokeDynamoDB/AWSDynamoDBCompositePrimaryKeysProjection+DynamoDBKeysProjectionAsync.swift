@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  AWSDynamoDBKeysProjection+DynamoDBKeysProjectionAsync.swift
+//  AWSDynamoDBCompositePrimaryKeysProjection+DynamoDBKeysProjectionAsync.swift
 //  SmokeDynamoDB
 //
 
@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import LoggerAPI
 
 /// DynamoDBKeysProjection conformance async functions
-public extension AWSDynamoDBKeysProjection {
+public extension AWSDynamoDBCompositePrimaryKeysProjection {
     
     func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
@@ -77,16 +77,31 @@ public extension AWSDynamoDBKeysProjection {
     }
     
     func queryAsync<AttributesType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?, exclusiveStartKey: String?,
+            completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
+        throws where AttributesType: PrimaryKeyAttributes {
+            try queryAsync(forPartitionKey: partitionKey,
+                           sortKeyCondition: sortKeyCondition,
+                           limit: limit,
+                           scanIndexForward: true,
+                           exclusiveStartKey: exclusiveStartKey,
+                           completion: completion)
+    }
+    
+    func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         limit: Int?,
+        scanIndexForward: Bool,
         exclusiveStartKey: String?,
         completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                              scanIndexForward: true, exclusiveStartKey: exclusiveStartKey)
+                                                                              scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
                 case .response(let queryOutput):
@@ -95,7 +110,7 @@ public extension AWSDynamoDBKeysProjection {
                         let encodedLastEvaluatedKey: Data
                         
                         do {
-                            encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                            encodedLastEvaluatedKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonEncoder.encode(returnedLastEvaluatedKey)
                         } catch {
                             return completion(.error(error))
                         }
@@ -112,7 +127,7 @@ public extension AWSDynamoDBKeysProjection {
                             items = try outputAttributeValues.map { values in
                                 let attributeValue = DynamoDBModel.AttributeValue(M: values)
                                 
-                                return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                                return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(attributeValue)
                             }
                         } catch {
                             return completion(.error(error))
