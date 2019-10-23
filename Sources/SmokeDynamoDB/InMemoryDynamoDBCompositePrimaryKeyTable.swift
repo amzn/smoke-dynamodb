@@ -12,14 +12,38 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  InMemoryDynamoDBTable.swift
+//  DynamoDBCompositePrimaryKeyTable.swift
 //  SmokeDynamoDB
 //
 
 import Foundation
 import SmokeHTTPClient
 
-public class InMemoryDynamoDBTable: DynamoDBTable {
+public protocol PolymorphicDatabaseItemConvertable {
+    var createDate: Date { get }
+    var rowStatus: RowStatus { get }
+
+    func convertToPolymorphicItem<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes>() throws
+        -> PolymorphicDatabaseItem<AttributesType, PossibleTypes>
+}
+
+extension TypedDatabaseItem: PolymorphicDatabaseItemConvertable {
+    public func convertToPolymorphicItem<TargetAttributesType, PossibleTypes>() throws
+        -> PolymorphicDatabaseItem<TargetAttributesType, PossibleTypes> {
+        guard let convertedCompositePrimaryKey = compositePrimaryKey as? CompositePrimaryKey<TargetAttributesType> else {
+            let description = "Expected to use AttributesType \(TargetAttributesType.self)."
+            let context = DecodingError.Context(codingPath: [], debugDescription: description)
+            throw DecodingError.typeMismatch(TargetAttributesType.self, context)
+        }
+
+        return PolymorphicDatabaseItem<TargetAttributesType, PossibleTypes>(compositePrimaryKey: convertedCompositePrimaryKey,
+                                                                            createDate: createDate,
+                                                                            rowStatus: rowStatus,
+                                                                            rowValue: rowValue)
+    }
+}
+
+public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
 
     public var store: [String: [String: PolymorphicDatabaseItemConvertable]] = [:]
 
@@ -258,17 +282,38 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                 completion(.error(error))
             }
     }
+    
+    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
+                                                  sortKeyCondition: AttributeCondition?,
+                                                  limit: Int?,
+                                                  exclusiveStartKey: String?) throws
+        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
+        where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
+            return try querySync(forPartitionKey: partitionKey,
+                                 sortKeyCondition: sortKeyCondition,
+                                 limit: limit,
+                                 scanIndexForward: true,
+                                 exclusiveStartKey: exclusiveStartKey)
+    }
 
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?,
-                                                         limit: Int,
+                                                         limit: Int?,
+                                                         scanIndexForward: Bool,
                                                          exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
         where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             // get all the results
-            let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = try querySync(
+            let rawItems: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = try querySync(
                 forPartitionKey: partitionKey,
                 sortKeyCondition: sortKeyCondition)
+            
+            let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>]
+            if !scanIndexForward {
+                items = rawItems.reversed()
+            } else {
+                items = rawItems
+            }
 
             let startIndex: Int
             // if there is an exclusiveStartKey
@@ -284,7 +329,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
 
             let endIndex: Int
             let lastEvaluatedKey: String?
-            if startIndex + limit < items.count {
+            if let limit = limit, startIndex + limit < items.count {
                 endIndex = startIndex + limit
                 lastEvaluatedKey = String(endIndex)
             } else {
@@ -309,7 +354,7 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
     public func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            limit: Int,
+            limit: Int?,
             exclusiveStartKey: String?,
             completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
@@ -318,6 +363,29 @@ public class InMemoryDynamoDBTable: DynamoDBTable {
                     try querySync(forPartitionKey: partitionKey,
                                   sortKeyCondition: sortKeyCondition,
                                   limit: limit,
+                                  scanIndexForward: true,
+                                  exclusiveStartKey: exclusiveStartKey)
+
+                completion(.response(result))
+            } catch {
+                completion(.error(error))
+            }
+    }
+    
+    public func queryAsync<AttributesType, PossibleTypes>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?,
+            scanIndexForward: Bool,
+            exclusiveStartKey: String?,
+            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+        throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
+            do {
+                let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
+                    try querySync(forPartitionKey: partitionKey,
+                                  sortKeyCondition: sortKeyCondition,
+                                  limit: limit,
+                                  scanIndexForward: scanIndexForward,
                                   exclusiveStartKey: exclusiveStartKey)
 
                 completion(.response(result))

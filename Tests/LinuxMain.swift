@@ -11,4 +11,9 @@ XCTMain([
     testCase(SmokeDynamoDBTests.allTests),
     testCase(TypedDatabaseItemRowWithItemVersionProtocolTests.allTests),
     testCase(DynamoDBTableClobberVersionedItemWithHistoricalRowTests.allTests),
+    testCase(DynamoDBCompositePrimaryKeyTableClobberVersionedItemWithHistoricalRowTests.allTests),
+    testCase(CompositePrimaryKeyDynamoDBHistoricalClientTests.allTests),
+    testCase(DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests.allTests),
+    testCase(InMemoryDynamoDBCompositePrimaryKeyTableTests.allTests),
+    testCase(SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests.allTests),
 ])

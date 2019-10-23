@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  InMemoryDynamoDBTableTests.swift
+//  InMemoryCDynamoDBCompositePrimaryKeyTableTests.swift
 //  SmokeDynamoDBTests
 //
 
@@ -19,10 +19,14 @@ import XCTest
 @testable import SmokeDynamoDB
 import SmokeHTTPClient
 
-class InMemoryDynamoDBTableTests: XCTestCase {
+struct TestCodableTypes: PossibleItemTypes {
+    public static var types: [Codable.Type] = [TestTypeA.self]
+}
+
+class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
     
     func testInsertAndUpdateSync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -49,7 +53,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testInsertAndUpdateAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -96,7 +100,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testDoubleInsertSync() {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -116,7 +120,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testDoubleInsertAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -151,7 +155,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testUpdateWithoutInsertSync() {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -171,7 +175,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testUpdateWithoutInsertAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                         sortKey: "sortId")
@@ -191,7 +195,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
   
     func testPaginatedQuerySync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         var items: [StandardTypedDatabaseItem<TestTypeA>] = []
         
@@ -230,19 +234,77 @@ class InMemoryDynamoDBTableTests: XCTestCase {
         }
         
         XCTAssertEqual(items.count, retrievedItems.count)
+        // items are returned in sorted order
+        let sortedItems = items.sorted { left, right in left.compositePrimaryKey.sortKey < right.compositePrimaryKey.sortKey }
         
-        for index in 0..<items.count {
-            let originalItem = items[index]
-            let retrievedItem = items[index]
+        for index in 0..<sortedItems.count {
+            let originalItem = sortedItems[index]
+            let retrievedItem = retrievedItems[index]
+            let retrievedValue = retrievedItem.rowValue as! TestTypeA
             
             XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-            XCTAssertEqual(originalItem.rowValue.firstly, retrievedItem.rowValue.firstly)
-            XCTAssertEqual(originalItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedValue.secondly)
+        }
+    }
+    
+    func testReversedPaginatedQuerySync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        var items: [StandardTypedDatabaseItem<TestTypeA>] = []
+        
+        // add to the database a lot of items - a number that isn't a multiple of the pagination page size
+        for index in 0..<1376 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId_\(index)")
+            let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
+            let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+            
+            XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+            items.append(databaseItem)
+        }
+        
+        var retrievedItems: [StandardPolymorphicDatabaseItem<TestCodableTypes>] = []
+        
+        var exclusiveStartKey: String?
+        
+        // get everything back from the database
+        while true {
+            let paginatedItems: ([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?) =
+                try table.querySync(forPartitionKey: "partitionId",
+                          sortKeyCondition: nil,
+                          limit: 100,
+                          scanIndexForward: false,
+                          exclusiveStartKey: exclusiveStartKey)
+            
+            retrievedItems += paginatedItems.0
+            
+            // if there are more items
+            if let lastEvaluatedKey = paginatedItems.1 {
+                exclusiveStartKey = lastEvaluatedKey
+            } else {
+                // we have all the items
+                break
+            }
+        }
+        
+        XCTAssertEqual(items.count, retrievedItems.count)
+        // items are returned in reversed sorted order
+        let sortedItems = items.sorted { left, right in left.compositePrimaryKey.sortKey > right.compositePrimaryKey.sortKey }
+        
+        for index in 0..<sortedItems.count {
+            let originalItem = sortedItems[index]
+            let retrievedItem = retrievedItems[index]
+            let retrievedValue = retrievedItem.rowValue as! TestTypeA
+            
+            XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedValue.secondly)
         }
     }
     
     func testPaginatedQueryAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         var items: [StandardTypedDatabaseItem<TestTypeA>] = []
         
@@ -280,19 +342,76 @@ class InMemoryDynamoDBTableTests: XCTestCase {
         } while exclusiveStartKey != nil
         
         XCTAssertEqual(items.count, retrievedItems.count)
+        // items are returned in sorted order
+        let sortedItems = items.sorted { left, right in left.compositePrimaryKey.sortKey < right.compositePrimaryKey.sortKey }
         
-        for index in 0..<items.count {
-            let originalItem = items[index]
-            let retrievedItem = items[index]
+        for index in 0..<sortedItems.count {
+            let originalItem = sortedItems[index]
+            let retrievedItem = retrievedItems[index]
+            let retrievedValue = retrievedItem.rowValue as! TestTypeA
             
             XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-            XCTAssertEqual(originalItem.rowValue.firstly, retrievedItem.rowValue.firstly)
-            XCTAssertEqual(originalItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedValue.secondly)
+        }
+    }
+    
+    func testReversedPaginatedQueryAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        var items: [StandardTypedDatabaseItem<TestTypeA>] = []
+        
+        // add to the database a lot of items - a number that isn't a multiple of the pagination page size
+        for index in 0..<1376 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId_\(index)")
+            let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
+            let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+            
+            XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+            items.append(databaseItem)
+        }
+        
+        var retrievedItems: [StandardPolymorphicDatabaseItem<TestCodableTypes>] = []
+        
+        var exclusiveStartKey: String?
+        
+        // get everything back from the database
+        repeat {
+            func handleQueryOutput(result: HTTPResult<([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?)>) {
+                switch result {
+                case .response(let paginatedItems):
+                    retrievedItems += paginatedItems.0
+                    exclusiveStartKey = paginatedItems.1
+                case .error(_):
+                    XCTFail()
+                }
+            }
+            
+            try table.queryAsync(forPartitionKey: "partitionId",
+                          sortKeyCondition: nil,
+                          limit: 100,
+                          scanIndexForward: false,
+                          exclusiveStartKey: exclusiveStartKey, completion: handleQueryOutput)
+        } while exclusiveStartKey != nil
+        
+        XCTAssertEqual(items.count, retrievedItems.count)
+        // items are returned in reversed sorted order
+        let sortedItems = items.sorted { left, right in left.compositePrimaryKey.sortKey > right.compositePrimaryKey.sortKey }
+        
+        for index in 0..<sortedItems.count {
+            let originalItem = sortedItems[index]
+            let retrievedItem = retrievedItems[index]
+            let retrievedValue = retrievedItem.rowValue as! TestTypeA
+            
+            XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedValue.secondly)
         }
     }
     
     func testQuerySync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         var items: [StandardTypedDatabaseItem<TestTypeA>] = []
         
@@ -324,7 +443,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
     }
     
     func testQueryAsync() throws {
-        let table = InMemoryDynamoDBTable()
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         var items: [StandardTypedDatabaseItem<TestTypeA>] = []
         
@@ -371,6 +490,7 @@ class InMemoryDynamoDBTableTests: XCTestCase {
         ("testUpdateWithoutInsertSync", testUpdateWithoutInsertSync),
         ("testUpdateWithoutInsertSync", testUpdateWithoutInsertSync),
         ("testPaginatedQuerySync", testPaginatedQuerySync),
+        ("testReversedPaginatedQuerySync", testReversedPaginatedQuerySync),
         ("testPaginatedQueryAsync", testPaginatedQueryAsync),
         ("testQuerySync", testQuerySync),
         ("testQueryAsync", testQueryAsync),

@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  SimulateConcurrencyDynamoDBTableTests.swift
+//  SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests.swift
 //  SmokeDynamoDBTests
 //
 
@@ -22,7 +22,11 @@ import SmokeHTTPClient
 private typealias DatabaseRowType = StandardTypedDatabaseItem<TestTypeA>
 private typealias QueryRowType = StandardPolymorphicDatabaseItem<ExpectedTypes>
 
-class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
+struct ExpectedTypes: PossibleItemTypes {
+    static var types: [Codable.Type] = [TestTypeA.self]
+}
+
+class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
     
     func testSimulateConcurrencyOnInsertSync() {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
@@ -30,7 +34,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5)
         
         XCTAssertThrowsError(try table.insertItemSync(databaseItem))
@@ -42,7 +46,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5)
         
         var errorThrown = false
@@ -53,7 +57,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         XCTAssertTrue(errorThrown)
     }
 
-    fileprivate func verifyWithUpdateSync(table: SimulateConcurrencyDynamoDBTable,
+    fileprivate func verifyWithUpdateSync(table: SimulateConcurrencyDynamoDBCompositePrimaryKeyTable,
                                           databaseItem: TypedDatabaseItem<StandardPrimaryKeyAttributes, TestTypeA>,
                                           key: StandardCompositePrimaryKey,
                                           expectedFailureCount: Int) throws {
@@ -81,7 +85,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         XCTAssertNil(nowDeletedItem)
     }
     
-    fileprivate func verifyWithUpdateAsync(table: SimulateConcurrencyDynamoDBTable,
+    fileprivate func verifyWithUpdateAsync(table: SimulateConcurrencyDynamoDBCompositePrimaryKeyTable,
                                            databaseItem: TypedDatabaseItem<StandardPrimaryKeyAttributes, TestTypeA>,
                                            key: StandardCompositePrimaryKey,
                                            expectedFailureCount: Int) throws {
@@ -149,7 +153,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
         
@@ -162,7 +166,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
         
@@ -175,7 +179,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false,
                                                      simulateOnUpdateItem: false)
@@ -189,7 +193,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false,
                                                      simulateOnUpdateItem: false)
@@ -203,7 +207,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
         
@@ -253,7 +257,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: InMemoryDynamoDBTable(),
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
                                                      simulateConcurrencyModifications: 5,
                                                      simulateOnInsertItem: false)
         
@@ -330,8 +334,8 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5)
         
         XCTAssertNoThrow(try wrappedTable.insertItemSync(databaseItem))
@@ -359,8 +363,8 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let wrappedTable = InMemoryDynamoDBTable()
-        let table = SimulateConcurrencyDynamoDBTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
                                                      simulateConcurrencyModifications: 5)
         
         XCTAssertNoThrow(try wrappedTable.insertItemSync(databaseItem))

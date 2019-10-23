@@ -11,14 +11,39 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  DynamoDBTable.swift
+//  DynamoDBCompositePrimaryKeyTable.swift
 //  SmokeDynamoDB
 //
 
 import Foundation
 import SmokeHTTPClient
 
-public protocol DynamoDBTable {
+/**
+ Enumeration of the errors that can be thrown by a DynamoDBTable.
+ */
+public enum SmokeDynamoDBError: Error {
+    case databaseError(reason: String)
+    case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
+    case typeMismatch(expected: String, provided: String)
+    case unexpectedType(provided: String)
+    case concurrencyError(partitionKey: String, sortKey: String, message: String?)
+    case unableToUpdateError(reason: String)
+}
+
+/**
+ Enumeration of the types of conditions that can be specified for an attribute.
+ */
+public enum AttributeCondition {
+    case equals(String)
+    case lessThan(String)
+    case lessThanOrEqual(String)
+    case greaterThan(String)
+    case greaterThanOrEqual(String)
+    case between(String, String)
+    case beginsWith(String)
+}
+
+public protocol DynamoDBCompositePrimaryKeyTable {
 
     /**
      * Insert item is a non-destructive API. If an item already exists with the specified key this
@@ -88,14 +113,34 @@ public protocol DynamoDBTable {
      */
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                   sortKeyCondition: AttributeCondition?,
-                                                  limit: Int,
+                                                  limit: Int?,
                                                   exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
 
     func queryAsync<AttributesType, PossibleTypes>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
-        limit: Int,
+        limit: Int?,
+        exclusiveStartKey: String?,
+        completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+    
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will return paginated results based on the limit and exclusiveStartKey provided.
+     */
+    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
+                                                  sortKeyCondition: AttributeCondition?,
+                                                  limit: Int?,
+                                                  scanIndexForward: Bool,
+                                                  exclusiveStartKey: String?) throws
+        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
+
+    func queryAsync<AttributesType, PossibleTypes>(
+        forPartitionKey partitionKey: String,
+        sortKeyCondition: AttributeCondition?,
+        limit: Int?,
+        scanIndexForward: Bool,
         exclusiveStartKey: String?,
         completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
 }

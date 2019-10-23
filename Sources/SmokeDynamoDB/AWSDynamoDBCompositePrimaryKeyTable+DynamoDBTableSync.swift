@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  AWSDynamoDBTable+DynamoDBTableSync.swift
+//  AWSDynamoDBCompositePrimaryKeyTable+DynamoDBTableSync.swift
 //  SmokeDynamoDB
 //
 
@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import LoggerAPI
 
 /// DynamoDBTable conformance sync functions
-public extension AWSDynamoDBTable {
+public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
         let putItemInput = try getInputForInsert(item)
@@ -56,7 +56,7 @@ public extension AWSDynamoDBTable {
             if let item = attributeValue.item {
                 Log.verbose("Value returned from DynamoDB.")
                 
-                return try AWSDynamoDBTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
+                return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
             } else {
                 Log.verbose("No item returned from DynamoDB.")
                 
@@ -99,19 +99,33 @@ public extension AWSDynamoDBTable {
     
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                   sortKeyCondition: AttributeCondition?,
-                                                  limit: Int,
+                                                  limit: Int?,
+                                                  exclusiveStartKey: String?) throws
+        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
+        where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
+            return try querySync(forPartitionKey: partitionKey,
+                                 sortKeyCondition: sortKeyCondition,
+                                 limit: limit,
+                                 scanIndexForward: true,
+                                 exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
+                                                  sortKeyCondition: AttributeCondition?,
+                                                  limit: Int?,
+                                                  scanIndexForward: Bool,
                                                   exclusiveStartKey: String?) throws
         -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
         where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                              scanIndexForward: true, exclusiveStartKey: exclusiveStartKey)
+                                                                              scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
             let queryOutput = try dynamodb.querySync(input: queryInput)
             
             let lastEvaluatedKey: String?
             if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                let encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                let encodedLastEvaluatedKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonEncoder.encode(returnedLastEvaluatedKey)
                 
                 lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
             } else {
@@ -122,7 +136,7 @@ public extension AWSDynamoDBTable {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = try outputAttributeValues.map { values in
                     let attributeValue = DynamoDBModel.AttributeValue(M: values)
                     
-                    return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                    return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(attributeValue)
                 }
                 
                 return (items, lastEvaluatedKey)

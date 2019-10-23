@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  AWSDynamoDBTable+DynamoDBTableAsync.swift
+//  AWSDynamoDBCompositePrimaryKeyTable+DynamoDBTableAsync.swift
 //  SmokeDynamoDB
 //
 
@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import LoggerAPI
 
 /// DynamoDBTable conformance async functions
-public extension AWSDynamoDBTable {
+public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                    completion: @escaping (Error?) -> ())
@@ -67,7 +67,7 @@ public extension AWSDynamoDBTable {
                         
                         do {
                             let decodedItem: TypedDatabaseItem<AttributesType, ItemType>? =
-                                try AWSDynamoDBTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
+                                try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
                             completion(.response(decodedItem))
                         } catch {
                             completion(.error(error))
@@ -155,13 +155,27 @@ public extension AWSDynamoDBTable {
     func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            limit: Int, exclusiveStartKey: String?,
+            limit: Int?, exclusiveStartKey: String?,
+            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+        throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
+            try queryAsync(forPartitionKey: partitionKey,
+                           sortKeyCondition: sortKeyCondition,
+                           limit: limit,
+                           scanIndexForward: true,
+                           exclusiveStartKey: exclusiveStartKey,
+                           completion: completion)
+    }
+    
+    func queryAsync<AttributesType, PossibleTypes>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?, scanIndexForward: Bool, exclusiveStartKey: String?,
             completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                              scanIndexForward: true, exclusiveStartKey: exclusiveStartKey)
+                                                                              scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
                 case .response(let queryOutput):
@@ -170,7 +184,7 @@ public extension AWSDynamoDBTable {
                         let encodedLastEvaluatedKey: Data
                         
                         do {
-                            encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                            encodedLastEvaluatedKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonEncoder.encode(returnedLastEvaluatedKey)
                         } catch {
                             return completion(.error(error))
                         }
@@ -187,7 +201,7 @@ public extension AWSDynamoDBTable {
                             items = try outputAttributeValues.map { values in
                                 let attributeValue = DynamoDBModel.AttributeValue(M: values)
                                 
-                                return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                                return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(attributeValue)
                             }
                         } catch {
                             return completion(.error(error))

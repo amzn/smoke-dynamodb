@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  AWSDynamoDBKeysProjection+DynamoDBKeysProjectionSync.swift
+//  AWSDynamoDBCompositePrimaryKeysProjection+DynamoDBKeysProjectionSync.swift
 //  SmokeDynamoDB
 //
 
@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import LoggerAPI
 
 /// DynamoDBKeysProjection conformance sync functions
-public extension AWSDynamoDBKeysProjection {
+public extension AWSDynamoDBCompositePrimaryKeysProjection {
     
     func querySync<AttributesType>(forPartitionKey partitionKey: String,
                                    sortKeyCondition: AttributeCondition?) throws
@@ -36,6 +36,7 @@ public extension AWSDynamoDBKeysProjection {
                 try querySync(forPartitionKey: partitionKey,
                           sortKeyCondition: sortKeyCondition,
                           limit: nil,
+                          scanIndexForward: true,
                           exclusiveStartKey: exclusiveStartKey)
             
             items += paginatedItems.0
@@ -56,15 +57,29 @@ public extension AWSDynamoDBKeysProjection {
                                    exclusiveStartKey: String?) throws
         -> ([CompositePrimaryKey<AttributesType>], String?)
         where AttributesType: PrimaryKeyAttributes {
+            return try querySync(forPartitionKey: partitionKey,
+                                 sortKeyCondition: sortKeyCondition,
+                                 limit: limit,
+                                 scanIndexForward: true,
+                                 exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    func querySync<AttributesType>(forPartitionKey partitionKey: String,
+                                   sortKeyCondition: AttributeCondition?,
+                                   limit: Int?,
+                                   scanIndexForward: Bool,
+                                   exclusiveStartKey: String?) throws
+        -> ([CompositePrimaryKey<AttributesType>], String?)
+        where AttributesType: PrimaryKeyAttributes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                              scanIndexForward: true, exclusiveStartKey: exclusiveStartKey)
+                                                                              scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
             let queryOutput = try dynamodb.querySync(input: queryInput)
             
             let lastEvaluatedKey: String?
             if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                let encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                let encodedLastEvaluatedKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonEncoder.encode(returnedLastEvaluatedKey)
                 
                 lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
             } else {
@@ -75,7 +90,7 @@ public extension AWSDynamoDBKeysProjection {
                 let items: [CompositePrimaryKey<AttributesType>] = try outputAttributeValues.map { values in
                     let attributeValue = DynamoDBModel.AttributeValue(M: values)
                     
-                    return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                    return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(attributeValue)
                 }
                 
                 return (items, lastEvaluatedKey)
