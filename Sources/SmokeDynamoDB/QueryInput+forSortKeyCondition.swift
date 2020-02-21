@@ -74,8 +74,8 @@ extension QueryInput {
 
         let inputExclusiveStartKey: [String: DynamoDBModel.AttributeValue]?
         if let exclusiveStartKey = exclusiveStartKey?.data(using: .utf8) {
-            inputExclusiveStartKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonDecoder.decode([String: DynamoDBModel.AttributeValue].self,
-                                                            from: exclusiveStartKey)
+            inputExclusiveStartKey = try JSONDecoder().decode([String: DynamoDBModel.AttributeValue].self,
+                                                              from: exclusiveStartKey)
         } else {
             inputExclusiveStartKey = nil
         }

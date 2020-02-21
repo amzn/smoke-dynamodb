@@ -17,7 +17,8 @@
 
 import Foundation
 import SmokeHTTPClient
-import LoggerAPI
+import Logging
+import DynamoDBModel
 
 public extension DynamoDBCompositePrimaryKeyTable {
     /**
@@ -76,9 +77,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                     message: "Unable to complete request to update versioned item in specified number of attempts")
         }
         
-        func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
+        func handleGetItemResult(result: SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
-            case .response(let databaseItemOptional):
+            case .success(let databaseItemOptional):
                 guard let databaseItem = databaseItemOptional else {
                     let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
                                                                         sortKey: key.sortKey,
@@ -114,7 +115,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                 } catch {
                     completion(error)
                 }
-            case .error(let error):
+            case .failure(let error):
                 completion(error)
             }
         }

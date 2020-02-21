@@ -16,20 +16,16 @@
 //
 
 import Foundation
-import LoggerAPI
+import Logging
 import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 
-public class AWSDynamoDBTable: DynamoDBTable {
-    internal let dynamodb: AWSDynamoDBClient
+public class AWSDynamoDBTable<InvocationReportingType: SmokeAWSInvocationReporting>: DynamoDBTable {
+    internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
-
-    static internal let dynamodbEncoder = DynamoDBEncoder()
-    static internal let dynamodbDecoder = DynamoDBDecoder()
-    static internal let jsonEncoder = JSONEncoder()
-    static internal let jsonDecoder = JSONDecoder()
+    internal let logger: Logger
 
     internal let defaultPaginationLimit = 100
 
@@ -39,35 +35,45 @@ public class AWSDynamoDBTable: DynamoDBTable {
     }
 
     public init(accessKeyId: String, secretAccessKey: String,
-                region: AWSRegion, endpointHostName: String,
-                tableName: String,
+                region: AWSRegion, reporting: InvocationReportingType,
+                endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
 
+        self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                          awsRegion: region,
+                                          awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
-        Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
     public init(credentialsProvider: CredentialsProvider,
-                region: AWSRegion, endpointHostName: String,
-                tableName: String,
+                region: AWSRegion, reporting: InvocationReportingType,
+                endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+        self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                          awsRegion: region,
+                                          awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
-        Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
+    internal init(dynamodb: AWSDynamoDBClient<InvocationReportingType>,
+                  targetTableName: String,
+                  logger: Logger) {
+        self.dynamodb = dynamodb
+        self.targetTableName = targetTableName
+        self.logger = logger
+    }
+    
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times.
@@ -116,38 +122,38 @@ public class AWSDynamoDBTable: DynamoDBTable {
 
     internal func getAttributes<AttributesType, ItemType>(forItem item: TypedDatabaseItem<AttributesType, ItemType>) throws
         -> [String: DynamoDBModel.AttributeValue] {
-            let attributeValue = try AWSDynamoDBTable.dynamodbEncoder.encode(item)
+            let attributeValue = try DynamoDBEncoder().encode(item)
 
             let attributes: [String: DynamoDBModel.AttributeValue]
             if let itemAttributes = attributeValue.M {
                 attributes = itemAttributes
             } else {
-                throw SmokeDynamoDBError.databaseError(reason: "Expected a map.")
+                throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a map.")
             }
 
             return attributes
     }
 
     internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.GetItemInput {
-        let attributeValue = try AWSDynamoDBTable.dynamodbEncoder.encode(key)
+        let attributeValue = try DynamoDBEncoder().encode(key)
 
         if let keyAttributes = attributeValue.M {
             return DynamoDBModel.GetItemInput(consistentRead: true,
                                               key: keyAttributes,
                                               tableName: targetTableName)
         } else {
-            throw SmokeDynamoDBError.databaseError(reason: "Expected a structure.")
+            throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
         }
     }
 
     internal func getInputForDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.DeleteItemInput {
-        let attributeValue = try AWSDynamoDBTable.dynamodbEncoder.encode(key)
+        let attributeValue = try DynamoDBEncoder().encode(key)
 
         if let keyAttributes = attributeValue.M {
             return DynamoDBModel.DeleteItemInput(key: keyAttributes,
                                                  tableName: targetTableName)
         } else {
-            throw SmokeDynamoDBError.databaseError(reason: "Expected a structure.")
+            throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
         }
     }
 }

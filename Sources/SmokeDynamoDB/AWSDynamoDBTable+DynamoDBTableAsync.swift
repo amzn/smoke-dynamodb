@@ -19,7 +19,7 @@ import Foundation
 import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
-import LoggerAPI
+import Logging
 
 /// DynamoDBTable conformance async functions
 public extension AWSDynamoDBTable {
@@ -54,31 +54,31 @@ public extension AWSDynamoDBTable {
     }
     
     func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+                                                completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             let putItemInput = try getInputForGetItem(forKey: key)
             
-            Log.verbose("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
+            self.logger.debug("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
             try dynamodb.getItemAsync(input: putItemInput) { result in
                 switch result {
-                case .response(let attributeValue):
+                case .success(let attributeValue):
                     if let item = attributeValue.item {
-                        Log.verbose("Value returned from DynamoDB.")
+                        self.logger.debug("Value returned from DynamoDB.")
                         
                         do {
                             let decodedItem: TypedDatabaseItem<AttributesType, ItemType>? =
-                                try AWSDynamoDBTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
-                            completion(.response(decodedItem))
+                                try DynamoDBDecoder().decode(DynamoDBModel.AttributeValue(M: item))
+                            completion(.success(decodedItem))
                         } catch {
-                            completion(.error(error))
+                            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                     } else {
-                        Log.verbose("No item returned from DynamoDB.")
+                        self.logger.debug("No item returned from DynamoDB.")
                         
-                        completion(.response(nil))
+                        completion(.success(nil))
                     }
-                case .error(let error):
-                    completion(.error(error))
+                case .failure(let error):
+                    completion(.failure(error.asSmokeDynamoDBError()))
                 }
             }
     }
@@ -88,13 +88,13 @@ public extension AWSDynamoDBTable {
         throws where AttributesType: PrimaryKeyAttributes {
             let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
-            Log.verbose("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
+            self.logger.debug("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
             try dynamodb.deleteItemAsync(input: deleteItemInput) { result in
                 switch result {
-                case .response:
+                case .success:
                     // complete the putItem
                     completion(nil)
-                case .error(let error):
+                case .failure(let error):
                     completion(error)
                 }
             }
@@ -103,7 +103,7 @@ public extension AWSDynamoDBTable {
     func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             let partialResults = QueryPaginationResults<AttributesType, PossibleTypes>()
             
@@ -117,11 +117,11 @@ public extension AWSDynamoDBTable {
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         partialResults: QueryPaginationResults<AttributesType, PossibleTypes>,
-        completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
+        completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            func handleQueryResult(result: HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) {
+            func handleQueryResult(result: SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) {
                 switch result {
-                case .response(let paginatedItems):
+                case .success(let paginatedItems):
                     partialResults.items += paginatedItems.0
             
                     // if there are more items
@@ -134,14 +134,14 @@ public extension AWSDynamoDBTable {
                                                   partialResults: partialResults,
                                                   completion: completion)
                         } catch {
-                            completion(.error(error))
+                            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                     } else {
                         // we have all the items
-                        completion(.response(partialResults.items))
+                        completion(.success(partialResults.items))
                     }
-                case .error(let error):
-                    completion(.error(error))
+                case .failure(let error):
+                    completion(.failure(error))
                 }
             }
             
@@ -156,7 +156,7 @@ public extension AWSDynamoDBTable {
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             limit: Int, exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
@@ -164,15 +164,15 @@ public extension AWSDynamoDBTable {
                                                                               scanIndexForward: true, exclusiveStartKey: exclusiveStartKey)
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
-                case .response(let queryOutput):
+                case .success(let queryOutput):
                     let lastEvaluatedKey: String?
                     if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
                         let encodedLastEvaluatedKey: Data
                         
                         do {
-                            encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                            encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
                         } catch {
-                            return completion(.error(error))
+                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                         
                         lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
@@ -187,18 +187,18 @@ public extension AWSDynamoDBTable {
                             items = try outputAttributeValues.map { values in
                                 let attributeValue = DynamoDBModel.AttributeValue(M: values)
                                 
-                                return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                                return try DynamoDBDecoder().decode(attributeValue)
                             }
                         } catch {
-                            return completion(.error(error))
+                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                         
-                        completion(.response((items, lastEvaluatedKey)))
+                        completion(.success((items, lastEvaluatedKey)))
                     } else {
-                        completion(.response(([], lastEvaluatedKey)))
+                        completion(.success(([], lastEvaluatedKey)))
                     }
-                case .error(let error):
-                    return completion(.error(error))
+                case .failure(let error):
+                    return completion(.failure(error.asSmokeDynamoDBError()))
                 }
             }
     }
@@ -209,26 +209,26 @@ public extension AWSDynamoDBTable {
         do {
             _ = try dynamodb.putItemAsync(input: putItemInput) { result in
                 switch result {
-                case .response:
+                case .success:
                     // complete the putItem
                     completion(nil)
-                case .error(let error):
+                case .failure(let error):
                     switch error {
                     case DynamoDBError.conditionalCheckFailed(let errorPayload):
                         completion(SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                                            sortKey: compositePrimaryKey.sortKey,
                                                                            message: errorPayload.message))
                     default:
-                        Log.warning("Error from AWSDynamoDBTable: \(error)")
+                        self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-                        completion(SmokeDynamoDBError.databaseError(reason: "\(error)"))
+                        completion(SmokeDynamoDBError.databaseError(cause: error))
                     }
                 }
             }
         } catch {
-            Log.warning("Error from AWSDynamoDBTable: \(error)")
+            self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-            throw SmokeDynamoDBError.databaseError(reason: "\(error)")
+            throw SmokeDynamoDBError.databaseError(cause: error)
         }
     }
 }

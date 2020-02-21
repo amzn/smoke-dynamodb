@@ -17,6 +17,7 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 /**
  Protocol presenting a Keys Only projection of a DynamoDB table such as a Keys Only GSI projection.
@@ -37,7 +38,7 @@ public protocol DynamoDBKeysProjection {
     func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
-        completion: @escaping (HTTPResult<[CompositePrimaryKey<AttributesType>]>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ()) throws
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -55,5 +56,5 @@ public protocol DynamoDBKeysProjection {
         sortKeyCondition: AttributeCondition?,
         limit: Int?,
         exclusiveStartKey: String?,
-        completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ()) throws
 }

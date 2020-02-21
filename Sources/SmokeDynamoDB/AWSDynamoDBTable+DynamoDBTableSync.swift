@@ -19,7 +19,7 @@ import Foundation
 import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
-import LoggerAPI
+import Logging
 
 /// DynamoDBTable conformance sync functions
 public extension AWSDynamoDBTable {
@@ -50,15 +50,15 @@ public extension AWSDynamoDBTable {
         -> TypedDatabaseItem<AttributesType, ItemType>? {
             let putItemInput = try getInputForGetItem(forKey: key)
             
-            Log.verbose("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
+            self.logger.debug("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
             let attributeValue = try dynamodb.getItemSync(input: putItemInput)
             
             if let item = attributeValue.item {
-                Log.verbose("Value returned from DynamoDB.")
+                self.logger.debug("Value returned from DynamoDB.")
                 
-                return try AWSDynamoDBTable.dynamodbDecoder.decode(DynamoDBModel.AttributeValue(M: item))
+                return try DynamoDBDecoder().decode(DynamoDBModel.AttributeValue(M: item))
             } else {
-                Log.verbose("No item returned from DynamoDB.")
+                self.logger.debug("No item returned from DynamoDB.")
                 
                 return nil
             }
@@ -67,7 +67,7 @@ public extension AWSDynamoDBTable {
     func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
         let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
-        Log.verbose("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
+        self.logger.debug("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
         _ = try dynamodb.deleteItemSync(input: deleteItemInput)
     }
     
@@ -111,7 +111,7 @@ public extension AWSDynamoDBTable {
             
             let lastEvaluatedKey: String?
             if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                let encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                let encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
                 
                 lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
             } else {
@@ -122,7 +122,7 @@ public extension AWSDynamoDBTable {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = try outputAttributeValues.map { values in
                     let attributeValue = DynamoDBModel.AttributeValue(M: values)
                     
-                    return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                    return try DynamoDBDecoder().decode(attributeValue)
                 }
                 
                 return (items, lastEvaluatedKey)
@@ -140,9 +140,9 @@ public extension AWSDynamoDBTable {
                                                           sortKey: compositePrimaryKey.sortKey,
                                                           message: errorPayload.message)
         } catch {
-            Log.warning("Error from AWSDynamoDBTable: \(error)")
+            self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-            throw SmokeDynamoDBError.databaseError(reason: "\(error)")
+            throw SmokeDynamoDBError.databaseError(cause: error)
         }
     }
 }

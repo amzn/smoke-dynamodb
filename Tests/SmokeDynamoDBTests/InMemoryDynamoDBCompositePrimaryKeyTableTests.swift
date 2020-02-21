@@ -18,6 +18,7 @@
 import XCTest
 @testable import SmokeDynamoDB
 import SmokeHTTPClient
+import DynamoDBModel
 
 struct TestCodableTypes: PossibleItemTypes {
     public static var types: [Codable.Type] = [TestTypeA.self]
@@ -63,8 +64,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         XCTAssertNoThrow(try table.insertItemSync(databaseItem))
         
         var retrievedItemOptional: StandardTypedDatabaseItem<TestTypeA>?
-        try table.getItemAsync(forKey: key) { (result: HTTPResult<StandardTypedDatabaseItem<TestTypeA>?>) in
-            if case .response(let output) = result {
+        try table.getItemAsync(forKey: key) { (result: SmokeDynamoDBErrorResult<StandardTypedDatabaseItem<TestTypeA>?>) in
+            if case .success(let output) = result {
                 retrievedItemOptional = output
             }
         }
@@ -325,12 +326,12 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         // get everything back from the database
         repeat {
-            func handleQueryOutput(result: HTTPResult<([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?)>) {
+            func handleQueryOutput(result: SmokeDynamoDBErrorResult<([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?)>) {
                 switch result {
-                case .response(let paginatedItems):
+                case .success(let paginatedItems):
                     retrievedItems += paginatedItems.0
                     exclusiveStartKey = paginatedItems.1
-                case .error(_):
+                case .failure(_):
                     XCTFail()
                 }
             }
@@ -378,12 +379,12 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         // get everything back from the database
         repeat {
-            func handleQueryOutput(result: HTTPResult<([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?)>) {
+            func handleQueryOutput(result: SmokeDynamoDBErrorResult<([StandardPolymorphicDatabaseItem<TestCodableTypes>], String?)>) {
                 switch result {
-                case .response(let paginatedItems):
+                case .success(let paginatedItems):
                     retrievedItems += paginatedItems.0
                     exclusiveStartKey = paginatedItems.1
-                case .error(_):
+                case .failure(_):
                     XCTFail()
                 }
             }
@@ -459,11 +460,11 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         }
         
         var retrievedItems: [StandardPolymorphicDatabaseItem<TestCodableTypes>] = []
-        func handleQueryResult(result: HTTPResult<[StandardPolymorphicDatabaseItem<TestCodableTypes>]>) {
+        func handleQueryResult(result: SmokeDynamoDBErrorResult<[StandardPolymorphicDatabaseItem<TestCodableTypes>]>) {
             switch result {
-            case .response(let queryItems):
+            case .success(let queryItems):
                 retrievedItems.append(contentsOf: queryItems)
-            case .error:
+            case .failure:
                 XCTFail()
             }
         }
