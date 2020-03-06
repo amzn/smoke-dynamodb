@@ -17,17 +17,36 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 /**
  Enumeration of the errors that can be thrown by a DynamoDBTable.
  */
 public enum SmokeDynamoDBError: Error {
-    case databaseError(reason: String)
+    case databaseError(cause: Swift.Error)
+    case unexpectedResponse(reason: String)
     case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
     case typeMismatch(expected: String, provided: String)
     case unexpectedType(provided: String)
     case concurrencyError(partitionKey: String, sortKey: String, message: String?)
     case unableToUpdateError(reason: String)
+    case unrecognizedError(String, String?)
+}
+
+public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
+
+public extension Swift.Error {
+    func asUnrecognizedSmokeDynamoDBError() -> SmokeDynamoDBError {
+        let errorType = String(describing: type(of: self))
+        let errorDescription = String(describing: self)
+        return .unrecognizedError(errorType, errorDescription)
+    }
+}
+
+public extension DynamoDBError {
+    func asSmokeDynamoDBError() -> SmokeDynamoDBError {
+        return .databaseError(cause: self)
+    }
 }
 
 /**
@@ -80,7 +99,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> TypedDatabaseItem<AttributesType, ItemType>?
 
     func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
+                                                completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
 
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
@@ -104,7 +123,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func queryAsync<AttributesType, PossibleTypes>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
-        completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -122,7 +141,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         sortKeyCondition: AttributeCondition?,
         limit: Int?,
         exclusiveStartKey: String?,
-        completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
     
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -142,5 +161,5 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         limit: Int?,
         scanIndexForward: Bool,
         exclusiveStartKey: String?,
-        completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
 }

@@ -19,6 +19,7 @@
 import XCTest
 @testable import SmokeDynamoDB
 import SmokeHTTPClient
+import DynamoDBModel
 
 private typealias DatabaseRowType =
     TypedDatabaseItem<StandardPrimaryKeyAttributes, RowWithItemVersion<TestTypeA>>
@@ -468,13 +469,13 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
         try table.insertItemSync(databaseItem)
 
         var isCompleted = false
-        func completionHandler( result: HTTPResult<DatabaseRowType> ) {
+        func completionHandler( result: SmokeDynamoDBErrorResult<DatabaseRowType> ) {
             switch result {
-            case .response( let result ):
+            case .success( let result ):
                 // the result returned is the updated item
                 XCTAssertEqual( result.rowStatus.rowVersion, 2 )
                 XCTAssertEqual( result.rowValue.itemVersion, 2 )
-            case .error:
+            case .failure:
                 XCTFail()
             }
 
@@ -540,13 +541,13 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
         try table.insertItemSync(databaseItem)
 
         var isCompleted = false
-        func completionHandler(result: HTTPResult<DatabaseRowType>) {
+        func completionHandler(result: SmokeDynamoDBErrorResult<DatabaseRowType>) {
             switch result {
-            case .response( let result ):
+            case .success( let result ):
                 // the result returned is the updated item
                 XCTAssertEqual( result.rowStatus.rowVersion, 7 )
                 XCTAssertEqual( result.rowValue.itemVersion, 2 )
-            case .error:
+            case .failure:
                 XCTFail()
             }
 
@@ -614,7 +615,7 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
             forPrimaryKey: dKey,
             primaryItemProvider: conditionalUpdatePrimaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider) { result in
-                guard case let .error(theError) = result, case SmokeDynamoDBError.concurrencyError = theError else {
+                guard case let .failure(theError) = result, case SmokeDynamoDBError.concurrencyError = theError else {
                     return XCTFail( "Expected error not thrown" )
                 }
 
@@ -709,7 +710,9 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
             forPrimaryKey: dKey,
             primaryItemProvider: primaryItemProvider,
             historicalItemProvider: conditionalUpdateHistoricalItemProvider) { result in
-                guard case let .error(theError) = result, case TestError.everythingIsWrong = theError else {
+                guard case let .failure(theError) = result, case SmokeDynamoDBError.unrecognizedError(let errorType, let errorDescription) = theError,
+                    errorDescription == String(describing: TestError.everythingIsWrong),
+                    errorType == String(describing: type(of: TestError.everythingIsWrong)) else {
                     return XCTFail( "Expected error not thrown" )
                 }
 

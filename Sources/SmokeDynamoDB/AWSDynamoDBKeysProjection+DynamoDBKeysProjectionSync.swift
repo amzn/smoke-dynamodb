@@ -19,7 +19,7 @@ import Foundation
 import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
-import LoggerAPI
+import Logging
 
 /// DynamoDBKeysProjection conformance sync functions
 public extension AWSDynamoDBKeysProjection {
@@ -64,7 +64,7 @@ public extension AWSDynamoDBKeysProjection {
             
             let lastEvaluatedKey: String?
             if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                let encodedLastEvaluatedKey = try AWSDynamoDBTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                let encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
                 
                 lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
             } else {
@@ -75,7 +75,7 @@ public extension AWSDynamoDBKeysProjection {
                 let items: [CompositePrimaryKey<AttributesType>] = try outputAttributeValues.map { values in
                     let attributeValue = DynamoDBModel.AttributeValue(M: values)
                     
-                    return try AWSDynamoDBTable.dynamodbDecoder.decode(attributeValue)
+                    return try DynamoDBDecoder().decode(attributeValue)
                 }
                 
                 return (items, lastEvaluatedKey)

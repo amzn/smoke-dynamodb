@@ -18,9 +18,10 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 public protocol PolymorphicDatabaseItemConvertable {
-    var createDate: Date { get }
+    var createDate: Foundation.Date { get }
     var rowStatus: RowStatus { get }
 
     func convertToPolymorphicItem<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes>() throws
@@ -181,14 +182,14 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
 
     public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+                                                       completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 let item: TypedDatabaseItem<AttributesType, ItemType>? = try getItemSync(forKey: key)
 
-                completion(.response(item))
+                completion(.success(item))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
 
@@ -270,16 +271,16 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] =
                     try querySync(forPartitionKey: partitionKey,
                                   sortKeyCondition: sortKeyCondition)
 
-                completion(.response(items))
+                completion(.success(items))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
     
@@ -356,7 +357,7 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
@@ -366,9 +367,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
                                   scanIndexForward: true,
                                   exclusiveStartKey: exclusiveStartKey)
 
-                completion(.response(result))
+                completion(.success(result))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
     
@@ -378,7 +379,7 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
             limit: Int?,
             scanIndexForward: Bool,
             exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
@@ -388,9 +389,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
                                   scanIndexForward: scanIndexForward,
                                   exclusiveStartKey: exclusiveStartKey)
 
-                completion(.response(result))
+                completion(.success(result))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
 }

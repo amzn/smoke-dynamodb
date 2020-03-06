@@ -17,6 +17,7 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 public protocol DynamoDBTable {
 
@@ -55,7 +56,7 @@ public protocol DynamoDBTable {
     func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> TypedDatabaseItem<AttributesType, ItemType>?
 
     func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
+                                                completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
 
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
@@ -79,7 +80,7 @@ public protocol DynamoDBTable {
     func queryAsync<AttributesType, PossibleTypes>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
-        completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -97,5 +98,5 @@ public protocol DynamoDBTable {
         sortKeyCondition: AttributeCondition?,
         limit: Int,
         exclusiveStartKey: String?,
-        completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+        completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
 }

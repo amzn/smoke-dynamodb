@@ -18,6 +18,7 @@
 import XCTest
 @testable import SmokeDynamoDB
 import SmokeHTTPClient
+import DynamoDBModel
 
 private typealias DatabaseRowType = StandardTypedDatabaseItem<TestTypeA>
 private typealias QueryRowType = StandardPolymorphicDatabaseItem<ExpectedTypes>
@@ -105,16 +106,16 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         var getItemCompletionCount = 0
         for _ in 0..<10 {
-            try table.getItemAsync(forKey: key) { (result: HTTPResult<DatabaseRowType?>) in
+            try table.getItemAsync(forKey: key) { (result: SmokeDynamoDBErrorResult<DatabaseRowType?>) in
                 switch result {
-                case .response(let itemOptional):
+                case .success(let itemOptional):
                     guard let item = itemOptional else {
                         return XCTFail("Expected to retrieve item and there was none")
                     }
                     
                     try! table.updateItemAsync(newItem: item.createUpdatedItem(withValue: item.rowValue),
                                                 existingItem: item, completion: updateItemCompletion)
-                case .error(_):
+                case .failure(_):
                     XCTFail()
                 }
                 
@@ -268,9 +269,9 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         
         var queryCompletionCount = 0
         for _ in 0..<10 {
-            func handleQueryResult(result: HTTPResult<[QueryRowType]>) {
+            func handleQueryResult(result: SmokeDynamoDBErrorResult<[QueryRowType]>) {
                 switch result {
-                case .response(let query):
+                case .success(let query):
                     guard query.count == 1, let firstValue = query[0].rowValue as? TestTypeA else {
                         return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
                     }
@@ -294,7 +295,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
                     } catch {
                         errorCount += 1
                     }
-                case .error:
+                case .failure:
                     XCTFail()
                 }
                 
@@ -369,9 +370,9 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
         var updateCompletionCount = 0
         var clobberCompletionCount = 0
         for _ in 0..<10 {
-            func handleGetItemResult(result: HTTPResult<DatabaseRowType?>) {
+            func handleGetItemResult(result: SmokeDynamoDBErrorResult<DatabaseRowType?>) {
                 switch result {
-                case .response(let itemOptional):
+                case .success(let itemOptional):
                     guard let item = itemOptional else {
                         return XCTFail("Expected to retrieve item and there was none")
                     }
@@ -381,7 +382,7 @@ class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
                     try! wrappedTable.updateItemAsync(newItem: item.createUpdatedItem(withValue: item.rowValue),
                                                        existingItem: item) { _ in updateCompletionCount += 1 }
                     XCTAssertNoThrow(try table.clobberItemAsync(item) { _ in clobberCompletionCount += 1 })
-                case .error(_):
+                case .failure(_):
                     XCTFail()
                 }
                 

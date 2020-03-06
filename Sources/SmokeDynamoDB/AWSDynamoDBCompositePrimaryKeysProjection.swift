@@ -16,20 +16,16 @@
 //
 
 import Foundation
-import LoggerAPI
+import Logging
 import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 
-public class AWSDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
-    internal let dynamodb: AWSDynamoDBClient
+public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: SmokeAWSInvocationReporting>: DynamoDBCompositePrimaryKeysProjection {
+    internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
-
-    static internal let dynamodbEncoder = DynamoDBEncoder()
-    static internal let dynamodbDecoder = DynamoDBDecoder()
-    static internal let jsonEncoder = JSONEncoder()
-    static internal let jsonDecoder = JSONDecoder()
+    internal let logger: Logger
 
     internal class QueryPaginationResults<AttributesType: PrimaryKeyAttributes> {
         var items: [CompositePrimaryKey<AttributesType>] = []
@@ -37,33 +33,43 @@ public class AWSDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimary
     }
 
     public init(accessKeyId: String, secretAccessKey: String,
-                region: AWSRegion, endpointHostName: String,
-                tableName: String,
+                region: AWSRegion, reporting: InvocationReportingType,
+                endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
 
+        self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                          awsRegion: region,
+                                          awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
-        Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
     public init(credentialsProvider: CredentialsProvider,
-                region: AWSRegion, endpointHostName: String,
-                tableName: String,
+                region: AWSRegion, reporting: InvocationReportingType,
+                endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+        self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                          awsRegion: region,
+                                          awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
-        Log.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+    }
+    
+    internal init(dynamodb: AWSDynamoDBClient<InvocationReportingType>,
+                  targetTableName: String,
+                  logger: Logger) {
+        self.dynamodb = dynamodb
+        self.targetTableName = targetTableName
+        self.logger = logger
     }
 
     /**

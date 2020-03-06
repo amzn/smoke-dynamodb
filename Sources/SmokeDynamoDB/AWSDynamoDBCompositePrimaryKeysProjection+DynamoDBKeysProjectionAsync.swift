@@ -19,7 +19,7 @@ import Foundation
 import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
-import LoggerAPI
+import Logging
 
 /// DynamoDBKeysProjection conformance async functions
 public extension AWSDynamoDBCompositePrimaryKeysProjection {
@@ -27,7 +27,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
     func queryAsync<AttributesType>(
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
-        completion: @escaping (HTTPResult<[CompositePrimaryKey<AttributesType>]>) -> ())
+        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             let partialResults = QueryPaginationResults<AttributesType>()
             
@@ -41,11 +41,11 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
         forPartitionKey partitionKey: String,
         sortKeyCondition: AttributeCondition?,
         partialResults: QueryPaginationResults<AttributesType>,
-        completion: @escaping (HTTPResult<[CompositePrimaryKey<AttributesType>]>) -> ())
+        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
-            func handleQueryResult(result: HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) {
+            func handleQueryResult(result: SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) {
                 switch result {
-                case .response(let paginatedItems):
+                case .success(let paginatedItems):
                     partialResults.items += paginatedItems.0
             
                     // if there are more items
@@ -58,14 +58,14 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                                   partialResults: partialResults,
                                                   completion: completion)
                         } catch {
-                            completion(.error(error))
+                            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                     } else {
                         // we have all the items
-                        completion(.response(partialResults.items))
+                        completion(.success(partialResults.items))
                     }
-                case .error(let error):
-                    completion(.error(error))
+                case .failure(let error):
+                    completion(.failure(error))
                 }
             }
             
@@ -80,7 +80,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             limit: Int?, exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             try queryAsync(forPartitionKey: partitionKey,
                            sortKeyCondition: sortKeyCondition,
@@ -96,7 +96,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
         limit: Int?,
         scanIndexForward: Bool,
         exclusiveStartKey: String?,
-        completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
+        completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                               primaryKeyType: AttributesType.self,
@@ -104,15 +104,15 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                                                               scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
-                case .response(let queryOutput):
+                case .success(let queryOutput):
                     let lastEvaluatedKey: String?
                     if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
                         let encodedLastEvaluatedKey: Data
                         
                         do {
-                            encodedLastEvaluatedKey = try AWSDynamoDBCompositePrimaryKeyTable.jsonEncoder.encode(returnedLastEvaluatedKey)
+                            encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
                         } catch {
-                            return completion(.error(error))
+                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                         
                         lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
@@ -127,18 +127,18 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                             items = try outputAttributeValues.map { values in
                                 let attributeValue = DynamoDBModel.AttributeValue(M: values)
                                 
-                                return try AWSDynamoDBCompositePrimaryKeyTable.dynamodbDecoder.decode(attributeValue)
+                                return try DynamoDBDecoder().decode(attributeValue)
                             }
                         } catch {
-                            return completion(.error(error))
+                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                         }
                         
-                        completion(.response((items, lastEvaluatedKey)))
+                        completion(.success((items, lastEvaluatedKey)))
                     } else {
-                        completion(.response(([], lastEvaluatedKey)))
+                        completion(.success(([], lastEvaluatedKey)))
                     }
-                case .error(let error):
-                    return completion(.error(error))
+                case .failure(let error):
+                    return completion(.failure(error.asSmokeDynamoDBError()))
                 }
             }
     }

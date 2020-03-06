@@ -17,7 +17,7 @@
 
 import Foundation
 import DynamoDBModel
-import LoggerAPI
+import Logging
 
 internal class InternalSingleValueEncodingContainer: SingleValueEncodingContainer {
     internal private(set) var containerValue: ContainerValueType?

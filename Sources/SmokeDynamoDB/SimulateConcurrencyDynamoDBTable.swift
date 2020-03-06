@@ -17,6 +17,7 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 /**
  Implementation of the DynamoDBTable protocol that simulates concurrent access
@@ -122,14 +123,14 @@ public class SimulateConcurrencyDynamoDBTable: DynamoDBTable {
     }
     
     public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
+                                                       completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
             do {
                 let item: TypedDatabaseItem<AttributesType, ItemType>? = try getItemSync(forKey: key)
                 
-                completion(.response(item))
+                completion(.success(item))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
     
@@ -162,16 +163,16 @@ public class SimulateConcurrencyDynamoDBTable: DynamoDBTable {
     public func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            completion: @escaping (HTTPResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] =
                     try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
                                                       sortKeyCondition: sortKeyCondition)
                 
-                completion(.response(items))
+                completion(.success(items))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
     
@@ -193,7 +194,7 @@ public class SimulateConcurrencyDynamoDBTable: DynamoDBTable {
             sortKeyCondition: AttributeCondition?,
             limit: Int,
             exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
             do {
                 let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
@@ -202,9 +203,9 @@ public class SimulateConcurrencyDynamoDBTable: DynamoDBTable {
                                                       limit: limit,
                                                       exclusiveStartKey: exclusiveStartKey)
                 
-                completion(.response(result))
+                completion(.success(result))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
 }

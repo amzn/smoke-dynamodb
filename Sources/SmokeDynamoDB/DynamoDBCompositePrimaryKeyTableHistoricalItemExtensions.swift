@@ -17,8 +17,9 @@
 //
 
 import Foundation
-import LoggerAPI
+import Logging
 import SmokeHTTPClient
+import DynamoDBModel
 
 public extension DynamoDBCompositePrimaryKeyTable {
 
@@ -161,9 +162,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
             }
         }
 
-        func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
+        func handleGetItemResult(result: SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
-            case .response(let existingItemOptional):
+            case .success(let existingItemOptional):
                 do {
                     if let existingItem = existingItemOptional {
                         let newItem: TypedDatabaseItem<AttributesType, ItemType> = primaryItemProvider(existingItem)
@@ -179,7 +180,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                 } catch {
                     completion(error)
                 }
-            case .error(let error):
+            case .failure(let error):
                 completion(error)
             }
         }
@@ -250,7 +251,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int,
-            completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) -> (Error?) -> () {
+            completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) -> (Error?) -> () {
         func handleUpdateItemResult(error: Error?) {
             // If there was a failure due to conditionalCheckFailed
             if let theError = error, case SmokeDynamoDBError.conditionalCheckFailed = theError {
@@ -261,15 +262,17 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                                              historicalItemProvider: historicalItemProvider,
                                                                              withRetries: retries - 1,
                                                                              completion: completion)
+                } catch let updateError as SmokeDynamoDBError {
+                    completion(.failure(updateError))
                 } catch let updateError {
-                    completion(.error(updateError))
+                    completion(.failure(updateError.asUnrecognizedSmokeDynamoDBError()))
                 }
             // otherwise if there was an error, propagate it to the outer completion handler
             } else if let theError = error {
-                completion(.error(theError))
+                completion(.failure(theError.asUnrecognizedSmokeDynamoDBError()))
             // otherwise there was no error; call the outer completion handler with the item that was committed to the database
             } else {
-                completion(.response(updatedItem))
+                completion(.success(updatedItem))
             }
         }
 
@@ -295,7 +298,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
         historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
         withRetries retries: Int = 10,
-        completion: @escaping (HTTPResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) throws {
+        completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>>) -> ()) throws {
 
         guard retries > 0 else {
             throw SmokeDynamoDBError.concurrencyError(partitionKey: compositePrimaryKey.partitionKey,
@@ -303,15 +306,15 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                     message: "Unable to complete request to update versioned item in specified number of attempts")
         }
 
-        func handleGetItemResult(result: HTTPResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
+        func handleGetItemResult(result: SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
             switch result {
-            case .response(let existingItemOptional):
+            case .success(let existingItemOptional):
                 guard let existingItem = existingItemOptional else {
                     let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
                                                               sortKey: compositePrimaryKey.sortKey,
                                                               message: "Item not present in database.")
 
-                    return completion( .error( error ) )
+                    return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                 }
 
                 do {
@@ -331,10 +334,10 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                          historicalItem: historicalItem,
                                                          completion: completionHandler)
                 } catch {
-                    completion( .error( error ) )
+                    completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
                 }
-            case .error(let error):
-                completion( .error( error ) )
+            case .failure(let error):
+                completion( .failure( error ) )
             }
         }
 

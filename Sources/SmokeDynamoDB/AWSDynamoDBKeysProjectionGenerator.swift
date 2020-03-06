@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  AWSDynamoDBKeysProjection.swift
+//  AWSDynamoDBKeysProjectionGenerator.swift
 //  SmokeDynamoDB
 //
 
@@ -22,54 +22,34 @@ import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 
-public class AWSDynamoDBKeysProjection<InvocationReportingType: SmokeAWSInvocationReporting>: DynamoDBKeysProjection {
-    internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
+public class AWSDynamoDBKeysProjectionGenerator {
+    internal let dynamodbGenerator: AWSDynamoDBClientGenerator
     internal let targetTableName: String
-    internal let logger: Logger
-
-    internal class QueryPaginationResults<AttributesType: PrimaryKeyAttributes> {
-        var items: [CompositePrimaryKey<AttributesType>] = []
-        var exclusiveStartKey: String?
-    }
 
     public init(accessKeyId: String, secretAccessKey: String,
-                region: AWSRegion, reporting: InvocationReportingType,
+                region: AWSRegion,
                 endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
 
-        self.logger = reporting.logger
-        self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                          awsRegion: region, reporting: reporting,
-                                          endpointHostName: endpointHostName,
-                                          eventLoopProvider: eventLoopProvider)
+        self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: staticCredentials,
+                                                            awsRegion: region,
+                                                            endpointHostName: endpointHostName,
+                                                            eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
-
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
     public init(credentialsProvider: CredentialsProvider,
-                region: AWSRegion, reporting: InvocationReportingType,
+                region: AWSRegion,
                 endpointHostName: String, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
-        self.logger = reporting.logger
-        self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                          awsRegion: region, reporting: reporting,
-                                          endpointHostName: endpointHostName,
-                                          eventLoopProvider: eventLoopProvider)
+        self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
+                                                            awsRegion: region,
+                                                            endpointHostName: endpointHostName,
+                                                            eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
-
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
-    }
-    
-    internal init(dynamodb: AWSDynamoDBClient<InvocationReportingType>,
-                  targetTableName: String,
-                  logger: Logger) {
-        self.dynamodb = dynamodb
-        self.targetTableName = targetTableName
-        self.logger = logger
     }
 
     /**
@@ -77,7 +57,7 @@ public class AWSDynamoDBKeysProjection<InvocationReportingType: SmokeAWSInvocati
      will handle being called multiple times.
      */
     public func close() {
-        dynamodb.close()
+        dynamodbGenerator.close()
     }
 
     /**
@@ -85,6 +65,14 @@ public class AWSDynamoDBKeysProjection<InvocationReportingType: SmokeAWSInvocati
      this will block forever.
      */
     public func wait() {
-        dynamodb.wait()
+        dynamodbGenerator.wait()
+    }
+    
+    public func with<NewInvocationReportingType: SmokeAWSInvocationReporting>(
+            reporting: NewInvocationReportingType) -> AWSDynamoDBKeysProjection<NewInvocationReportingType> {
+        return AWSDynamoDBKeysProjection<NewInvocationReportingType>(
+            dynamodb: self.dynamodbGenerator.with(reporting: reporting),
+            targetTableName: self.targetTableName,
+            logger: reporting.logger)
     }
 }

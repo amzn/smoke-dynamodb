@@ -18,6 +18,7 @@
 
 import Foundation
 import SmokeHTTPClient
+import DynamoDBModel
 
 public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
 
@@ -88,16 +89,16 @@ public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
     public func queryAsync<AttributesType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            completion: @escaping (HTTPResult<[CompositePrimaryKey<AttributesType>]>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             do {
                 let items: [CompositePrimaryKey<AttributesType>] =
                     try querySync(forPartitionKey: partitionKey,
                                   sortKeyCondition: sortKeyCondition)
 
-                completion(.response(items))
+                completion(.success(items))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
 
@@ -142,7 +143,7 @@ public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             exclusiveStartKey: String?,
-            completion: @escaping (HTTPResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
+            completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
         throws where AttributesType: PrimaryKeyAttributes {
             do {
                 let result: ([CompositePrimaryKey<AttributesType>], String?) =
@@ -151,9 +152,9 @@ public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
                                   limit: limit,
                                   exclusiveStartKey: exclusiveStartKey)
 
-                completion(.response(result))
+                completion(.success(result))
             } catch {
-                completion(.error(error))
+                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
             }
     }
 }
