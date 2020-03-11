@@ -68,7 +68,7 @@ public class AWSDynamoDBKeysProjectionGenerator {
         dynamodbGenerator.wait()
     }
     
-    public func with<NewInvocationReportingType: SmokeAWSInvocationReporting>(
+    public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType) -> AWSDynamoDBKeysProjection<NewInvocationReportingType> {
         return AWSDynamoDBKeysProjection<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),

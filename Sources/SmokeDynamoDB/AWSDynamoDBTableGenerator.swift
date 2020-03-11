@@ -68,7 +68,7 @@ public class AWSDynamoDBTableGenerator {
         dynamodbGenerator.wait()
     }
     
-    public func with<NewInvocationReportingType: SmokeAWSInvocationReporting>(
+    public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType) -> AWSDynamoDBTable<NewInvocationReportingType> {
         return AWSDynamoDBTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
