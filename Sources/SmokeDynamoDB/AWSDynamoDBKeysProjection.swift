@@ -22,7 +22,7 @@ import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 
-public class AWSDynamoDBKeysProjection<InvocationReportingType: SmokeAWSInvocationReporting>: DynamoDBKeysProjection {
+public class AWSDynamoDBKeysProjection<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBKeysProjection {
     internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
     internal let logger: Logger

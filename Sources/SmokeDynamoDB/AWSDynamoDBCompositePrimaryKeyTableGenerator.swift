@@ -68,7 +68,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
         dynamodbGenerator.wait()
     }
     
-    public func with<NewInvocationReportingType: SmokeAWSInvocationReporting>(
+    public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType) -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
         return AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),

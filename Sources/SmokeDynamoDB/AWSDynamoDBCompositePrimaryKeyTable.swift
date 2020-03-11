@@ -22,7 +22,7 @@ import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 
-public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: SmokeAWSInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
+public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
     internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
     internal let logger: Logger
