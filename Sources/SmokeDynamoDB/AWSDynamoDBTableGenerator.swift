@@ -21,6 +21,7 @@ import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
+import AsyncHTTPClient
 
 public class AWSDynamoDBTableGenerator {
     internal let dynamodbGenerator: AWSDynamoDBClientGenerator
@@ -29,7 +30,7 @@ public class AWSDynamoDBTableGenerator {
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion,
                 endpointHostName: String, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -44,7 +45,7 @@ public class AWSDynamoDBTableGenerator {
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion,
                 endpointHostName: String, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
                                                             awsRegion: region,
                                                             endpointHostName: endpointHostName,
@@ -56,16 +57,8 @@ public class AWSDynamoDBTableGenerator {
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times.
      */
-    public func close() {
-        dynamodbGenerator.close()
-    }
-
-    /**
-     Waits for the client behind this table to be closed. If close() is not called,
-     this will block forever.
-     */
-    public func wait() {
-        dynamodbGenerator.wait()
+    public func close() throws {
+        try dynamodbGenerator.close()
     }
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
