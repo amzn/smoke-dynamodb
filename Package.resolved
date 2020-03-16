@@ -23,18 +23,18 @@
         "package": "SmokeAWS",
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
-          "branch": "async-http-client",
-          "revision": "ca9c34df5f3ecd35f228e1a8a5b6419043a9cfe2",
-          "version": null
+          "branch": null,
+          "revision": "bbc082c45f69fb44d190e9b377520737cd16f1f8",
+          "version": "2.0.0-alpha.5"
         }
       },
       {
         "package": "SmokeHTTP",
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
-          "branch": "async-http-client",
-          "revision": "ae6944abc219a199a9739a43b8c03862755574c7",
-          "version": null
+          "branch": null,
+          "revision": "ae8003b3605c0b368925558254055222237b1da4",
+          "version": "2.0.0-alpha.7"
         }
       },
       {
@@ -51,8 +51,8 @@
         "repositoryURL": "https://github.com/apple/swift-metrics.git",
         "state": {
           "branch": null,
-          "revision": "09b72f68ed9b01b614c12855fc7e22876b97a97e",
-          "version": "1.2.1"
+          "revision": "708b960b4605abb20bc55d65abf6bad607252200",
+          "version": "2.0.0"
         }
       },
       {
