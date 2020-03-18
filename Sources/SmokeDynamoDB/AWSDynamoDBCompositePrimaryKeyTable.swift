@@ -21,6 +21,7 @@ import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
+import AsyncHTTPClient
 
 public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
     internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
@@ -37,7 +38,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -55,7 +56,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopProvider = .spawnNewThreads) {
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                           awsRegion: region, reporting: reporting,
@@ -78,16 +79,8 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times.
      */
-    public func close() {
-        dynamodb.close()
-    }
-
-    /**
-     Waits for the client behind this table to be closed. If close() is not called,
-     this will block forever.
-     */
-    public func wait() {
-        dynamodb.wait()
+    public func close() throws {
+        try dynamodb.close()
     }
 
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
