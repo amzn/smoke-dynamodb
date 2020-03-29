@@ -104,7 +104,7 @@ public extension DynamoDBTable {
 
             do {
                 try updateItemWithHistoricalRowSync(primaryItem: newItem, existingItem: existingItem, historicalItem: historicalItemProvider(newItem))
-            } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+            } catch SmokeDynamoDBError.conditionalCheckFailed {
                 try clobberItemWithHistoricalRowSync(primaryItemProvider: primaryItemProvider,
                                                  historicalItemProvider: historicalItemProvider,
                                                  withRetries: retries - 1)
@@ -113,7 +113,7 @@ public extension DynamoDBTable {
             do {
                 try insertItemWithHistoricalRowSync(primaryItem: primaryItem,
                                                 historicalItem: historicalItemProvider(primaryItem))
-            } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+            } catch SmokeDynamoDBError.conditionalCheckFailed {
                 try clobberItemWithHistoricalRowSync(primaryItemProvider: primaryItemProvider,
                                                  historicalItemProvider: historicalItemProvider,
                                                  withRetries: retries - 1)

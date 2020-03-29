@@ -156,7 +156,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         } catch {
             self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-            throw SmokeDynamoDBError.databaseError(cause: error)
+            throw SmokeDynamoDBError.unexpectedError(cause: error)
         }
     }
 }
