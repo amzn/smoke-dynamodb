@@ -58,7 +58,7 @@ public extension DynamoDBTable {
         
         do {
             try updateItemSync(newItem: updatedDatabaseItem, existingItem: databaseItem)
-        } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
             return try conditionallyUpdateItemSync(forKey: key,
                                                    withRetries: retries - 1,
                                                    updatedPayloadProvider: updatedPayloadProvider)

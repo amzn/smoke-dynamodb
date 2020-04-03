@@ -23,7 +23,9 @@ import DynamoDBModel
  Enumeration of the errors that can be thrown by a DynamoDBTable.
  */
 public enum SmokeDynamoDBError: Error {
-    case databaseError(cause: Swift.Error)
+    case databaseError(reason: String)
+    case unexpectedError(cause: Swift.Error)
+    case dynamoDBError(cause: DynamoDBError)
     case unexpectedResponse(reason: String)
     case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
     case typeMismatch(expected: String, provided: String)
@@ -45,7 +47,7 @@ public extension Swift.Error {
 
 public extension DynamoDBError {
     func asSmokeDynamoDBError() -> SmokeDynamoDBError {
-        return .databaseError(cause: self)
+        return .dynamoDBError(cause: self)
     }
 }
 

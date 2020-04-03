@@ -221,14 +221,14 @@ public extension AWSDynamoDBTable {
                     default:
                         self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-                        completion(SmokeDynamoDBError.databaseError(cause: error))
+                        completion(SmokeDynamoDBError.unexpectedError(cause: error))
                     }
                 }
             }
         } catch {
             self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
-            throw SmokeDynamoDBError.databaseError(cause: error)
+            throw SmokeDynamoDBError.unexpectedError(cause: error)
         }
     }
 }

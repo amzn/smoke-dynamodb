@@ -120,7 +120,7 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
         do {
             // Second insert will fail.
             try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
-        } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
             // Success
         } catch {
              return XCTFail("Unexpected exception")
@@ -247,7 +247,7 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
         do {
             // Second update will fail.
             try table.updateItemWithHistoricalRowSync(primaryItem: databaseItem.createUpdatedItem(withValue: versionedPayload), existingItem: databaseItem, historicalItem: historicalItem)
-        } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
             // Success
         } catch {
             return XCTFail("Unexpected exception")
@@ -390,7 +390,7 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
             try table.clobberItemWithHistoricalRowSync(primaryItemProvider: testPrimaryItemProvider, historicalItemProvider: testHistoricalItemProvider, withRetries: 9)
 
             XCTFail("Expected error not thrown.")
-        } catch SmokeDynamoDBError.concurrencyError(_) {
+        } catch SmokeDynamoDBError.concurrencyError {
             // Success
         } catch {
             return XCTFail("Unexpected exception: \(error)")
@@ -587,7 +587,7 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
                 historicalItemProvider: conditionalUpdateHistoricalItemProvider)
 
             XCTFail("Expected error not thrown.")
-        } catch SmokeDynamoDBError.concurrencyError(_) {
+        } catch SmokeDynamoDBError.concurrencyError {
             // Success
         } catch {
             return XCTFail("Unexpected exception: \(error)")

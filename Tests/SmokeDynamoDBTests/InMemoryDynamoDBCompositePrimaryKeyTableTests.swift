@@ -113,7 +113,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         do {
            try table.insertItemSync(databaseItem)
             XCTFail()
-        } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
             // expected error
         } catch {
             XCTFail("Unexpected error \(error)")
@@ -168,7 +168,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             try table.updateItemSync(newItem: databaseItem.createUpdatedItem(withValue: updatedPayload),
                                       existingItem: databaseItem)
             XCTFail()
-        } catch SmokeDynamoDBError.conditionalCheckFailed(_) {
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
             // expected error
         } catch {
             XCTFail("Unexpected error \(error)")
