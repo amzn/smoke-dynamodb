@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.0
 //
 // Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
@@ -18,7 +18,7 @@ import PackageDescription
 let package = Package(
     name: "SmokeDynamoDB",
     platforms: [
-        .macOS(.v10_15), .iOS(.v10)
+        .macOS(.v10_12), .iOS(.v10)
         ],
     products: [
         .library(
@@ -26,24 +26,18 @@ let package = Package(
             targets: ["SmokeDynamoDB"]),
     ],
     dependencies: [
-        .package(name: "SmokeAWS", url: "https://github.com/amzn/smoke-aws.git", .branch("use_swift_crypto_under_5_2")),
-        .package(name: "SmokeHTTP", url: "https://github.com/amzn/smoke-http.git", from: "2.0.0-alpha.8"),
+        .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.0.0-alpha.5"),
+        .package(url: "https://github.com/amzn/smoke-http.git", from: "2.0.0-alpha.7"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0"..<"3.0.0"),
     ],
     targets: [
         .target(
-            name: "SmokeDynamoDB", dependencies: [
-                .product(name: "Logging", package: "swift-log"),
-                .product(name: "Metrics", package: "swift-metrics"),
-                .product(name: "DynamoDBClient", package: "SmokeAWS"),
-                .product(name: "SmokeHTTPClient", package: "SmokeHTTP"),
-            ]),
+            name: "SmokeDynamoDB",
+            dependencies: ["Metrics", "Logging", "DynamoDBClient", "SmokeHTTPClient"]),
         .testTarget(
-            name: "SmokeDynamoDBTests", dependencies: [
-                .target(name: "SmokeDynamoDB"),
-                .product(name: "SmokeHTTPClient", package: "SmokeHTTP"),
-            ]),
+            name: "SmokeDynamoDBTests",
+            dependencies: ["SmokeDynamoDB", "SmokeHTTPClient"]),
     ],
     swiftLanguageVersions: [.v5]
 )

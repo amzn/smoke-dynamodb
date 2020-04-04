@@ -20,6 +20,7 @@ import Logging
 import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
+import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
 
@@ -67,5 +68,28 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
             targetTableName: self.targetTableName,
             logger: reporting.logger)
+    }
+    
+    public func with<NewTraceContextType: InvocationTraceContext>(
+            logger: Logging.Logger,
+            internalRequestId: String = "none",
+            traceContext: NewTraceContextType) -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+        let reporting = StandardHTTPClientCoreInvocationReporting(
+            logger: logger,
+            internalRequestId: internalRequestId,
+            traceContext: traceContext)
+
+        return with(reporting: reporting)
+    }
+
+    public func with(
+            logger: Logging.Logger,
+            internalRequestId: String = "none") -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+        let reporting = StandardHTTPClientCoreInvocationReporting(
+            logger: logger,
+            internalRequestId: internalRequestId,
+            traceContext: AWSClientInvocationTraceContext())
+
+        return with(reporting: reporting)
     }
 }

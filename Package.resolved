@@ -11,21 +11,12 @@
         }
       },
       {
-        "package": "Cryptor",
-        "repositoryURL": "https://github.com/IBM-Swift/BlueCryptor.git",
-        "state": {
-          "branch": null,
-          "revision": "12d2bf3ec7207ec3cd004b9582f69ef5fae1da3b",
-          "version": "1.0.32"
-        }
-      },
-      {
         "package": "SmokeAWS",
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
-          "branch": null,
-          "revision": "bbc082c45f69fb44d190e9b377520737cd16f1f8",
-          "version": "2.0.0-alpha.5"
+          "branch": "use_swift_crypto_under_5_2",
+          "revision": "4d8b63cccc78bad8ad3ed270fca7632989b39ba7",
+          "version": null
         }
       },
       {
@@ -33,17 +24,17 @@
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
           "branch": null,
-          "revision": "ae8003b3605c0b368925558254055222237b1da4",
-          "version": "2.0.0-alpha.7"
+          "revision": "e61b72adebfb054204dc3c3c122a27072cb04d05",
+          "version": "2.0.0-alpha.8"
         }
       },
       {
-        "package": "swift-log",
-        "repositoryURL": "https://github.com/apple/swift-log.git",
+        "package": "swift-crypto",
+        "repositoryURL": "https://github.com/apple/swift-crypto.git",
         "state": {
           "branch": null,
-          "revision": "74d7b91ceebc85daf387ebb206003f78813f71aa",
-          "version": "1.2.0"
+          "revision": "d67ac68d09a95443303e9d6e37b34e7ba101d5f1",
+          "version": "1.0.1"
         }
       },
       {
