@@ -16,7 +16,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "SmokeDynamoDB",
+    name: "smoke-dynamodb",
     platforms: [
         .macOS(.v10_15), .iOS(.v10)
         ],
@@ -26,7 +26,7 @@ let package = Package(
             targets: ["SmokeDynamoDB"]),
     ],
     dependencies: [
-        .package(name: "SmokeAWS", url: "https://github.com/amzn/smoke-aws.git", .branch("use_swift_crypto_under_5_2")),
+        .package(url: "https://github.com/amzn/smoke-aws.git", .branch("use_swift_crypto_under_5_2")),
         .package(name: "SmokeHTTP", url: "https://github.com/amzn/smoke-http.git", from: "2.0.0-alpha.8"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0"..<"3.0.0"),
@@ -36,7 +36,7 @@ let package = Package(
             name: "SmokeDynamoDB", dependencies: [
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Metrics", package: "swift-metrics"),
-                .product(name: "DynamoDBClient", package: "SmokeAWS"),
+                .product(name: "DynamoDBClient", package: "smoke-aws"),
                 .product(name: "SmokeHTTPClient", package: "SmokeHTTP"),
             ]),
         .testTarget(
