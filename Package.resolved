@@ -15,17 +15,17 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
           "branch": "use_swift_crypto_under_5_2",
-          "revision": "6d82ff38cb9d54679340ded9aa55af47d9e784a9",
+          "revision": "0bce612318d812651f0ec332458fe66917fe7dab",
           "version": null
         }
       },
       {
-        "package": "SmokeHTTP",
+        "package": "smoke-http",
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
           "branch": null,
-          "revision": "e61b72adebfb054204dc3c3c122a27072cb04d05",
-          "version": "2.0.0-alpha.8"
+          "revision": "a3fd185135fe2fc40ef609983071d44dafce36f1",
+          "version": "2.0.0-alpha.9"
         }
       },
       {
@@ -35,15 +35,6 @@
           "branch": null,
           "revision": "d67ac68d09a95443303e9d6e37b34e7ba101d5f1",
           "version": "1.0.1"
-        }
-      },
-      {
-        "package": "swift-log",
-        "repositoryURL": "https://github.com/apple/swift-log.git",
-        "state": {
-          "branch": null,
-          "revision": "74d7b91ceebc85daf387ebb206003f78813f71aa",
-          "version": "1.2.0"
         }
       },
       {
