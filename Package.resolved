@@ -14,9 +14,9 @@
         "package": "smoke-aws",
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
-          "branch": "use_swift_crypto_under_5_2",
-          "revision": "0bce612318d812651f0ec332458fe66917fe7dab",
-          "version": null
+          "branch": null,
+          "revision": "747aa0495274a51597c55c158520cfca6788a601",
+          "version": "2.0.0-alpha.6"
         }
       },
       {
@@ -35,6 +35,15 @@
           "branch": null,
           "revision": "d67ac68d09a95443303e9d6e37b34e7ba101d5f1",
           "version": "1.0.1"
+        }
+      },
+      {
+        "package": "swift-log",
+        "repositoryURL": "https://github.com/apple/swift-log.git",
+        "state": {
+          "branch": null,
+          "revision": "74d7b91ceebc85daf387ebb206003f78813f71aa",
+          "version": "1.2.0"
         }
       },
       {
@@ -71,15 +80,6 @@
           "branch": null,
           "revision": "ae213938e151964aa691f0e902462fbe06baeeb6",
           "version": "2.7.1"
-        }
-      },
-      {
-        "package": "XMLCoding",
-        "repositoryURL": "https://github.com/LiveUI/XMLCoding.git",
-        "state": {
-          "branch": null,
-          "revision": "f0fbfe17e73f329e13a6133ff5437f7b174049fd",
-          "version": "0.4.1"
         }
       }
     ]
