@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.0
 //
 // Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
@@ -16,9 +16,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "smoke-dynamodb",
+    name: "SmokeDynamoDB",
     platforms: [
-        .macOS(.v10_15), .iOS(.v10)
+        .macOS(.v10_12), .iOS(.v10)
         ],
     products: [
         .library(
@@ -33,17 +33,11 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "SmokeDynamoDB", dependencies: [
-                .product(name: "Logging", package: "swift-log"),
-                .product(name: "Metrics", package: "swift-metrics"),
-                .product(name: "DynamoDBClient", package: "smoke-aws"),
-                .product(name: "SmokeHTTPClient", package: "smoke-http"),
-            ]),
+            name: "SmokeDynamoDB",
+            dependencies: ["Metrics", "Logging", "DynamoDBClient", "SmokeHTTPClient"]),
         .testTarget(
-            name: "SmokeDynamoDBTests", dependencies: [
-                .target(name: "SmokeDynamoDB"),
-                .product(name: "SmokeHTTPClient", package: "smoke-http"),
-            ]),
+            name: "SmokeDynamoDBTests",
+            dependencies: ["SmokeDynamoDB", "SmokeHTTPClient"]),
     ],
     swiftLanguageVersions: [.v5]
 )
