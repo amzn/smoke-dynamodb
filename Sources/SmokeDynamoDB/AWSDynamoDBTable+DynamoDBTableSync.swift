@@ -22,6 +22,7 @@ import SmokeHTTPClient
 import Logging
 
 /// DynamoDBTable conformance sync functions
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeyTable")
 public extension AWSDynamoDBTable {
     
     func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {

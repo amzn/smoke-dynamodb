@@ -20,6 +20,7 @@ import SmokeHTTPClient
 import Logging
 import DynamoDBModel
 
+@available(swift, deprecated: 2.0, renamed: "DynamoDBCompositePrimaryKeyTable")
 public extension DynamoDBTable {
     /**
      Method to conditionally update an item at the specified key for a number of retries.

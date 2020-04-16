@@ -17,6 +17,7 @@
 
 import Foundation
 
+@available(swift, deprecated: 2.0, renamed: "DynamoDBCompositePrimaryKeyTable")
 public extension DynamoDBTable {
     /**
      * This operation provide a mechanism for managing mutable database rows

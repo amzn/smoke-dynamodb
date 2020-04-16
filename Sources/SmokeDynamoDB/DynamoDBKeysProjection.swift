@@ -23,6 +23,7 @@ import DynamoDBModel
  Protocol presenting a Keys Only projection of a DynamoDB table such as a Keys Only GSI projection.
  Provides the ability to query the projection to get the list of keys without attempting to decode the row into a particular data type.
  */
+@available(swift, deprecated: 2.0, renamed: "DynamoDBCompositePrimaryKeysProjection")
 public protocol DynamoDBKeysProjection {
 
     /**

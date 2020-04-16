@@ -24,6 +24,7 @@ import DynamoDBModel
  to a database by incrementing a row's version every time it is added for
  a specified number of requests.
  */
+@available(swift, deprecated: 2.0, renamed: "SimulateConcurrencyDynamoDBCompositePrimaryKeyTable")
 public class SimulateConcurrencyDynamoDBTable: DynamoDBTable {
     let wrappedDynamoDBTable: DynamoDBTable
     let simulateConcurrencyModifications: Int

@@ -20,6 +20,7 @@ import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
 
+@available(swift, deprecated: 2.0, renamed: "InMemoryDynamoDBCompositePrimaryKeyTable")
 public class InMemoryDynamoDBTable: DynamoDBTable {
 
     public var store: [String: [String: PolymorphicDatabaseItemConvertable]] = [:]

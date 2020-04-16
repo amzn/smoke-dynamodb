@@ -22,6 +22,7 @@ import SmokeHTTPClient
 import Logging
 
 /// DynamoDBKeysProjection conformance async functions
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeysProjection")
 public extension AWSDynamoDBKeysProjection {
     
     func queryAsync<AttributesType>(

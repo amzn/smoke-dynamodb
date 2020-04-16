@@ -24,6 +24,7 @@ import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
 
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeysProjectionGenerator")
 public class AWSDynamoDBKeysProjectionGenerator {
     internal let dynamodbGenerator: AWSDynamoDBClientGenerator
     internal let targetTableName: String
