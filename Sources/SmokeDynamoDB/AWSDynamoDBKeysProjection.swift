@@ -23,6 +23,7 @@ import SmokeAWSCore
 import SmokeHTTPClient
 import AsyncHTTPClient
 
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeysProjection")
 public class AWSDynamoDBKeysProjection<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBKeysProjection {
     internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String

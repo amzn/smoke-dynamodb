@@ -20,6 +20,7 @@ import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
 
+@available(swift, deprecated: 2.0, renamed: "InMemoryDynamoDBCompositePrimaryKeysProjection")
 public class InMemoryDynamoDBKeysProjection: DynamoDBKeysProjection {
 
     public var keys: [Any] = []

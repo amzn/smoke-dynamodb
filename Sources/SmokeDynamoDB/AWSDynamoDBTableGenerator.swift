@@ -24,6 +24,7 @@ import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
 
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeyTableGenerator")
 public class AWSDynamoDBTableGenerator {
     internal let dynamodbGenerator: AWSDynamoDBClientGenerator
     internal let targetTableName: String

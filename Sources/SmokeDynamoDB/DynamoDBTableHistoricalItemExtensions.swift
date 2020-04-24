@@ -21,6 +21,7 @@ import Logging
 import SmokeHTTPClient
 import DynamoDBModel
 
+@available(swift, deprecated: 2.0, renamed: "DynamoDBCompositePrimaryKeyTable")
 public extension DynamoDBTable {
 
     /**

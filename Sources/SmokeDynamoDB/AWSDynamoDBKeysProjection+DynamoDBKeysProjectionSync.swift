@@ -22,6 +22,7 @@ import SmokeHTTPClient
 import Logging
 
 /// DynamoDBKeysProjection conformance sync functions
+@available(swift, deprecated: 2.0, renamed: "AWSDynamoDBCompositePrimaryKeysProjection")
 public extension AWSDynamoDBKeysProjection {
     
     func querySync<AttributesType>(forPartitionKey partitionKey: String,
