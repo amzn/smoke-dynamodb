@@ -31,7 +31,8 @@ public class AWSDynamoDBKeysProjectionGenerator {
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion,
-                endpointHostName: String, tableName: String,
+                endpointHostName: String, endpointPort: Int = 443,
+                requiresTLS: Bool? = nil, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
@@ -40,17 +41,20 @@ public class AWSDynamoDBKeysProjectionGenerator {
         self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: staticCredentials,
                                                             awsRegion: region,
                                                             endpointHostName: endpointHostName,
+                                                            endpointPort: endpointPort, requiresTLS: requiresTLS,
                                                             eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
     }
 
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion,
-                endpointHostName: String, tableName: String,
+                endpointHostName: String, endpointPort: Int = 443,
+                requiresTLS: Bool? = nil, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
                                                             awsRegion: region,
                                                             endpointHostName: endpointHostName,
+                                                            endpointPort: endpointPort, requiresTLS: requiresTLS,
                                                             eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
     }

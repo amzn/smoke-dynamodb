@@ -35,7 +35,8 @@ public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: 
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
-                endpointHostName: String, tableName: String,
+                endpointHostName: String, endpointPort: Int = 443,
+                requiresTLS: Bool? = nil, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
@@ -45,6 +46,7 @@ public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: 
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
                                           awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
+                                          endpointPort: endpointPort, requiresTLS: requiresTLS,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
@@ -53,12 +55,14 @@ public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: 
 
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion, reporting: InvocationReportingType,
-                endpointHostName: String, tableName: String,
+                endpointHostName: String, endpointPort: Int = 443,
+                requiresTLS: Bool? = nil, tableName: String,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
         self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                           awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
+                                          endpointPort: endpointPort, requiresTLS: requiresTLS,
                                           eventLoopProvider: eventLoopProvider)
         self.targetTableName = tableName
 
