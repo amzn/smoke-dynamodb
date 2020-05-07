@@ -62,7 +62,7 @@ For consistency in naming across the library, SmokeDynamoDB will case DynamoDB t
 - Uppercase: `DynamoDB`
   - Use-cases: Class names, struct names, upper-cased while in the middle of a camel cased function/variable name, and strings referring to it as a proper noun.
   - Examples:
-    - `DynamoDBTable`
+    - `DynamoDBCompositePrimaryKeyTable`
     - `dropAsDynamoDBKeyPrefix`
 
 - Lowercase: `dynamodb`
@@ -72,21 +72,21 @@ For consistency in naming across the library, SmokeDynamoDB will case DynamoDB t
 
 ## Performing operations on a DynamoDB Table
 
-This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBTable` protocol. In a production scenario, operations can be performed using `AwsDynamoDBTable`-
+This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBCompositePrimaryKeyTable` protocol. In a production scenario, operations can be performed using `AWSDynamoDBCompositePrimaryKeyTable`-
 
 ```swift
-let table = AwsDynamoDBTable(credentialsProvider: credentialsProvider,
-                             region: region, endpointHostName: dynamodbEndpointHostName,
-                             tableName: dynamodbTableName)
+let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
+    credentialsProvider: credentialsProvider, region: region,
+    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName)
+   
+let table = generator.with(logger: logger)
 ```
-
-For testing `InMemoryDynamoDBTable` can be used to locally verify what rows will be added to the database table.
 
 ## Testing
 
 ### In Memory mocking
 
-The `InMemory*` types provide the abilty to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
+The `InMemory*` types - such as `InMemoryDynamoDBCompositePrimaryKeyTable` - provide the abilty to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
 
 The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table inetween accesses. These types are designed to allow unit testing of table concurrency handling.
 
@@ -187,7 +187,7 @@ The `updateItemSync` (or `updateItemAsync`) operation will attempt to insert the
 * **firstly**: "firstlyX2"
 * **secondly**: "secondlyX2"
 
-By default, this operation will fail if an item with the same partition key and sort key doesn't exist in the table and if the existing row doesn't have the same version number as the `existingItem` submitted in the operation. The `DynamoDBTable` protocol also provides the `clobberItemSync` and `clobberItemAsync` operations which will overwrite a row in the database regardless of the existing row.
+By default, this operation will fail if an item with the same partition key and sort key doesn't exist in the table and if the existing row doesn't have the same version number as the `existingItem` submitted in the operation. The `DynamoDBCompositePrimaryKeyTable` protocol also provides the `clobberItemSync` and `clobberItemAsync` operations which will overwrite a row in the database regardless of the existing row.
 
 ## Conditionally Update
 
@@ -357,9 +357,9 @@ The main entities provided by this package are
 * *CompositePrimaryKey*: a struct that stores the partition and sort values for a composite primary key.
 * *TypedDatabaseItem*: a struct that manages decoding and encoding rows of a particular type from polymorphic database tables.
 * *PolymorphicDatabaseItem*: a struct that manages decoding rows that are one out of a number of types from polymorphic database tables.
-* *DynamoDBTable*: a protocol for interacting with a DynamoDB database table.
-* *InMemoryDynamoDBTable*: a struct conforming to the `DynamoDBTable` protocol that interacts with a local in-memory table.
-* *AwsDynamoDBTable*: a struct conforming to the `DynamoDBTable` protocol that interacts with the AWS DynamoDB service.
+* *DynamoDBCompositePrimaryKeyTable*: a protocol for interacting with a DynamoDB database table.
+* *`InMemoryDynamoDBCompositePrimaryKeyTable`*: a struct conforming to the `DynamoDBCompositePrimaryKeyTable` protocol that interacts with a local in-memory table.
+* *AWSDynamoDBCompositePrimaryKeyTable*: a struct conforming to the `DynamoDBCompositePrimaryKeyTable` protocol that interacts with the AWS DynamoDB service.
 
 ## CompositePrimaryKey
 
@@ -396,17 +396,19 @@ let updatedDatabaseItem = newDatabaseItem.createUpdatedItem(withValue: updatedVa
 
 This function will create a new instance of TypedDatabaseItem with the same key and updated LastUpdatedDate and RowVersion values. By default, performing a **PutItem** operation with this item on a table where this row already exists and the RowVersion isn't equal to the value of the original row will fail.
 
-## DynamoDBTable
+## DynamoDBCompositePrimaryKeyTable
 
-The DynamoDBTable protocol provides a number of functions for interacting with the DynamoDB tables. Typically the `AwsDynamoDBTable` implementation of this protocol is instantiated using a `CredentialProvider` (such as one from the `smoke-aws-credentials` module to automatically handle rotating credentials), the service region and endpoint and the table name to use.
+The `DynamoDBCompositePrimaryKeyTable` protocol provides a number of functions for interacting with the DynamoDB tables. Typically the `AWSDynamoDBCompositePrimaryKeyTable` implementation of this protocol is instantiated using a `CredentialProvider` (such as one from the `smoke-aws-credentials` module to automatically handle rotating credentials), the service region and endpoint and the table name to use.
 
 ```swift
-let dynamodbClient = AwsDynamoDBTable(credentials: credentials,
-                                    region: region, endpoint: dynamodbEndpoint,
-                                    tableName: dynamodbTableName)
+let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
+    credentialsProvider: credentialsProvider, region: region,
+    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName)
+   
+let table = generator.with(logger: logger)
 ```
 
-Internally AwsDynamoDBTable uses a custom Decoder and Encoder to serialize types that conform to `Codable` to and from the JSON schema required by the DynamoDB service. These Decoder and Encoder implementation automatically captialize attribute names.
+Internally `AWSDynamoDBCompositePrimaryKeyTable` uses a custom Decoder and Encoder to serialize types that conform to `Codable` to and from the JSON schema required by the DynamoDB service. These Decoder and Encoder implementation automatically captialize attribute names.
 
 # Customization
 
