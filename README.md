@@ -27,11 +27,26 @@ SmokeDynamoDB is a library to make it easy to use DynamoDB from Swift-based appl
 SmokeDynamoDB uses the Swift Package Manager. To use the framework, add the following dependency
 to your Package.swift-
 
+For swift-tools version 5.2 and greater-
+
 ```swift
 dependencies: [
-    .package(url: "https://github.com/amzn/smoke-dynamodb.git", .upToNextMajor(from: "1.0.0"))
+    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "2.0.0")
 ]
 
+.target(name: ..., dependencies: [
+    ..., 
+    .product(name: "SmokeDynamoDB", package: "smoke-dynamodb"),
+]),
+```
+
+
+For swift-tools version 5.1 and prior-
+ 
+```swift
+dependencies: [
+    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "2.0.0")
+]
 
 .target(
     name: ...,
@@ -66,6 +81,49 @@ let table = AwsDynamoDBTable(credentialsProvider: credentialsProvider,
 ```
 
 For testing `InMemoryDynamoDBTable` can be used to locally verify what rows will be added to the database table.
+
+## Testing
+
+### In Memory mocking
+
+The `InMemory*` types provide the abilty to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
+
+The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table inetween accesses. These types are designed to allow unit testing of table concurrency handling.
+
+### DynamoDB Local
+
+With the downloadable version of Amazon DynamoDB, you can develop and test applications without accessing the DynamoDB web service. This version can be used when the full functionality of DynamoDB is needed for local testing.
+
+The instructions to set up  DynamoDB Local is [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html).
+
+You can then call DynamoDB Local using the following code.
+
+```
+import SmokeDynamoDB
+import SmokeAWSCore
+import SmokeAWSHttp
+import Logging
+        
+let credentials = StaticCredentials(accessKeyId: "accessKeyId",
+                                    secretAccessKey: "secretAccessKey",
+                                    sessionToken: nil)
+        
+let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
+    credentialsProvider: credentials,
+    region: .us_west_2,
+    endpointHostName: "127.0.0.1",
+    endpointPort: 8000,
+    tableName: "MyTableName")
+defer {
+    try? generator.close()
+}
+   
+let table = generator.with(logger: Logger(label: "test.logger"))
+
+...
+```
+
+DynamoDB Local requires credentials to be sent but these credentials do not need to correspond to anything previously setup.
 
 ## Insertion
 
