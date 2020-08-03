@@ -18,6 +18,8 @@
 import XCTest
 @testable import SmokeDynamoDB
 
+@available(swift, deprecated: 2.0,
+           renamed: "DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests")
 class DynamoDBTableUpdateItemConditionallyAtKeyTests: XCTestCase {
     
     func updatedPayloadProvider(item: TestTypeA) -> TestTypeA {

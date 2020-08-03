@@ -100,6 +100,26 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             }
     }
     
+    func deleteItemAsync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                   completion: @escaping (Error?) -> ()) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let deleteItemInput = try getInputForDeleteItem(existingItem: existingItem)
+        
+            let logMessage = "dynamodb.deleteItem with key: \(existingItem.compositePrimaryKey), "
+                + " version \(existingItem.rowStatus.rowVersion) and table name \(targetTableName)"
+            
+            self.logger.debug("\(logMessage)")
+            try dynamodb.deleteItemAsync(input: deleteItemInput) { result in
+                switch result {
+                case .success:
+                    // complete the putItem
+                    completion(nil)
+                case .failure(let error):
+                    completion(error)
+                }
+            }
+    }
+    
     func queryAsync<AttributesType, PossibleTypes>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
@@ -243,6 +263,113 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
             throw SmokeDynamoDBError.unexpectedError(cause: error)
+        }
+    }
+    
+    func monomorphicQueryAsync<AttributesType, ItemType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            completion: @escaping (SmokeDynamoDBErrorResult<[TypedDatabaseItem<AttributesType, ItemType>]>) -> ()) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let partialResults = MonomorphicQueryPaginationResults<AttributesType, ItemType>()
+            
+        try monomorphicPartialQueryAsync(forPartitionKey: partitionKey,
+                                         sortKeyCondition: sortKeyCondition,
+                                         partialResults: partialResults,
+                                         completion: completion)
+    }
+    
+    private func monomorphicPartialQueryAsync<AttributesType, ItemType>(
+        forPartitionKey partitionKey: String,
+        sortKeyCondition: AttributeCondition?,
+        partialResults: MonomorphicQueryPaginationResults<AttributesType, ItemType>,
+        completion: @escaping (SmokeDynamoDBErrorResult<[TypedDatabaseItem<AttributesType, ItemType>]>) -> ())
+        throws where AttributesType: PrimaryKeyAttributes, ItemType: Codable {
+            func handleQueryResult(result: SmokeDynamoDBErrorResult<([TypedDatabaseItem<AttributesType, ItemType>], String?)>) {
+                switch result {
+                case .success(let paginatedItems):
+                    partialResults.items += paginatedItems.0
+            
+                    // if there are more items
+                    if let lastEvaluatedKey = paginatedItems.1 {
+                        partialResults.exclusiveStartKey = lastEvaluatedKey
+                        
+                        do {
+                            try monomorphicPartialQueryAsync(forPartitionKey: partitionKey,
+                                                             sortKeyCondition: sortKeyCondition,
+                                                             partialResults: partialResults,
+                                                             completion: completion)
+                        } catch {
+                            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
+                        }
+                    } else {
+                        // we have all the items
+                        completion(.success(partialResults.items))
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+            
+            try monomorphicQueryAsync(forPartitionKey: partitionKey,
+                                      sortKeyCondition: sortKeyCondition,
+                                      limit: defaultPaginationLimit,
+                                      scanIndexForward: true,
+                                      exclusiveStartKey: partialResults.exclusiveStartKey,
+                                      completion: handleQueryResult)
+    }
+    
+    func monomorphicQueryAsync<AttributesType, ItemType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?,
+            scanIndexForward: Bool,
+            exclusiveStartKey: String?,
+            completion: @escaping (SmokeDynamoDBErrorResult<([TypedDatabaseItem<AttributesType, ItemType>], String?)>) -> ()) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(
+            forPartitionKey: partitionKey, targetTableName: targetTableName,
+            primaryKeyType: AttributesType.self,
+            sortKeyCondition: sortKeyCondition, limit: limit,
+            scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        try dynamodb.queryAsync(input: queryInput) { result in
+            switch result {
+            case .success(let queryOutput):
+                let lastEvaluatedKey: String?
+                if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
+                    let encodedLastEvaluatedKey: Data
+                    
+                    do {
+                        encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
+                    } catch {
+                        return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
+                    }
+                    
+                    lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
+                } else {
+                    lastEvaluatedKey = nil
+                }
+                
+                if let outputAttributeValues = queryOutput.items {
+                    let items: [TypedDatabaseItem<AttributesType, ItemType>]
+                    
+                    do {
+                        items = try outputAttributeValues.map { values in
+                            let attributeValue = DynamoDBModel.AttributeValue(M: values)
+                            
+                            return try DynamoDBDecoder().decode(attributeValue)
+                        }
+                    } catch {
+                        return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
+                    }
+                    
+                    completion(.success((items, lastEvaluatedKey)))
+                } else {
+                    completion(.success(([], lastEvaluatedKey)))
+                }
+            case .failure(let error):
+                return completion(.failure(error.asSmokeDynamoDBError()))
+            }
         }
     }
 }

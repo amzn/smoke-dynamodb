@@ -482,6 +482,268 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             XCTAssertEqual(originalItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         }
     }
+    
+    func testMonomorphicQuerySync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        var items: [StandardTypedDatabaseItem<TestTypeA>] = []
+        
+        // add to the database a lot of items - a number that isn't a multiple of the pagination page size
+        for index in 0..<1376 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId_\(index)")
+            let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
+            let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+            
+            XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+            items.append(databaseItem)
+        }
+        
+        let retrievedItems: [StandardTypedDatabaseItem<TestTypeA>] =
+            try table.monomorphicQuerySync(forPartitionKey: "partitionId",
+                                           sortKeyCondition: nil)
+        
+        XCTAssertEqual(items.count, retrievedItems.count)
+        
+        for index in 0..<items.count {
+            let originalItem = items[index]
+            let retrievedItem = items[index]
+            
+            XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        }
+    }
+    
+    func testMonomorphicQueryAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        var items: [StandardTypedDatabaseItem<TestTypeA>] = []
+        
+        // add to the database a lot of items - a number that isn't a multiple of the pagination page size
+        for index in 0..<1376 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId_\(index)")
+            let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
+            let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+            
+            XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+            items.append(databaseItem)
+        }
+        
+        var retrievedItems: [StandardTypedDatabaseItem<TestTypeA>] = []
+        func handleQueryResult(result: SmokeDynamoDBErrorResult<[StandardTypedDatabaseItem<TestTypeA>]>) {
+            switch result {
+            case .success(let queryItems):
+                retrievedItems.append(contentsOf: queryItems)
+            case .failure:
+                XCTFail()
+            }
+        }
+        try table.monomorphicQueryAsync(forPartitionKey: "partitionId",
+                              sortKeyCondition: nil, completion: handleQueryResult)
+        
+        XCTAssertEqual(items.count, retrievedItems.count)
+        
+        for index in 0..<items.count {
+            let originalItem = items[index]
+            let retrievedItem = items[index]
+            
+            XCTAssertEqual(originalItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+            XCTAssertEqual(originalItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+            XCTAssertEqual(originalItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        }
+    }
+    
+    func testDeleteForKeySync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemSync(forKey: key)
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNil(retrievedItem2)
+    }
+    
+    func testDeleteForKeyAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemAsync(forKey: key) { _ in }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemSync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemSync(existingItem: databaseItem)
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemAsync(existingItem: databaseItem) { _ in }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemAfterUpdateSync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let updatedPayload = TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        let updatedItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.updateItemSync(newItem: updatedItem, existingItem: databaseItem)
+        
+        do {
+            try table.deleteItemSync(existingItem: databaseItem)
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error
+        }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        // the table should still contain the item
+        XCTAssertNotNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemAfterUpdateAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let updatedPayload = TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        let updatedItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.updateItemSync(newItem: updatedItem, existingItem: databaseItem)
+        
+        do {
+            try table.deleteItemAsync(existingItem: databaseItem) { _ in }
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error
+        }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        // the table should still contain the item
+        XCTAssertNotNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemAfterRecreationSync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemSync(existingItem: databaseItem)
+        sleep(1)
+        let recreatedItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        _ = try table.insertItemSync(recreatedItem)
+                
+        do {
+            try table.deleteItemSync(existingItem: databaseItem)
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error
+        }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        // the table should still contain the item
+        XCTAssertNotNil(retrievedItem2)
+    }
+    
+    func testDeleteForExistingItemAfterRecreationAsync() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                        sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        _ = try table.insertItemSync(databaseItem)
+        
+        let retrievedItem1: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        XCTAssertNotNil(retrievedItem1)
+        
+        try table.deleteItemSync(existingItem: databaseItem)
+        sleep(5)
+        let recreatedItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        _ = try table.insertItemSync(recreatedItem)
+        
+        do {
+            try table.deleteItemAsync(existingItem: databaseItem) { _ in }
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error
+        }
+        
+        let retrievedItem2: StandardTypedDatabaseItem<TestTypeA>? = try table.getItemSync(forKey: key)
+        // the table should still contain the item
+        XCTAssertNotNil(retrievedItem2)
+    }
   
     static var allTests = [
         ("testInsertAndUpdateSync", testInsertAndUpdateSync),
@@ -495,5 +757,15 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         ("testPaginatedQueryAsync", testPaginatedQueryAsync),
         ("testQuerySync", testQuerySync),
         ("testQueryAsync", testQueryAsync),
+        ("testMonomorphicQuerySync", testMonomorphicQuerySync),
+        ("testMonomorphicQueryAsync", testMonomorphicQueryAsync),
+        ("testDeleteForKeySync", testDeleteForKeySync),
+        ("testDeleteForKeyAsync", testDeleteForKeyAsync),
+        ("testDeleteForExistingItemSync", testDeleteForExistingItemSync),
+        ("testDeleteForExistingItemAsync", testDeleteForExistingItemAsync),
+        ("testDeleteForExistingItemAfterUpdateSync", testDeleteForExistingItemAfterUpdateSync),
+        ("testDeleteForExistingItemAfterUpdateAsync", testDeleteForExistingItemAfterUpdateAsync),
+        ("testDeleteForExistingItemAfterRecreationSync", testDeleteForExistingItemAfterRecreationSync),
+        ("testDeleteForExistingItemAfterRecreationAsync", testDeleteForExistingItemAfterRecreationAsync),
     ]
 }

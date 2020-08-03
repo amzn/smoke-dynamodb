@@ -20,6 +20,7 @@ import XCTest
 import SmokeHTTPClient
 import DynamoDBModel
 
+@available(swift, deprecated: 2.0, renamed: "InMemoryDynamoDBCompositePrimaryKeyTableTests")
 class InMemoryDynamoDBTableTests: XCTestCase {
     
     func testInsertAndUpdateSync() throws {

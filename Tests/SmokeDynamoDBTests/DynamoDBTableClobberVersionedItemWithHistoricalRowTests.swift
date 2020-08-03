@@ -19,6 +19,8 @@ import Foundation
 import XCTest
 @testable import SmokeDynamoDB
 
+@available(swift, deprecated: 2.0,
+           renamed: "DynamoDBCompositePrimaryKeyTableClobberVersionedItemWithHistoricalRowTests")
 class DynamoDBTableClobberVersionedItemWithHistoricalRowTests: XCTestCase {
     
     func testClobberVersionedItemWithHistoricalRowSync() throws {

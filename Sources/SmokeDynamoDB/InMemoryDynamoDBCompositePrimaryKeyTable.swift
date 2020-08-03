@@ -125,8 +125,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
             updatedPartition = partition
 
             // if the row already exists
-            if let acutallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
-                if existingItem.rowStatus.rowVersion != acutallyExistingItem.rowStatus.rowVersion {
+            if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
+                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
                     throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                                   sortKey: newItem.compositePrimaryKey.sortKey,
                                                                   message: "Trying to overwrite incorrect version.")
@@ -207,6 +208,51 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
             } catch {
                 completion(error)
             }
+    }
+    
+    public func deleteItemSync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let partition = store[existingItem.compositePrimaryKey.partitionKey]
+
+        // if there is already a partition
+        var updatedPartition: [String: PolymorphicDatabaseItemConvertable]
+        if let partition = partition {
+            updatedPartition = partition
+
+            // if the row already exists
+            if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
+                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+                existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
+                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                                  sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                                  message: "Trying to delete incorrect version.")
+                }
+            } else {
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                              sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                              message: "Existing item does not exist.")
+            }
+
+            updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
+        } else {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                          sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                          message: "Existing item does not exist.")
+        }
+
+        store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
+    }
+    
+    public func deleteItemAsync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                          completion: @escaping (Error?) -> ()) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        do {
+            try deleteItemSync(existingItem: existingItem)
+
+            completion(nil)
+        } catch {
+            completion(error)
+        }
     }
 
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,

@@ -329,6 +329,119 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         XCTAssertTrue(isDeleteCompleted)
     }
     
+    func testSimulateConcurrencyWithMonomorphicQuerySync() {
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
+                                                     simulateConcurrencyModifications: 5,
+                                                     simulateOnInsertItem: false)
+        
+        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+        var errorCount = 0
+        
+        for _ in 0..<10 {
+            let query: [DatabaseRowType] = try! table.monomorphicQuerySync(forPartitionKey: "partitionId",
+                                                                           sortKeyCondition: .equals("sortId"))
+            
+            guard query.count == 1, let firstQuery = query.first else {
+                return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
+            }
+            
+            let existingItem = DatabaseRowType(compositePrimaryKey: firstQuery.compositePrimaryKey,
+                                               createDate: firstQuery.createDate,
+                                               rowStatus: firstQuery.rowStatus,
+                                               rowValue: firstQuery.rowValue)
+            let item = firstQuery.createUpdatedItem(withValue: firstQuery.rowValue)
+            
+            do {
+                try table.updateItemSync(newItem: item, existingItem: existingItem)
+            } catch {
+                errorCount += 1
+            }
+        }
+        
+        // should only fail five times
+        XCTAssertEqual(5, errorCount)
+        
+        XCTAssertNoThrow(try table.deleteItemSync(forKey: key))
+        
+        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        XCTAssertNil(nowDeletedItem)
+    }
+    
+    func testSimulateConcurrencyWithMonomorphicQueryAsync() throws {
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
+                                                     simulateConcurrencyModifications: 5,
+                                                     simulateOnInsertItem: false)
+        
+        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+        var errorCount = 0
+        
+        func updateItemCompletion(error: Error?) {
+            if error != nil {
+                errorCount += 1
+            }
+        }
+        
+        var queryCompletionCount = 0
+        for _ in 0..<10 {
+            func handleQueryResult(result: SmokeDynamoDBErrorResult<[DatabaseRowType]>) {
+                switch result {
+                case .success(let query):
+                    guard query.count == 1, let firstQuery = query.first else {
+                        return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
+                    }
+                    
+                    let existingItem = DatabaseRowType(compositePrimaryKey: firstQuery.compositePrimaryKey,
+                                                       createDate: firstQuery.createDate,
+                                                       rowStatus: firstQuery.rowStatus,
+                                                       rowValue: firstQuery.rowValue)
+                    let item = firstQuery.createUpdatedItem(withValue: firstQuery.rowValue)
+                    
+                    do {
+                        try table.updateItemAsync(newItem: item, existingItem: existingItem,
+                                                   completion: updateItemCompletion)
+                    } catch {
+                        errorCount += 1
+                    }
+                case .failure:
+                    XCTFail()
+                }
+                
+                queryCompletionCount += 1
+            }
+            try table.monomorphicQueryAsync(forPartitionKey: "partitionId",
+                                            sortKeyCondition: .equals("sortId"), completion: handleQueryResult)
+        }
+        
+        // should only fail five times
+        XCTAssertEqual(5, errorCount)
+        
+        var isDeleteCompleted = false
+        func deleteCompletionHandler(error: Error?) {
+            if error != nil {
+                XCTFail()
+            }
+            
+            isDeleteCompleted = true
+        }
+        
+        XCTAssertNoThrow(try table.deleteItemAsync(forKey: key, completion: deleteCompletionHandler))
+        
+        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        XCTAssertNil(nowDeletedItem)
+        XCTAssertEqual(10, queryCompletionCount)
+        XCTAssertTrue(isDeleteCompleted)
+    }
+    
     func testSimulateClobberConcurrencyWithGetSync() throws {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
