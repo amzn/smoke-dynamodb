@@ -71,6 +71,17 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         _ = try dynamodb.deleteItemSync(input: deleteItemInput)
     }
     
+    func deleteItemSync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let deleteItemInput = try getInputForDeleteItem(existingItem: existingItem)
+        
+        let logMessage = "dynamodb.deleteItem with key: \(existingItem.compositePrimaryKey), "
+            + " version \(existingItem.rowStatus.rowVersion) and table name \(targetTableName)"
+        
+        self.logger.debug("\(logMessage)")
+        _ = try dynamodb.deleteItemSync(input: deleteItemInput)
+    }
+    
     func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                   sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
@@ -157,6 +168,68 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             self.logger.warning("Error from AWSDynamoDBTable: \(error)")
             
             throw SmokeDynamoDBError.unexpectedError(cause: error)
+        }
+    }
+    
+    func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                        sortKeyCondition: AttributeCondition?) throws
+    -> [TypedDatabaseItem<AttributesType, ItemType>]
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
+        var exclusiveStartKey: String?
+            
+        while true {
+            let paginatedItems: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
+                try monomorphicQuerySync(forPartitionKey: partitionKey,
+                                         sortKeyCondition: sortKeyCondition,
+                                         limit: defaultPaginationLimit,
+                                         scanIndexForward: true,
+                                         exclusiveStartKey: exclusiveStartKey)
+            
+            items += paginatedItems.0
+            
+            // if there are more items
+            if let lastEvaluatedKey = paginatedItems.1 {
+                exclusiveStartKey = lastEvaluatedKey
+            } else {
+                // we have all the items
+                return items
+            }
+        }
+    }
+    
+    func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                               sortKeyCondition: AttributeCondition?,
+                                                               limit: Int?, scanIndexForward: Bool,
+                                                               exclusiveStartKey: String?) throws
+    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(
+            forPartitionKey: partitionKey, targetTableName: targetTableName,
+            primaryKeyType: AttributesType.self,
+            sortKeyCondition: sortKeyCondition, limit: limit,
+            scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        let queryOutput = try dynamodb.querySync(input: queryInput)
+        
+        let lastEvaluatedKey: String?
+        if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
+            let encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
+            
+            lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
+        } else {
+            lastEvaluatedKey = nil
+        }
+        
+        if let outputAttributeValues = queryOutput.items {
+            let items: [TypedDatabaseItem<AttributesType, ItemType>] = try outputAttributeValues.map { values in
+                let attributeValue = DynamoDBModel.AttributeValue(M: values)
+                
+                return try DynamoDBDecoder().decode(attributeValue)
+            }
+            
+            return (items, lastEvaluatedKey)
+        } else {
+            return ([], lastEvaluatedKey)
         }
     }
 }

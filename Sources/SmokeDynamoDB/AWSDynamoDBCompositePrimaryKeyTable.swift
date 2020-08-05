@@ -34,6 +34,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
         var exclusiveStartKey: String?
     }
+    
+    internal class MonomorphicQueryPaginationResults<AttributesType: PrimaryKeyAttributes, ItemType: Codable> {
+        var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
+        var exclusiveStartKey: String?
+    }
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
@@ -105,10 +110,14 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
             existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> DynamoDBModel.PutItemInput {
         let attributes = try getAttributes(forItem: newItem)
 
-        let expressionAttributeNames = ["#rowversion": RowStatus.CodingKeys.rowVersion.stringValue]
-        let expressionAttributeValues = [":versionnumber": DynamoDBModel.AttributeValue(N: String(existingItem.rowStatus.rowVersion))]
+        let expressionAttributeNames = [
+            "#rowversion": RowStatus.CodingKeys.rowVersion.stringValue,
+            "#createdate": TypedDatabaseItem<AttributesType, ItemType>.CodingKeys.createDate.stringValue]
+        let expressionAttributeValues = [
+            ":versionnumber": DynamoDBModel.AttributeValue(N: String(existingItem.rowStatus.rowVersion)),
+            ":creationdate": DynamoDBModel.AttributeValue(S: existingItem.createDate.iso8601)]
 
-        let conditionExpression = "#rowversion = :versionnumber"
+        let conditionExpression = "#rowversion = :versionnumber AND #createdate = :creationdate"
 
         return DynamoDBModel.PutItemInput(conditionExpression: conditionExpression,
                                                       expressionAttributeNames: expressionAttributeNames,
@@ -152,5 +161,29 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         } else {
             throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
         }
+    }
+    
+    internal func getInputForDeleteItem<AttributesType, ItemType>(
+            existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> DynamoDBModel.DeleteItemInput {
+        let attributeValue = try DynamoDBEncoder().encode(existingItem.compositePrimaryKey)
+        
+        guard let keyAttributes = attributeValue.M else {
+            throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
+        }
+
+        let expressionAttributeNames = [
+            "#rowversion": RowStatus.CodingKeys.rowVersion.stringValue,
+            "#createdate": TypedDatabaseItem<AttributesType, ItemType>.CodingKeys.createDate.stringValue]
+        let expressionAttributeValues = [
+            ":versionnumber": DynamoDBModel.AttributeValue(N: String(existingItem.rowStatus.rowVersion)),
+            ":creationdate": DynamoDBModel.AttributeValue(S: existingItem.createDate.iso8601)]
+
+        let conditionExpression = "#rowversion = :versionnumber AND #createdate = :creationdate"
+
+        return DynamoDBModel.DeleteItemInput(conditionExpression: conditionExpression,
+                                             expressionAttributeNames: expressionAttributeNames,
+                                             expressionAttributeValues: expressionAttributeValues,
+                                             key: keyAttributes,
+                                             tableName: targetTableName)
     }
 }

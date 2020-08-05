@@ -23,6 +23,8 @@ import DynamoDBModel
 private typealias DatabaseRowType = StandardTypedDatabaseItem<TestTypeA>
 private typealias QueryRowType = StandardPolymorphicDatabaseItem<ExpectedTypes>
 
+@available(swift, deprecated: 2.0,
+           renamed: "SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests")
 class SimulateConcurrencyDynamoDBTableTests: XCTestCase {
     
     func testSimulateConcurrencyOnInsertSync() {

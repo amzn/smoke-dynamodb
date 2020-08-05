@@ -52,6 +52,7 @@ fileprivate func testHistoricalItemProvider(_ item: DatabaseRowType) -> Database
                                    andValue: item.rowValue)
 }
 
+@available(swift, deprecated: 2.0, renamed: "CompositePrimaryKeyDynamoDBHistoricalClientTests")
 class DynamoDBHistoricalClientTests: XCTestCase {
 
     func testInsertItemSuccessSync() throws {
