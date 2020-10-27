@@ -23,6 +23,7 @@ import DynamoDBModel
 public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
 
     public var keys: [Any] = []
+    let semaphore = DispatchSemaphore(value: 1)
 
     public init(keys: [Any] = []) {
         self.keys = keys
@@ -31,6 +32,11 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
     public func querySync<AttributesType>(forPartitionKey partitionKey: String,
                                           sortKeyCondition: AttributeCondition?) throws
         -> [CompositePrimaryKey<AttributesType>] {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         var items: [CompositePrimaryKey<AttributesType>] = []
             
         let sortedKeys = keys.compactMap { $0 as? CompositePrimaryKey<AttributesType> }.sorted(by: { (left, right) -> Bool in
