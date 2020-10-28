@@ -47,12 +47,18 @@ extension TypedDatabaseItem: PolymorphicDatabaseItemConvertable {
 public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
 
     public var store: [String: [String: PolymorphicDatabaseItemConvertable]] = [:]
+    let semaphore = DispatchSemaphore(value: 1)
 
     public init() {
 
     }
 
     public func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         let partition = store[item.compositePrimaryKey.partitionKey]
 
         // if there is already a partition
@@ -88,6 +94,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
 
     public func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         let partition = store[item.compositePrimaryKey.partitionKey]
 
         // if there is already a partition
@@ -117,6 +128,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
 
     public func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         let partition = store[newItem.compositePrimaryKey.partitionKey]
 
         // if there is already a partition
@@ -163,6 +179,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
 
     public func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
         -> TypedDatabaseItem<AttributesType, ItemType>? {
+            semaphore.wait()
+            defer {
+                semaphore.signal()
+            }
+        
             if let partition = store[key.partitionKey] {
 
                 guard let value = partition[key.sortKey] else {
@@ -195,6 +216,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
 
     public func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         store[key.partitionKey]?[key.sortKey] = nil
     }
 
@@ -212,6 +238,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     
     public func deleteItemSync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         let partition = store[existingItem.compositePrimaryKey.partitionKey]
 
         // if there is already a partition
@@ -258,6 +289,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
                                                          sortKeyCondition: AttributeCondition?) throws
         -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
 
         if let partition = store[partitionKey] {

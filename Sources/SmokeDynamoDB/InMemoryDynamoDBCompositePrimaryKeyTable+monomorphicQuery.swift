@@ -26,6 +26,11 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
                                                         sortKeyCondition: AttributeCondition?) throws
     -> [TypedDatabaseItem<AttributesType, ItemType>]
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        
         var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
 
             if let partition = store[partitionKey] {
