@@ -102,6 +102,11 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
                                                                               scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        
+            let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+                "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+            self.logger.debug("\(logMessage)")
+        
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
                 case .success(let queryOutput):
