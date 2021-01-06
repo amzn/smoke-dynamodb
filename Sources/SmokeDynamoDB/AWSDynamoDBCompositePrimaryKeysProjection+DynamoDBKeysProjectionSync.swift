@@ -75,6 +75,11 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
                                                                               scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        
+            let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+                "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+            self.logger.debug("\(logMessage)")
+        
             let queryOutput = try dynamodb.querySync(input: queryInput)
             
             let lastEvaluatedKey: String?

@@ -132,6 +132,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
                                                                               scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        
+            let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+                "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+            self.logger.debug("\(logMessage)")
+        
             let queryOutput = try dynamodb.querySync(input: queryInput)
             
             let lastEvaluatedKey: String?
@@ -158,6 +163,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     private func putItemSync<AttributesType>(forInput putItemInput: DynamoDBModel.PutItemInput,
                                              withKey compositePrimaryKey: CompositePrimaryKey<AttributesType>) throws {
+        let logMessage = "dynamodb.putItem with item: \(putItemInput.item) and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
+        
         do {
             _ = try dynamodb.putItemSync(input: putItemInput)
         } catch DynamoDBError.conditionalCheckFailed(let errorPayload) {
@@ -209,6 +217,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             primaryKeyType: AttributesType.self,
             sortKeyCondition: sortKeyCondition, limit: limit,
             scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        
+        let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+            "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
+        
         let queryOutput = try dynamodb.querySync(input: queryInput)
         
         let lastEvaluatedKey: String?

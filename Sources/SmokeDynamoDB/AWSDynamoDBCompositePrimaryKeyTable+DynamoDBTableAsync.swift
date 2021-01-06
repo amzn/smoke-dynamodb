@@ -196,6 +196,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                                               primaryKeyType: AttributesType.self,
                                                                               sortKeyCondition: sortKeyCondition, limit: limit,
                                                                               scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+            let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+                "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+            self.logger.debug("\(logMessage)")
+        
             try dynamodb.queryAsync(input: queryInput) { result in
                 switch result {
                 case .success(let queryOutput):
@@ -240,6 +244,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     private func putItemAsync<AttributesType>(forInput putItemInput: DynamoDBModel.PutItemInput,
                                               withKey compositePrimaryKey: CompositePrimaryKey<AttributesType>,
                                               completion: @escaping (Error?) -> ()) throws {
+        let logMessage = "dynamodb.putItem with item: \(putItemInput.item) and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
+        
         do {
             _ = try dynamodb.putItemAsync(input: putItemInput) { result in
                 switch result {
@@ -332,6 +339,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             primaryKeyType: AttributesType.self,
             sortKeyCondition: sortKeyCondition, limit: limit,
             scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        
+        let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+            "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
+        
         try dynamodb.queryAsync(input: queryInput) { result in
             switch result {
             case .success(let queryOutput):

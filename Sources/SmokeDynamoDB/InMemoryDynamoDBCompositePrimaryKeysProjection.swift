@@ -44,6 +44,11 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
         })
             
         sortKeyIteration: for key in sortedKeys {
+            if key.partitionKey != partitionKey {
+                // don't include this in the results
+                continue sortKeyIteration
+            }
+            
             let sortKey = key.sortKey
 
             if let currentSortKeyCondition = sortKeyCondition {
