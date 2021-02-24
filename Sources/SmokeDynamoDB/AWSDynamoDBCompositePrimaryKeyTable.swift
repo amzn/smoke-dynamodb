@@ -44,7 +44,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
+                connectionTimeoutSeconds: Int64 = 10,
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -54,7 +58,10 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                           awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                          eventLoopProvider: eventLoopProvider)
+                                          connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                          retryConfiguration: retryConfiguration,
+                                          eventLoopProvider: eventLoopProvider,
+                                          reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
@@ -64,13 +71,20 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
+                connectionTimeoutSeconds: Int64 = 10,
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
         self.logger = reporting.logger
         self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                           awsRegion: region, reporting: reporting,
                                           endpointHostName: endpointHostName,
                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                          eventLoopProvider: eventLoopProvider)
+                                          connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                          retryConfiguration: retryConfiguration,
+                                          eventLoopProvider: eventLoopProvider,
+                                          reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")

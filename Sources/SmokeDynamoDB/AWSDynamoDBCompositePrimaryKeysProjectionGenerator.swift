@@ -32,7 +32,11 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
                 region: AWSRegion,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
+                connectionTimeoutSeconds: Int64 = 10,
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -41,7 +45,10 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
                                                             awsRegion: region,
                                                             endpointHostName: endpointHostName,
                                                             endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                            eventLoopProvider: eventLoopProvider)
+                                                            connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                                            retryConfiguration: retryConfiguration,
+                                                            eventLoopProvider: eventLoopProvider,
+                                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
     }
 
@@ -49,12 +56,19 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
                 region: AWSRegion,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew) {
+                connectionTimeoutSeconds: Int64 = 10,
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
         self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
                                                             awsRegion: region,
                                                             endpointHostName: endpointHostName,
                                                             endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                            eventLoopProvider: eventLoopProvider)
+                                                            connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                                            retryConfiguration: retryConfiguration,
+                                                            eventLoopProvider: eventLoopProvider,
+                                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
     }
 
