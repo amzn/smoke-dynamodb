@@ -23,9 +23,10 @@ import SmokeAWSCore
 import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
+import NIO
 
 public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
-    internal let dynamodbGenerator: AWSDynamoDBClientGenerator
+    internal let dynamodbGenerator: _AWSDynamoDBClientGenerator
     internal let targetTableName: String
 
     public init(accessKeyId: String, secretAccessKey: String,
@@ -41,14 +42,14 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
 
-        self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: staticCredentials,
-                                                            awsRegion: region,
-                                                            endpointHostName: endpointHostName,
-                                                            endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                            connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                                            retryConfiguration: retryConfiguration,
-                                                            eventLoopProvider: eventLoopProvider,
-                                                            reportingConfiguration: reportingConfiguration)
+        self.dynamodbGenerator = _AWSDynamoDBClientGenerator(credentialsProvider: staticCredentials,
+                                                             awsRegion: region,
+                                                             endpointHostName: endpointHostName,
+                                                             endpointPort: endpointPort, requiresTLS: requiresTLS,
+                                                             connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                                             retryConfiguration: retryConfiguration,
+                                                             eventLoopProvider: eventLoopProvider,
+                                                             reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
     }
 
@@ -61,14 +62,14 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
                     = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
-        self.dynamodbGenerator = AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
-                                                            awsRegion: region,
-                                                            endpointHostName: endpointHostName,
-                                                            endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                            connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                                            retryConfiguration: retryConfiguration,
-                                                            eventLoopProvider: eventLoopProvider,
-                                                            reportingConfiguration: reportingConfiguration)
+        self.dynamodbGenerator = _AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
+                                                             awsRegion: region,
+                                                             endpointHostName: endpointHostName,
+                                                             endpointPort: endpointPort, requiresTLS: requiresTLS,
+                                                             connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                                             retryConfiguration: retryConfiguration,
+                                                             eventLoopProvider: eventLoopProvider,
+                                                             reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
     }
 
@@ -91,22 +92,26 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     public func with<NewTraceContextType: InvocationTraceContext>(
             logger: Logging.Logger,
             internalRequestId: String = "none",
-            traceContext: NewTraceContextType) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+            traceContext: NewTraceContextType,
+            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: traceContext)
+            traceContext: traceContext,
+            eventLoop: eventLoop)
 
         return with(reporting: reporting)
     }
 
     public func with(
             logger: Logging.Logger,
-            internalRequestId: String = "none") -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+            internalRequestId: String = "none",
+            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: AWSClientInvocationTraceContext())
+            traceContext: AWSClientInvocationTraceContext(),
+            eventLoop: eventLoop)
 
         return with(reporting: reporting)
     }

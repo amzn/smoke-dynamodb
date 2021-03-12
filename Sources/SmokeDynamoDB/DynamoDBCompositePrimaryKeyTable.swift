@@ -18,6 +18,7 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 /**
  Enumeration of the errors that can be thrown by a DynamoDBTable.
@@ -65,62 +66,44 @@ public enum AttributeCondition {
 }
 
 public protocol DynamoDBCompositePrimaryKeyTable {
+    var eventLoop: EventLoop { get }
 
     /**
      * Insert item is a non-destructive API. If an item already exists with the specified key this
      * API should fail.
      */
-    func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
-
-    func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                   completion: @escaping (Error?) -> ()) throws
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
 
     /**
      * Clobber item is destructive API. Regardless of what is present in the database the provided
      * item will be inserted.
      */
-    func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
-
-    func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                    completion: @escaping (Error?) -> ()) throws
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
 
     /**
      * Update item requires having gotten an item from the database previously and will not update
      * if the item at the specified key is not the existing item provided.
      */
-    func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
-
-    func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                   completion: @escaping (Error?) -> ()) throws
+    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
-    func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> TypedDatabaseItem<AttributesType, ItemType>?
-
-    func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>)  -> ()) throws
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?>
 
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response. 
      */
-    func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws
-
-    func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                         completion: @escaping (Error?) -> ()) throws
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void>
     
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response. This operation will not modify the table
      * if the item at the specified key is not the existing item provided.
      */
-    func deleteItemSync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
-
-    func deleteItemAsync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                         completion: @escaping (Error?) -> ()) throws
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -128,52 +111,32 @@ public protocol DynamoDBCompositePrimaryKeyTable {
        function will potentially make multiple calls to DynamoDB to retrieve all results for
        the query.
      */
-    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                  sortKeyCondition: AttributeCondition?) throws
-        -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>]
-
-    func queryAsync<AttributesType, PossibleTypes>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ()) throws
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?)
+        -> EventLoopFuture<[ReturnedType]>
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
        function will return paginated results based on the limit and exclusiveStartKey provided.
      */
-    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                  sortKeyCondition: AttributeCondition?,
-                                                  limit: Int?,
-                                                  exclusiveStartKey: String?) throws
-        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
-
-    func queryAsync<AttributesType, PossibleTypes>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?)
+        -> EventLoopFuture<([ReturnedType], String?)>
     
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
        function will return paginated results based on the limit and exclusiveStartKey provided.
      */
-    func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                  sortKeyCondition: AttributeCondition?,
-                                                  limit: Int?,
-                                                  scanIndexForward: Bool,
-                                                  exclusiveStartKey: String?) throws
-        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
-
-    func queryAsync<AttributesType, PossibleTypes>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        scanIndexForward: Bool,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ()) throws
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?)
+        -> EventLoopFuture<([ReturnedType], String?)>
     
     // MARK: Monomorphic queries
     
@@ -183,32 +146,19 @@ public protocol DynamoDBCompositePrimaryKeyTable {
        function will potentially make multiple calls to DynamoDB to retrieve all results for
        the query.
      */
-    func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                        sortKeyCondition: AttributeCondition?) throws
-        -> [TypedDatabaseItem<AttributesType, ItemType>]
-
-    func monomorphicQueryAsync<AttributesType, ItemType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        completion: @escaping (SmokeDynamoDBErrorResult<[TypedDatabaseItem<AttributesType, ItemType>]>) -> ()) throws
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?)
+        -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
        function will return paginated results based on the limit and exclusiveStartKey provided.
      */
-    func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                         sortKeyCondition: AttributeCondition?,
                                                         limit: Int?,
                                                         scanIndexForward: Bool,
-                                                        exclusiveStartKey: String?) throws
-        -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
-
-    func monomorphicQueryAsync<AttributesType, ItemType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        scanIndexForward: Bool,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([TypedDatabaseItem<AttributesType, ItemType>], String?)>) -> ()) throws
+                                                        exclusiveStartKey: String?)
+        -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
 }

@@ -14,7 +14,6 @@
 // SmokeDynamoDBTests.swift
 // SmokeDynamoDBTests
 //
-
 import XCTest
 @testable import SmokeDynamoDB
 import DynamoDBModel
@@ -101,51 +100,46 @@ class SmokeDynamoDBTests: XCTestCase {
             return
         }
         
-        let itemsOptional: [StandardPolymorphicDatabaseItem<AllCodableTypes>]? = assertNoThrow(
+        let itemsOptional: [ReturnTypeDecodable<AllQueryableTypes>]? = assertNoThrow(
             try attributeValues.map { value in
             return try dynamodbDecoder.decode(value)
         })
         
         guard let items = itemsOptional else {
+            XCTFail("No items returned.")
+            
             return
         }
         
         XCTAssertEqual(items.count, 2)
         
-        let first = items[0].rowValue as! TypeA
-        let second = items[1].rowValue as! TypeB
+        guard case let .typeA(firstDatabaseItem) = items[0].decodedValue else {
+            XCTFail("Unexpected type returned")
+            return
+        }
+        
+        guard case let .typeB(secondDatabaseItem) = items[1].decodedValue else {
+            XCTFail("Unexpected type returned")
+            return
+        }
+        
+        let first = firstDatabaseItem.rowValue
+        let second = secondDatabaseItem.rowValue
         
         XCTAssertEqual(first.firstly, "aaa")
         XCTAssertEqual(first.secondly, "bbb")
-        XCTAssertEqual(items[0].rowStatus.rowVersion, 5)
+        XCTAssertEqual(firstDatabaseItem.rowStatus.rowVersion, 5)
         
         XCTAssertEqual(second.thirdly, "ccc")
         XCTAssertEqual(second.fourthly, "ddd")
-        XCTAssertEqual(items[1].rowStatus.rowVersion, 12)
+        XCTAssertEqual(secondDatabaseItem.rowStatus.rowVersion, 12)
         
         // try to create up updated item with the correct type
         let newItem = TypeA(firstly: "hello", secondly: "world!!")
         
-        guard let updatedItem = assertNoThrow(
-                try items[0].createUpdatedItem(withValue: newItem)) else {
-            return
-        }
+        let updatedItem = firstDatabaseItem.createUpdatedItem(withValue: newItem)
         
         XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
-        
-        do {
-            let updatedItem = try items[1].createUpdatedItem(withValue: newItem)
-            XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
-        } catch SmokeDynamoDBError.typeMismatch(expected: let expected, provided: let provided) {
-            XCTAssertEqual(expected, String(describing: TypeB.self))
-            XCTAssertEqual(provided, String(describing: TypeA.self))
-            
-            return
-        } catch {
-            XCTFail("Incorrect error thrown.")
-        }
-        
-        XCTFail("Decoding error expected.")
     }
     
     func testPolymorphicDatabaseItemListUnknownType() {
@@ -157,7 +151,7 @@ class SmokeDynamoDBTests: XCTestCase {
         }
         
         do {
-            let _: [StandardPolymorphicDatabaseItem<SomeCodableTypes>] = try attributeValues.map { value in
+            let _: [ReturnTypeDecodable<SomeQueryableTypes>] = try attributeValues.map { value in
                 return try dynamodbDecoder.decode(value)
             }
         } catch SmokeDynamoDBError.unexpectedType(provided: let provided) {
@@ -179,37 +173,46 @@ class SmokeDynamoDBTests: XCTestCase {
             return
         }
         
-        let itemsOptional: [StandardPolymorphicDatabaseItem<AllCodableTypesWithIndex>]? = assertNoThrow(
+        let itemsOptional: [ReturnTypeDecodable<AllQueryableTypesWithIndex>]? = assertNoThrow(
             try attributeValues.map { value in
             return try dynamodbDecoder.decode(value)
         })
         
         guard let items = itemsOptional else {
+            XCTFail("No items returned.")
+            
             return
         }
         
         XCTAssertEqual(items.count, 2)
         
-        let first = items[0].rowValue as! RowWithIndex<TypeA, GSI1PKIndexIdentity>
-        let second = items[1].rowValue as! TypeB
+        guard case let .typeAWithIndex(firstDatabaseItem) = items[0].decodedValue else {
+            XCTFail("Unexpected type returned")
+            return
+        }
+        
+        guard case let .typeB(secondDatabaseItem) = items[1].decodedValue else {
+            XCTFail("Unexpected type returned")
+            return
+        }
+        
+        let first = firstDatabaseItem.rowValue
+        let second = secondDatabaseItem.rowValue
         
         XCTAssertEqual(first.rowValue.firstly, "aaa")
         XCTAssertEqual(first.rowValue.secondly, "bbb")
         XCTAssertEqual(first.indexValue, "gsi-index")
-        XCTAssertEqual(items[0].rowStatus.rowVersion, 5)
+        XCTAssertEqual(firstDatabaseItem.rowStatus.rowVersion, 5)
         
         XCTAssertEqual(second.thirdly, "ccc")
         XCTAssertEqual(second.fourthly, "ddd")
-        XCTAssertEqual(items[1].rowStatus.rowVersion, 12)
+        XCTAssertEqual(secondDatabaseItem.rowStatus.rowVersion, 12)
         
         // try to create up updated item with the correct type
         let newItem = TypeA(firstly: "hello", secondly: "world!!")
         let newRowWithIndex = first.createUpdatedItem(withValue: newItem)
         
-        guard let updatedItem = assertNoThrow(
-                try items[0].createUpdatedItem(withValue: newRowWithIndex)) else {
-            return
-        }
+        let updatedItem = firstDatabaseItem.createUpdatedItem(withValue: newRowWithIndex)
         
         XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
     }

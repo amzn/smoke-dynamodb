@@ -19,6 +19,7 @@ import Foundation
 import SmokeHTTPClient
 import Logging
 import DynamoDBModel
+import NIO
 
 public extension DynamoDBCompositePrimaryKeyTable {
     /**
@@ -35,92 +36,55 @@ public extension DynamoDBCompositePrimaryKeyTable {
          withRetries: the number of times to attempt to retry the update before failing.
          updatedPayloadProvider: the provider that will return updated payloads.
      */
-    func conditionallyUpdateItemSync<AttributesType, ItemType: Codable>(
-        forKey key: CompositePrimaryKey<AttributesType>,
-        withRetries retries: Int = 10,
-        updatedPayloadProvider: (ItemType) throws -> ItemType) throws {
-        
+    func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
+            forKey key: CompositePrimaryKey<AttributesType>,
+            withRetries retries: Int = 10,
+            updatedPayloadProvider: @escaping (ItemType) throws -> ItemType) -> EventLoopFuture<Void> {
         guard retries > 0 else {
-            throw SmokeDynamoDBError.concurrencyError(partitionKey: key.partitionKey,
-                                                    sortKey: key.sortKey,
-                                                    message: "Unable to complete request to update versioned item in specified number of attempts")
+            let error = SmokeDynamoDBError.concurrencyError(partitionKey: key.partitionKey,
+                                                            sortKey: key.sortKey,
+                                                            message: "Unable to complete request to update versioned item in specified number of attempts")
+            
+            let promise = self.eventLoop.makePromise(of: Void.self)
+            promise.fail(error)
+            return promise.futureResult
         }
         
-        guard let databaseItem: TypedDatabaseItem<AttributesType, ItemType> = try getItemSync(forKey: key) else {
-            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
-                                                          sortKey: key.sortKey,
-                                                          message: "Item not present in database.")
-        }
-        
-        let updatedPayload = try updatedPayloadProvider(databaseItem.rowValue)
-        
-        let updatedDatabaseItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
-        
-        do {
-            try updateItemSync(newItem: updatedDatabaseItem, existingItem: databaseItem)
-        } catch SmokeDynamoDBError.conditionalCheckFailed {
-            return try conditionallyUpdateItemSync(forKey: key,
-                                                   withRetries: retries - 1,
-                                                   updatedPayloadProvider: updatedPayloadProvider)
-        }
-    }
+        return getItem(forKey: key).flatMap { (databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>?) in
+            guard let databaseItem = databaseItemOptional else {
+                let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
+                                                                    sortKey: key.sortKey,
+                                                                    message: "Item not present in database.")
+                
+                let promise = self.eventLoop.makePromise(of: Void.self)
+                promise.fail(error)
+                return promise.futureResult
+            }
+            
+            let updatedPayload: ItemType
+                
+            do {
+                updatedPayload = try updatedPayloadProvider(databaseItem.rowValue)
+            } catch {
+                let promise = self.eventLoop.makePromise(of: Void.self)
+                promise.fail(error)
+                return promise.futureResult
+            }
     
-    func conditionallyUpdateItemAsync<AttributesType, ItemType: Codable>(
-        forKey key: CompositePrimaryKey<AttributesType>,
-        withRetries retries: Int = 10,
-        updatedPayloadProvider: @escaping (ItemType) throws -> ItemType,
-        completion: @escaping (Error?) -> ()) throws {
-        
-        guard retries > 0 else {
-            throw SmokeDynamoDBError.concurrencyError(partitionKey: key.partitionKey,
-                                                    sortKey: key.sortKey,
-                                                    message: "Unable to complete request to update versioned item in specified number of attempts")
-        }
-        
-        func handleGetItemResult(result: SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) {
-            switch result {
-            case .success(let databaseItemOptional):
-                guard let databaseItem = databaseItemOptional else {
-                    let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
-                                                                        sortKey: key.sortKey,
-                                                                        message: "Item not present in database.")
-                    return completion(error)
+            let updatedDatabaseItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
+            
+            return self.updateItem(newItem: updatedDatabaseItem, existingItem: databaseItem).flatMapError { error in
+                if case SmokeDynamoDBError.conditionalCheckFailed = error {
+                    // try again
+                    return self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
+                                                        updatedPayloadProvider: updatedPayloadProvider)
+                } else {
+                    // propagate the error as its not an error causing a retry
+                    let promise = self.eventLoop.makePromise(of: Void.self)
+                    promise.fail(error)
+                    return promise.futureResult
                 }
-                
-                let updatedPayload: ItemType
-                    
-                do {
-                    updatedPayload = try updatedPayloadProvider(databaseItem.rowValue)
-                } catch {
-                    return completion(error)
-                }
-        
-                let updatedDatabaseItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
-                
-                do {
-                    try updateItemAsync(newItem: updatedDatabaseItem, existingItem: databaseItem) { error in
-                        if let error = error, case SmokeDynamoDBError.conditionalCheckFailed = error {
-                            do {
-                                try self.conditionallyUpdateItemAsync(forKey: key,
-                                                                      withRetries: retries - 1,
-                                                                      updatedPayloadProvider: updatedPayloadProvider,
-                                                                      completion: completion)
-                            } catch {
-                                completion(error)
-                            }
-                        } else {
-                            completion(error)
-                        }
-                    }
-                } catch {
-                    completion(error)
-                }
-            case .failure(let error):
-                completion(error)
             }
         }
-        
-        try getItemAsync(forKey: key,
-                         completion: handleGetItemResult)
     }
 }

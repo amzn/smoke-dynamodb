@@ -14,64 +14,70 @@
 //  SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests.swift
 //  SmokeDynamoDBTests
 //
-
 import XCTest
 @testable import SmokeDynamoDB
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 private typealias DatabaseRowType = StandardTypedDatabaseItem<TestTypeA>
-private typealias QueryRowType = StandardPolymorphicDatabaseItem<ExpectedTypes>
 
-struct ExpectedTypes: PossibleItemTypes {
-    static var types: [Codable.Type] = [TestTypeA.self]
+enum ExpectedQueryableTypes: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (TestTypeA.self, .init( {.testTypeA($0)} )),
+        ]
+    
+    case testTypeA(StandardTypedDatabaseItem<TestTypeA>)
 }
 
 class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
+    var eventLoopGroup: EventLoopGroup?
+    var eventLoop: EventLoop!
     
-    func testSimulateConcurrencyOnInsertSync() {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+    override func setUp() {
+        super.setUp()
         
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5)
-        
-        XCTAssertThrowsError(try table.insertItemSync(databaseItem))
-    }
-    
-    func testSimulateConcurrencyOnInsertAsync() throws {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5)
-        
-        var errorThrown = false
-        try table.insertItemAsync(databaseItem) { error in
-            errorThrown = errorThrown || error != nil
-        }
-        
-        XCTAssertTrue(errorThrown)
+        let newEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        eventLoop = newEventLoopGroup.next()
+        eventLoopGroup = newEventLoopGroup
     }
 
-    fileprivate func verifyWithUpdateSync(table: SimulateConcurrencyDynamoDBCompositePrimaryKeyTable,
-                                          databaseItem: TypedDatabaseItem<StandardPrimaryKeyAttributes, TestTypeA>,
-                                          key: StandardCompositePrimaryKey,
-                                          expectedFailureCount: Int) throws {
-        try table.insertItemSync(databaseItem)
+    override func tearDown() {
+        super.tearDown()
+        
+        try? eventLoopGroup?.syncShutdownGracefully()
+        eventLoop = nil
+    }
+    
+    func testSimulateConcurrencyOnInsert() {
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop),
+                                                                        eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5)
+        
+        XCTAssertThrowsError(try table.insertItem(databaseItem).wait())
+    }
+
+    fileprivate func verifyWithUpdate(table: SimulateConcurrencyDynamoDBCompositePrimaryKeyTable,
+                                      databaseItem: TypedDatabaseItem<StandardPrimaryKeyAttributes, TestTypeA>,
+                                      key: StandardCompositePrimaryKey,
+                                      expectedFailureCount: Int) throws {
+        try table.insertItem(databaseItem).wait()
         var errorCount = 0
         
         for _ in 0..<10 {
-            guard let item: DatabaseRowType = try! table.getItemSync(forKey: key) else {
+            guard let item: DatabaseRowType = try! table.getItem(forKey: key).wait() else {
                 return XCTFail("Expected to retrieve item and there was none")
             }
             
             do {
-                try table.updateItemSync(newItem: item.createUpdatedItem(withValue: item.rowValue), existingItem: item)
+                try table.updateItem(newItem: item.createUpdatedItem(withValue: item.rowValue), existingItem: item).wait()
             } catch {
                 errorCount += 1
             }
@@ -80,164 +86,73 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // should fail the expected number of times
         XCTAssertEqual(expectedFailureCount, errorCount)
         
-        try table.deleteItemSync(forKey: key)
+        try table.deleteItem(forKey: key).wait()
         
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        let nowDeletedItem: DatabaseRowType? = try! table.getItem(forKey: key).wait()
         XCTAssertNil(nowDeletedItem)
     }
     
-    fileprivate func verifyWithUpdateAsync(table: SimulateConcurrencyDynamoDBCompositePrimaryKeyTable,
-                                           databaseItem: TypedDatabaseItem<StandardPrimaryKeyAttributes, TestTypeA>,
-                                           key: StandardCompositePrimaryKey,
-                                           expectedFailureCount: Int) throws {
-        var isInsertCompleted = false
-        func insertCompletionHandler(error: Error?) {
-            if error != nil {
-                XCTFail()
-            }
-            
-            isInsertCompleted = true
-        }
-        
-        try table.insertItemAsync(databaseItem, completion: insertCompletionHandler)
-        var errorCount = 0
-        
-        func updateItemCompletion(error: Error?) {
-            if error != nil {
-                errorCount += 1
-            }
-        }
-        
-        var getItemCompletionCount = 0
-        for _ in 0..<10 {
-            try table.getItemAsync(forKey: key) { (result: SmokeDynamoDBErrorResult<DatabaseRowType?>) in
-                switch result {
-                case .success(let itemOptional):
-                    guard let item = itemOptional else {
-                        return XCTFail("Expected to retrieve item and there was none")
-                    }
-                    
-                    try! table.updateItemAsync(newItem: item.createUpdatedItem(withValue: item.rowValue),
-                                                existingItem: item, completion: updateItemCompletion)
-                case .failure(_):
-                    XCTFail()
-                }
-                
-                getItemCompletionCount += 1
-            }
-        }
-        
-        // should fail the expected number of times
-        XCTAssertEqual(expectedFailureCount, errorCount)
-        
-        var isDeleteCompleted = false
-        func deletionCompletionHandler(error: Error?) {
-            if error != nil {
-                XCTFail()
-            }
-            
-            isDeleteCompleted = true
-        }
-        
-        try table.deleteItemAsync(forKey: key, completion: deletionCompletionHandler)
-        
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
-        XCTAssertNil(nowDeletedItem)
-        XCTAssertTrue(isInsertCompleted)
-        XCTAssertEqual(10, getItemCompletionCount)
-        XCTAssertTrue(isDeleteCompleted)
-    }
-    
-    func testSimulateConcurrencyWithUpdateSync() {
+    func testSimulateConcurrencyWithUpdate() {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop),
+                                                                        eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
         
-        XCTAssertNoThrow(try verifyWithUpdateAsync(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 5))
-    }
-    
-    func testSimulateConcurrencyWithUpdateAsync() {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
-        
-        XCTAssertNoThrow(try verifyWithUpdateAsync(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 5))
+        XCTAssertNoThrow(try verifyWithUpdate(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 5))
     }
    
-    func testSimulateWithNoConcurrencySync() {
+    func testSimulateWithNoConcurrency() {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false,
-                                                     simulateOnUpdateItem: false)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop),
+                                                                        eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false,
+                                                                        simulateOnUpdateItem: false)
         
-        XCTAssertNoThrow(try verifyWithUpdateSync(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 0))
+        XCTAssertNoThrow(try verifyWithUpdate(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 0))
     }
     
-    func testSimulateWithNoConcurrencyAsync() {
+    func testSimulateConcurrencyWithQuery() {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false,
-                                                     simulateOnUpdateItem: false)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop),
+                                                                        eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
         
-        XCTAssertNoThrow(try verifyWithUpdateAsync(table: table, databaseItem: databaseItem, key: key, expectedFailureCount: 0))
-    }
-    
-    func testSimulateConcurrencyWithQuerySync() {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
-        
-        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         var errorCount = 0
         
         for _ in 0..<10 {
-            let query: [QueryRowType] = try! table.querySync(forPartitionKey: "partitionId",
-                                                      sortKeyCondition: .equals("sortId"))
+            let query: [ExpectedQueryableTypes] = try! table.query(forPartitionKey: "partitionId",
+                                                                   sortKeyCondition: .equals("sortId")).wait()
             
-            guard query.count == 1, let firstValue = query[0].rowValue as? TestTypeA else {
+            guard query.count == 1, case let .testTypeA(firstDatabaseItem) = query[0] else {
                 return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
             }
             
-            let firstQuery = query[0]
-            let existingItem = DatabaseRowType(compositePrimaryKey: firstQuery.compositePrimaryKey,
-                                               createDate: firstQuery.createDate,
-                                               rowStatus: firstQuery.rowStatus,
-                                               rowValue: firstQuery.rowValue as! TestTypeA)
-            let item: DatabaseRowType
+            let firstValue = firstDatabaseItem.rowValue
+            
+            let existingItem = DatabaseRowType(compositePrimaryKey: firstDatabaseItem.compositePrimaryKey,
+                                               createDate: firstDatabaseItem.createDate,
+                                               rowStatus: firstDatabaseItem.rowStatus,
+                                               rowValue: firstValue)
+            let item = firstDatabaseItem.createUpdatedItem(withValue: firstValue)
             
             do {
-                item = try firstQuery.createUpdatedItem(withValue: firstValue)
-            } catch {
-                return XCTFail("Unexpectedly failed to convert types \(error)")
-            }
-            
-            do {
-                try table.updateItemSync(newItem: item, existingItem: existingItem)
+                try table.updateItem(newItem: item, existingItem: existingItem).wait()
             } catch {
                 errorCount += 1
             }
@@ -246,105 +161,29 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // should only fail five times
         XCTAssertEqual(5, errorCount)
         
-        XCTAssertNoThrow(try table.deleteItemSync(forKey: key))
+        XCTAssertNoThrow(try table.deleteItem(forKey: key).wait())
         
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        let nowDeletedItem: DatabaseRowType? = try! table.getItem(forKey: key).wait()
         XCTAssertNil(nowDeletedItem)
     }
     
-    func testSimulateConcurrencyWithQueryAsync() throws {
+    func testSimulateConcurrencyWithMonomorphicQuery() {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop),
+                                                                        eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
         
-        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
-        var errorCount = 0
-        
-        func updateItemCompletion(error: Error?) {
-            if error != nil {
-                errorCount += 1
-            }
-        }
-        
-        var queryCompletionCount = 0
-        for _ in 0..<10 {
-            func handleQueryResult(result: SmokeDynamoDBErrorResult<[QueryRowType]>) {
-                switch result {
-                case .success(let query):
-                    guard query.count == 1, let firstValue = query[0].rowValue as? TestTypeA else {
-                        return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
-                    }
-                    
-                    let firstQuery = query[0]
-                    let existingItem = DatabaseRowType(compositePrimaryKey: firstQuery.compositePrimaryKey,
-                                                       createDate: firstQuery.createDate,
-                                                       rowStatus: firstQuery.rowStatus,
-                                                       rowValue: firstQuery.rowValue as! TestTypeA)
-                    let item: DatabaseRowType
-                    
-                    do {
-                        item = try firstQuery.createUpdatedItem(withValue: firstValue)
-                    } catch {
-                        return XCTFail("Unexpectedly failed to convert types \(error)")
-                    }
-                    
-                    do {
-                        try table.updateItemAsync(newItem: item, existingItem: existingItem,
-                                                   completion: updateItemCompletion)
-                    } catch {
-                        errorCount += 1
-                    }
-                case .failure:
-                    XCTFail()
-                }
-                
-                queryCompletionCount += 1
-            }
-            try table.queryAsync(forPartitionKey: "partitionId",
-                                  sortKeyCondition: .equals("sortId"), completion: handleQueryResult)
-        }
-        
-        // should only fail five times
-        XCTAssertEqual(5, errorCount)
-        
-        var isDeleteCompleted = false
-        func deleteCompletionHandler(error: Error?) {
-            if error != nil {
-                XCTFail()
-            }
-            
-            isDeleteCompleted = true
-        }
-        
-        XCTAssertNoThrow(try table.deleteItemAsync(forKey: key, completion: deleteCompletionHandler))
-        
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
-        XCTAssertNil(nowDeletedItem)
-        XCTAssertEqual(10, queryCompletionCount)
-        XCTAssertTrue(isDeleteCompleted)
-    }
-    
-    func testSimulateConcurrencyWithMonomorphicQuerySync() {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
-        
-        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         var errorCount = 0
         
         for _ in 0..<10 {
-            let query: [DatabaseRowType] = try! table.monomorphicQuerySync(forPartitionKey: "partitionId",
-                                                                           sortKeyCondition: .equals("sortId"))
+            let query: [DatabaseRowType] = try! table.monomorphicQuery(forPartitionKey: "partitionId",
+                                                                       sortKeyCondition: .equals("sortId")).wait()
             
             guard query.count == 1, let firstQuery = query.first else {
                 return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
@@ -357,7 +196,7 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             let item = firstQuery.createUpdatedItem(withValue: firstQuery.rowValue)
             
             do {
-                try table.updateItemSync(newItem: item, existingItem: existingItem)
+                try table.updateItem(newItem: item, existingItem: existingItem).wait()
             } catch {
                 errorCount += 1
             }
@@ -366,178 +205,46 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // should only fail five times
         XCTAssertEqual(5, errorCount)
         
-        XCTAssertNoThrow(try table.deleteItemSync(forKey: key))
+        XCTAssertNoThrow(try table.deleteItem(forKey: key).wait())
         
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        let nowDeletedItem: DatabaseRowType? = try! table.getItem(forKey: key).wait()
         XCTAssertNil(nowDeletedItem)
     }
     
-    func testSimulateConcurrencyWithMonomorphicQueryAsync() throws {
+    func testSimulateClobberConcurrencyWithGet() throws {
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: InMemoryDynamoDBCompositePrimaryKeyTable(),
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
-        
-        XCTAssertNoThrow(try table.insertItemSync(databaseItem))
-        var errorCount = 0
-        
-        func updateItemCompletion(error: Error?) {
-            if error != nil {
-                errorCount += 1
-            }
-        }
-        
-        var queryCompletionCount = 0
-        for _ in 0..<10 {
-            func handleQueryResult(result: SmokeDynamoDBErrorResult<[DatabaseRowType]>) {
-                switch result {
-                case .success(let query):
-                    guard query.count == 1, let firstQuery = query.first else {
-                        return XCTFail("Expected to retrieve item and there wasn't the correct number or type.")
-                    }
-                    
-                    let existingItem = DatabaseRowType(compositePrimaryKey: firstQuery.compositePrimaryKey,
-                                                       createDate: firstQuery.createDate,
-                                                       rowStatus: firstQuery.rowStatus,
-                                                       rowValue: firstQuery.rowValue)
-                    let item = firstQuery.createUpdatedItem(withValue: firstQuery.rowValue)
-                    
-                    do {
-                        try table.updateItemAsync(newItem: item, existingItem: existingItem,
-                                                   completion: updateItemCompletion)
-                    } catch {
-                        errorCount += 1
-                    }
-                case .failure:
-                    XCTFail()
-                }
-                
-                queryCompletionCount += 1
-            }
-            try table.monomorphicQueryAsync(forPartitionKey: "partitionId",
-                                            sortKeyCondition: .equals("sortId"), completion: handleQueryResult)
-        }
-        
-        // should only fail five times
-        XCTAssertEqual(5, errorCount)
-        
-        var isDeleteCompleted = false
-        func deleteCompletionHandler(error: Error?) {
-            if error != nil {
-                XCTFail()
-            }
-            
-            isDeleteCompleted = true
-        }
-        
-        XCTAssertNoThrow(try table.deleteItemAsync(forKey: key, completion: deleteCompletionHandler))
-        
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
-        XCTAssertNil(nowDeletedItem)
-        XCTAssertEqual(10, queryCompletionCount)
-        XCTAssertTrue(isDeleteCompleted)
-    }
-    
-    func testSimulateClobberConcurrencyWithGetSync() throws {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
                                                      simulateConcurrencyModifications: 5)
         
-        XCTAssertNoThrow(try wrappedTable.insertItemSync(databaseItem))
+        XCTAssertNoThrow(try wrappedTable.insertItem(databaseItem).wait())
         
         for _ in 0..<10 {
-            guard let item: DatabaseRowType = try table.getItemSync(forKey: key) else {
+            guard let item: DatabaseRowType = try table.getItem(forKey: key).wait() else {
                 return XCTFail("Expected to retrieve item and there was none")
             }
             
             XCTAssertEqual(databaseItem.rowStatus.rowVersion, item.rowStatus.rowVersion)
             
-            try wrappedTable.updateItemSync(newItem: item.createUpdatedItem(withValue: item.rowValue), existingItem: item)
-            XCTAssertNoThrow(try table.clobberItemSync(item))
+            try wrappedTable.updateItem(newItem: item.createUpdatedItem(withValue: item.rowValue), existingItem: item).wait()
+            XCTAssertNoThrow(try table.clobberItem(item).wait())
         }
         
-        XCTAssertNoThrow(try table.deleteItemSync(forKey: key))
+        XCTAssertNoThrow(try table.deleteItem(forKey: key).wait())
         
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
+        let nowDeletedItem: DatabaseRowType? = try! table.getItem(forKey: key).wait()
         XCTAssertNil(nowDeletedItem)
-    }
-    
-    func testSimulateClobberConcurrencyWithGetAsync() throws {
-        let key = StandardCompositePrimaryKey(partitionKey: "partitionId", sortKey: "sortId")
-        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
-        
-        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
-        
-        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
-        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
-                                                     simulateConcurrencyModifications: 5)
-        
-        XCTAssertNoThrow(try wrappedTable.insertItemSync(databaseItem))
-        
-        var getItemCompletionCount = 0
-        var updateCompletionCount = 0
-        var clobberCompletionCount = 0
-        for _ in 0..<10 {
-            func handleGetItemResult(result: SmokeDynamoDBErrorResult<DatabaseRowType?>) {
-                switch result {
-                case .success(let itemOptional):
-                    guard let item = itemOptional else {
-                        return XCTFail("Expected to retrieve item and there was none")
-                    }
-                    
-                    XCTAssertEqual(databaseItem.rowStatus.rowVersion, item.rowStatus.rowVersion)
-            
-                    try! wrappedTable.updateItemAsync(newItem: item.createUpdatedItem(withValue: item.rowValue),
-                                                       existingItem: item) { _ in updateCompletionCount += 1 }
-                    XCTAssertNoThrow(try table.clobberItemAsync(item) { _ in clobberCompletionCount += 1 })
-                case .failure(_):
-                    XCTFail()
-                }
-                
-                getItemCompletionCount += 1
-            }
-            
-            try table.getItemAsync(forKey: key, completion: handleGetItemResult)
-        }
-        
-        var isDeleteCompleted = false
-        func deleteCompletionHandler(error: Error?) {
-            if error != nil {
-                XCTFail()
-            }
-            
-            isDeleteCompleted = true
-        }
-        
-        XCTAssertNoThrow(try table.deleteItemAsync(forKey: key, completion: deleteCompletionHandler))
-        
-        let nowDeletedItem: DatabaseRowType? = try! table.getItemSync(forKey: key)
-        XCTAssertNil(nowDeletedItem)
-        XCTAssertEqual(10, getItemCompletionCount)
-        XCTAssertEqual(10, updateCompletionCount)
-        XCTAssertEqual(10, clobberCompletionCount)
-        XCTAssertTrue(isDeleteCompleted)
     }
   
     static var allTests = [
-        ("testSimulateConcurrencyOnInsertSync", testSimulateConcurrencyOnInsertSync),
-        ("testSimulateConcurrencyOnInsertAsync", testSimulateConcurrencyOnInsertAsync),
-        ("testSimulateConcurrencyWithUpdateSync", testSimulateConcurrencyWithUpdateSync),
-        ("testSimulateConcurrencyWithUpdateAsync", testSimulateConcurrencyWithUpdateAsync),
-        ("testSimulateWithNoConcurrencySync", testSimulateWithNoConcurrencySync),
-        ("testSimulateWithNoConcurrencyAsync", testSimulateWithNoConcurrencyAsync),
-        ("testSimulateConcurrencyWithQuerySync", testSimulateConcurrencyWithQuerySync),
-        ("testSimulateConcurrencyWithQueryAsync", testSimulateConcurrencyWithQueryAsync),
-        ("testSimulateClobberConcurrencyWithGetSync", testSimulateClobberConcurrencyWithGetSync),
-        ("testSimulateClobberConcurrencyWithGetAsync", testSimulateClobberConcurrencyWithGetAsync)
+        ("testSimulateConcurrencyOnInsert", testSimulateConcurrencyOnInsert),
+        ("testSimulateConcurrencyWithUpdate", testSimulateConcurrencyWithUpdate),
+        ("testSimulateWithNoConcurrency", testSimulateWithNoConcurrency),
+        ("testSimulateConcurrencyWithQuery", testSimulateConcurrencyWithQuery),
+        ("testSimulateClobberConcurrencyWithGet", testSimulateClobberConcurrencyWithGet),
     ]
 }

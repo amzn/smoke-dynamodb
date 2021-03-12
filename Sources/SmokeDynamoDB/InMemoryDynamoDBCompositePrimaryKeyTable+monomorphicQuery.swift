@@ -19,27 +19,25 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
-    func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                        sortKeyCondition: AttributeCondition?) throws
-    -> [TypedDatabaseItem<AttributesType, ItemType>]
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?)
+    -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        semaphore.wait()
-        defer {
-            semaphore.signal()
-        }
+        let promise = self.eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
         
-        var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
+        accessQueue.async {
+            var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
 
-            if let partition = store[partitionKey] {
+            if let partition = self.store[partitionKey] {
                 let sortedPartition = partition.sorted(by: { (left, right) -> Bool in
                     return left.key < right.key
                 })
                 
                 sortKeyIteration: for (sortKey, value) in sortedPartition {
-
                     if let currentSortKeyCondition = sortKeyCondition {
                         switch currentSortKeyCondition {
                         case .equals(let value):
@@ -86,95 +84,62 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
                         let description = "Expected type \(TypedDatabaseItem<AttributesType, ItemType>.self), "
                             + " was \(type(of: value))."
                         let context = DecodingError.Context(codingPath: [], debugDescription: description)
-                        throw DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self,
-                                                         context)
+                        let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+                        
+                        promise.fail(error)
+                        return
                     }
                 }
             }
 
-            return items
+            promise.succeed(items)
         }
-    
-    func monomorphicQueryAsync<AttributesType, ItemType>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            completion: @escaping (SmokeDynamoDBErrorResult<[TypedDatabaseItem<AttributesType, ItemType>]>) -> ()) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        do {
-            let items: [TypedDatabaseItem<AttributesType, ItemType>] =
-                try monomorphicQuerySync(forPartitionKey: partitionKey,
-                                         sortKeyCondition: sortKeyCondition)
-
-            completion(.success(items))
-        } catch {
-            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-        }
-    }
-    
-    func monomorphicQuerySync<AttributesType, ItemType>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            limit: Int?,
-            scanIndexForward: Bool,
-            exclusiveStartKey: String?) throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        // get all the results
-        let rawItems: [TypedDatabaseItem<AttributesType, ItemType>] = try monomorphicQuerySync(
-            forPartitionKey: partitionKey,
-            sortKeyCondition: sortKeyCondition)
         
-        let items: [TypedDatabaseItem<AttributesType, ItemType>]
-        if !scanIndexForward {
-            items = rawItems.reversed()
-        } else {
-            items = rawItems
-        }
-
-        let startIndex: Int
-        // if there is an exclusiveStartKey
-        if let exclusiveStartKey = exclusiveStartKey {
-            guard let storedStartIndex = Int(exclusiveStartKey) else {
-                fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
-            }
-
-            startIndex = storedStartIndex
-        } else {
-            startIndex = 0
-        }
-
-        let endIndex: Int
-        let lastEvaluatedKey: String?
-        if let limit = limit, startIndex + limit < items.count {
-            endIndex = startIndex + limit
-            lastEvaluatedKey = String(endIndex)
-        } else {
-            endIndex = items.count
-            lastEvaluatedKey = nil
-        }
-
-        return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
+        return promise.futureResult
     }
     
-    func monomorphicQueryAsync<AttributesType, ItemType>(
+    func monomorphicQuery<AttributesType, ItemType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             scanIndexForward: Bool,
-            exclusiveStartKey: String?,
-            completion: @escaping (SmokeDynamoDBErrorResult<([TypedDatabaseItem<AttributesType, ItemType>], String?)>) -> ()) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        do {
-            let result: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
-                try monomorphicQuerySync(forPartitionKey: partitionKey,
-                                         sortKeyCondition: sortKeyCondition,
-                                         limit: limit,
-                                         scanIndexForward: true,
-                                         exclusiveStartKey: exclusiveStartKey)
+            exclusiveStartKey: String?)
+            -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+            where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        // get all the results
+        return monomorphicQuery(forPartitionKey: partitionKey,
+                                sortKeyCondition: sortKeyCondition)
+            .map { (rawItems: [TypedDatabaseItem<AttributesType, ItemType>]) in
+                let items: [TypedDatabaseItem<AttributesType, ItemType>]
+                if !scanIndexForward {
+                    items = rawItems.reversed()
+                } else {
+                    items = rawItems
+                }
 
-            completion(.success(result))
-        } catch {
-            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-        }
+                let startIndex: Int
+                // if there is an exclusiveStartKey
+                if let exclusiveStartKey = exclusiveStartKey {
+                    guard let storedStartIndex = Int(exclusiveStartKey) else {
+                        fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
+                    }
+
+                    startIndex = storedStartIndex
+                } else {
+                    startIndex = 0
+                }
+
+                let endIndex: Int
+                let lastEvaluatedKey: String?
+                if let limit = limit, startIndex + limit < items.count {
+                    endIndex = startIndex + limit
+                    lastEvaluatedKey = String(endIndex)
+                } else {
+                    endIndex = items.count
+                    lastEvaluatedKey = nil
+                }
+
+                return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
+            }
     }
 }

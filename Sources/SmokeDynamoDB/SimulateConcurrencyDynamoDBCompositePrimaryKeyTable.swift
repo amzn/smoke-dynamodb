@@ -18,6 +18,7 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 /**
  Implementation of the DynamoDBTable protocol that simulates concurrent access
@@ -25,6 +26,8 @@ import DynamoDBModel
  a specified number of requests.
  */
 public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
+    public var eventLoop: EventLoop
+    
     let wrappedDynamoDBTable: DynamoDBCompositePrimaryKeyTable
     let simulateConcurrencyModifications: Int
     var previousConcurrencyModifications: Int
@@ -40,288 +43,125 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         - simulateOnInsertItem: if this instance should simulate concurrency on insertItem.
         - simulateOnUpdateItem: if this instance should simulate concurrency on updateItem.
      */
-    public init(wrappedDynamoDBTable: DynamoDBCompositePrimaryKeyTable, simulateConcurrencyModifications: Int,
+    public init(wrappedDynamoDBTable: DynamoDBCompositePrimaryKeyTable, eventLoop: EventLoop, simulateConcurrencyModifications: Int,
                 simulateOnInsertItem: Bool = true, simulateOnUpdateItem: Bool = true) {
         self.wrappedDynamoDBTable = wrappedDynamoDBTable
+        self.eventLoop = eventLoop
         self.simulateConcurrencyModifications = simulateConcurrencyModifications
         self.previousConcurrencyModifications = 0
         self.simulateOnInsertItem = simulateOnInsertItem
         self.simulateOnUpdateItem = simulateOnUpdateItem
     }
     
-    public func insertItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
         // if there are still modifications to be made and there is an existing row
         if simulateOnInsertItem && previousConcurrencyModifications < simulateConcurrencyModifications {
             // insert an item so the conditional check will fail
-            try wrappedDynamoDBTable.insertItemSync(item)
-            previousConcurrencyModifications += 1
+            return wrappedDynamoDBTable.insertItem(item).flatMap { _ in
+                self.previousConcurrencyModifications += 1
+                
+                // then delegate to the wrapped implementation
+                return self.wrappedDynamoDBTable.insertItem(item)
+            }
         }
         
-        // then delegate to the wrapped implementation
-        try wrappedDynamoDBTable.insertItemSync(item)
+        // otherwise just delegate to the wrapped implementation
+        return wrappedDynamoDBTable.insertItem(item)
     }
     
-    public func insertItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
-            do {
-                try insertItemSync(item)
-                
-                completion(nil)
-            } catch {
-                completion(error)
-            }
+    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
+        return wrappedDynamoDBTable.clobberItem(item)
     }
     
-    public func clobberItemSync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
-        try wrappedDynamoDBTable.clobberItemSync(item)
-    }
-    
-    public func clobberItemAsync<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                           completion: @escaping (Error?) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
-            do {
-                try wrappedDynamoDBTable.clobberItemSync(item)
-                
-                completion(nil)
-            } catch {
-                completion(error)
-            }
-    }
-    
-    public func updateItemSync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                         existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+    public func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
         
         // if there are still modifications to be made and there is an existing row
         if simulateOnUpdateItem && previousConcurrencyModifications < simulateConcurrencyModifications {
-            try wrappedDynamoDBTable.updateItemSync(newItem: existingItem.createUpdatedItem(withValue: existingItem.rowValue),
-                                               existingItem: existingItem)
-            previousConcurrencyModifications += 1
+            return wrappedDynamoDBTable.updateItem(newItem: existingItem.createUpdatedItem(withValue: existingItem.rowValue),
+                                                   existingItem: existingItem).flatMap { _ in
+                self.previousConcurrencyModifications += 1
+                
+                // then delegate to the wrapped implementation
+                return self.wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
+            }
         }
         
-        // then delegate to the wrapped implementation
-        try wrappedDynamoDBTable.updateItemSync(newItem: newItem, existingItem: existingItem)
+        // otherwise just delegate to the wrapped implementation
+        return wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
     }
     
-    public func updateItemAsync<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
-            do {
-                try updateItemSync(newItem: newItem, existingItem: existingItem)
-                
-                completion(nil)
-            } catch {
-                completion(error)
-            }
-    }
-    
-    public func getItemSync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
-        -> TypedDatabaseItem<AttributesType, ItemType>? {
-            // simply delegate to the wrapped implementation
-            return try wrappedDynamoDBTable.getItemSync(forKey: key)
-    }
-    
-    public func getItemAsync<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                       completion: @escaping (SmokeDynamoDBErrorResult<TypedDatabaseItem<AttributesType, ItemType>?>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, ItemType: Decodable, ItemType: Encodable {
-            do {
-                let item: TypedDatabaseItem<AttributesType, ItemType>? = try getItemSync(forKey: key)
-                
-                completion(.success(item))
-            } catch {
-                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-            }
-    }
-    
-    public func deleteItemSync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
+    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
+            -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         // simply delegate to the wrapped implementation
-        try wrappedDynamoDBTable.deleteItemSync(forKey: key)
+        return wrappedDynamoDBTable.getItem(forKey: key)
     }
     
-    public func deleteItemAsync<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                completion: @escaping (Error?) -> ())
-        throws where AttributesType: PrimaryKeyAttributes {
-            do {
-                try deleteItemSync(forKey: key)
-                
-                completion(nil)
-            } catch {
-                completion(error)
-            }
+    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void> {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.deleteItem(forKey: key)
     }
     
-    public func deleteItemSync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        try wrappedDynamoDBTable.deleteItemSync(existingItem: existingItem)
+    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+            where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        return wrappedDynamoDBTable.deleteItem(existingItem: existingItem)
     }
     
-    public func deleteItemAsync<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          completion: @escaping (Error?) -> ()) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        do {
-            try deleteItemSync(existingItem: existingItem)
-            
-            completion(nil)
-        } catch {
-            completion(error)
-        }
+    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                                    sortKeyCondition: AttributeCondition?)
+            -> EventLoopFuture<[ReturnedType]> {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
+                                          sortKeyCondition: sortKeyCondition)
     }
     
-    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?) throws
-        -> [PolymorphicDatabaseItem<AttributesType, PossibleTypes>]
-        where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
+    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                                    sortKeyCondition: AttributeCondition?,
+                                                                    limit: Int?,
+                                                                    exclusiveStartKey: String?)
+        -> EventLoopFuture<([ReturnedType], String?)> {
             // simply delegate to the wrapped implementation
-            return try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
+            return wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
+                                              sortKeyCondition: sortKeyCondition,
+                                              limit: limit,
+                                              exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                                    sortKeyCondition: AttributeCondition?,
+                                                                    limit: Int?,
+                                                                    scanIndexForward: Bool,
+                                                                    exclusiveStartKey: String?)
+        -> EventLoopFuture<([ReturnedType], String?)> {
+            // simply delegate to the wrapped implementation
+            return wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
+                                              sortKeyCondition: sortKeyCondition,
+                                              limit: limit,
+                                              scanIndexForward: scanIndexForward,
+                                              exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                           sortKeyCondition: AttributeCondition?)
+    -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.monomorphicQuery(forPartitionKey: partitionKey,
                                                      sortKeyCondition: sortKeyCondition)
     }
     
-    public func queryAsync<AttributesType, PossibleTypes>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            completion: @escaping (SmokeDynamoDBErrorResult<[PolymorphicDatabaseItem<AttributesType, PossibleTypes>]>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            do {
-                let items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] =
-                    try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
-                                                      sortKeyCondition: sortKeyCondition)
-                
-                completion(.success(items))
-            } catch {
-                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-            }
-    }
-    
-    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?,
-                                                         limit: Int?,
-                                                         exclusiveStartKey: String?) throws
-        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
-        where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            // simply delegate to the wrapped implementation
-            return try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
-                                                     sortKeyCondition: sortKeyCondition,
-                                                     limit: limit,
-                                                     exclusiveStartKey: exclusiveStartKey)
-    }
-    
-    public func querySync<AttributesType, PossibleTypes>(forPartitionKey partitionKey: String,
-                                                         sortKeyCondition: AttributeCondition?,
-                                                         limit: Int?,
-                                                         scanIndexForward: Bool,
-                                                         exclusiveStartKey: String?) throws
-        -> ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)
-        where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            // simply delegate to the wrapped implementation
-            return try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
+    public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                           sortKeyCondition: AttributeCondition?,
+                                                           limit: Int?,
+                                                           scanIndexForward: Bool,
+                                                           exclusiveStartKey: String?)
+    -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.monomorphicQuery(forPartitionKey: partitionKey,
                                                      sortKeyCondition: sortKeyCondition,
                                                      limit: limit,
                                                      scanIndexForward: scanIndexForward,
                                                      exclusiveStartKey: exclusiveStartKey)
-    }
-    
-    public func queryAsync<AttributesType, PossibleTypes>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            limit: Int?,
-            exclusiveStartKey: String?,
-            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            do {
-                let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
-                    try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
-                                                      sortKeyCondition: sortKeyCondition,
-                                                      limit: limit,
-                                                      exclusiveStartKey: exclusiveStartKey)
-                
-                completion(.success(result))
-            } catch {
-                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-            }
-    }
-    
-    public func queryAsync<AttributesType, PossibleTypes>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            limit: Int?,
-            scanIndexForward: Bool,
-            exclusiveStartKey: String?,
-            completion: @escaping (SmokeDynamoDBErrorResult<([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?)>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes {
-            do {
-                let result: ([PolymorphicDatabaseItem<AttributesType, PossibleTypes>], String?) =
-                    try wrappedDynamoDBTable.querySync(forPartitionKey: partitionKey,
-                                                      sortKeyCondition: sortKeyCondition,
-                                                      limit: limit,
-                                                      scanIndexForward: scanIndexForward,
-                                                      exclusiveStartKey: exclusiveStartKey)
-                
-                completion(.success(result))
-            } catch {
-                completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-            }
-    }
-    
-    public func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                               sortKeyCondition: AttributeCondition?) throws
-    -> [TypedDatabaseItem<AttributesType, ItemType>]
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        // simply delegate to the wrapped implementation
-        return try wrappedDynamoDBTable.monomorphicQuerySync(forPartitionKey: partitionKey,
-                                                             sortKeyCondition: sortKeyCondition)
-    }
-    
-    public func monomorphicQueryAsync<AttributesType, ItemType>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            completion: @escaping (SmokeDynamoDBErrorResult<[TypedDatabaseItem<AttributesType, ItemType>]>) -> ()) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        do {
-            let items: [TypedDatabaseItem<AttributesType, ItemType>] =
-                try wrappedDynamoDBTable.monomorphicQuerySync(forPartitionKey: partitionKey,
-                                                              sortKeyCondition: sortKeyCondition)
-            
-            completion(.success(items))
-        } catch {
-            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-        }
-    }
-    
-    public func monomorphicQuerySync<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                               sortKeyCondition: AttributeCondition?,
-                                                               limit: Int?,
-                                                               scanIndexForward: Bool,
-                                                               exclusiveStartKey: String?) throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        // simply delegate to the wrapped implementation
-        return try wrappedDynamoDBTable.monomorphicQuerySync(forPartitionKey: partitionKey,
-                                                             sortKeyCondition: sortKeyCondition,
-                                                             limit: limit,
-                                                             scanIndexForward: scanIndexForward,
-                                                             exclusiveStartKey: exclusiveStartKey)
-    }
-    
-    public func monomorphicQueryAsync<AttributesType, ItemType>(
-            forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?,
-            limit: Int?,
-            scanIndexForward: Bool,
-            exclusiveStartKey: String?,
-            completion: @escaping (SmokeDynamoDBErrorResult<([TypedDatabaseItem<AttributesType, ItemType>], String?)>) -> ()) throws
-    where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        do {
-            let result: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
-                try wrappedDynamoDBTable.monomorphicQuerySync(forPartitionKey: partitionKey,
-                                                               sortKeyCondition: sortKeyCondition,
-                                                               limit: limit,
-                                                               scanIndexForward: scanIndexForward,
-                                                               exclusiveStartKey: exclusiveStartKey)
-            
-            completion(.success(result))
-        } catch {
-            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-        }
     }
 }

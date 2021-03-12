@@ -23,7 +23,7 @@ struct TestTypeA: Codable, Equatable {
     let secondly: String
 }
 
-struct TestTypeB: Codable, CustomRowTypeIdentifier {
+struct TestTypeB: Codable, Equatable, CustomRowTypeIdentifier {
     static var rowTypeIdentifier: String? = "TypeBCustom"
     
     let thirdly: String
