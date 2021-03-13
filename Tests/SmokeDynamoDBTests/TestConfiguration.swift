@@ -29,3 +29,26 @@ struct TestTypeB: Codable, Equatable, CustomRowTypeIdentifier {
     let thirdly: String
     let fourthly: String
 }
+
+enum TestQueryableTypes: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (TestTypeA.self, .init( {.testTypeA($0)} )),
+        (TestTypeB.self, .init( {.testTypeB($0)} )),
+        ]
+    
+    case testTypeA(StandardTypedDatabaseItem<TestTypeA>)
+    case testTypeB(StandardTypedDatabaseItem<TestTypeB>)
+}
+
+extension TestQueryableTypes: BatchCapableReturnType {
+    func getItemKey() -> CompositePrimaryKey<StandardPrimaryKeyAttributes> {
+        switch self {
+        case .testTypeA(let databaseItem):
+            return databaseItem.compositePrimaryKey
+        case .testTypeB(let databaseItem):
+            return databaseItem.compositePrimaryKey
+        }
+    }
+}

@@ -154,6 +154,24 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
             throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
         }
     }
+    
+    internal func getInputForBatchGetItem<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) throws
+    -> DynamoDBModel.BatchGetItemInput {
+        let keys = try keys.map { key -> DynamoDBModel.Key in
+            let attributeValue = try DynamoDBEncoder().encode(key)
+            
+            if let keyAttributes = attributeValue.M {
+               return keyAttributes
+            } else {
+                throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
+            }
+        }
+
+        let keysAndAttributes = KeysAndAttributes(consistentRead: true,
+                                                  keys: keys)
+        
+        return DynamoDBModel.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])
+    }
 
     internal func getInputForDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.DeleteItemInput {
         let attributeValue = try DynamoDBEncoder().encode(key)
@@ -194,5 +212,13 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
 extension AWSDynamoDBCompositePrimaryKeyTable {
     public var eventLoop: EventLoop {
         return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
+    }
+}
+
+extension Array {
+    func chunked(by chunkSize: Int) -> [[Element]] {
+        return stride(from: 0, to: self.count, by: chunkSize).map {
+            Array(self[$0..<Swift.min($0 + chunkSize, self.count)])
+        }
     }
 }

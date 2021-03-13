@@ -18,9 +18,15 @@ import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
 
-public protocol PolymorphicOperationReturnType {
+public protocol BatchCapableReturnType {
     associatedtype AttributesType: PrimaryKeyAttributes
     
+    func getItemKey() -> CompositePrimaryKey<AttributesType>
+}
+
+public protocol PolymorphicOperationReturnType {
+    associatedtype AttributesType: PrimaryKeyAttributes
+        
     static var types: [(Codable.Type, PolymorphicOperationReturnOption<AttributesType, Self>)] { get }
 }
 

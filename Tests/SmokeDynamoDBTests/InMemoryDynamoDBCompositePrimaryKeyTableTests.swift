@@ -394,6 +394,75 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // the table should still contain the item
         XCTAssertNotNil(retrievedItem2)
     }
+    
+    func testGetItems() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
+                                                        sortKey: "sortId1")
+        let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
+                                                        sortKey: "sortId2")
+        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let payload2 = TestTypeB(thirdly: "thirdly", fourthly: "fourthly")
+        
+        
+        
+        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+        let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
+        
+        _ = try table.insertItem(databaseItem1).wait()
+        _ = try table.insertItem(databaseItem2).wait()
+                
+        let batch: [StandardCompositePrimaryKey: TestQueryableTypes] = try table.getItems(forKeys: [key1, key2]).wait()
+        
+        guard case .testTypeA(let retrievedDatabaseItem1) = batch[key1] else {
+            XCTFail()
+            return
+        }
+        
+        guard case .testTypeB(let retrievedDatabaseItem2) = batch[key2] else {
+            XCTFail()
+            return
+        }
+        
+        XCTAssertEqual(payload1, retrievedDatabaseItem1.rowValue)
+        XCTAssertEqual(payload2, retrievedDatabaseItem2.rowValue)
+    }
+    
+    func testMonomorphicGetItems() throws {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
+                                                        sortKey: "sortId1")
+        let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
+                                                        sortKey: "sortId2")
+        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let payload2 = TestTypeA(firstly: "thirdly", secondly: "fourthly")
+        
+        
+        
+        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+        let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
+        
+        _ = try table.insertItem(databaseItem1).wait()
+        _ = try table.insertItem(databaseItem2).wait()
+                
+        let batch: [StandardCompositePrimaryKey: StandardTypedDatabaseItem<TestTypeA>]
+            = try table.monomorphicGetItems(forKeys: [key1, key2]).wait()
+        
+        guard let retrievedDatabaseItem1 = batch[key1] else {
+            XCTFail()
+            return
+        }
+        
+        guard let retrievedDatabaseItem2 = batch[key2] else {
+            XCTFail()
+            return
+        }
+        
+        XCTAssertEqual(payload1, retrievedDatabaseItem1.rowValue)
+        XCTAssertEqual(payload2, retrievedDatabaseItem2.rowValue)
+    }
   
     static var allTests = [
         ("testInsertAndUpdate", testInsertAndUpdate),
@@ -408,5 +477,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         ("testDeleteForExistingItem", testDeleteForExistingItem),
         ("testDeleteForExistingItemAfterUpdate", testDeleteForExistingItemAfterUpdate),
         ("testDeleteForExistingItemAfterRecreation", testDeleteForExistingItemAfterRecreation),
+        ("testGetItems", testGetItems),
+        ("testMonomorphicGetItems", testMonomorphicGetItems),
     ]
 }
