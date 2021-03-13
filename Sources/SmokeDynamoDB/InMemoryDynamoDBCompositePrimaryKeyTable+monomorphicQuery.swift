@@ -23,6 +23,41 @@ import NIO
 
 public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
+    func monomorphicGetItems<AttributesType, ItemType>(
+        forKeys keys: [CompositePrimaryKey<AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]> {
+        let promise = self.eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>].self)
+        
+        accessQueue.async {
+            var map: [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>] = [:]
+            
+            keys.forEach { key in
+                if let partition = self.store[key.partitionKey] {
+
+                    guard let value = partition[key.sortKey] else {
+                        return
+                    }
+                    
+                    guard let item = value as? TypedDatabaseItem<AttributesType, ItemType> else {
+                        let foundType = type(of: value)
+                        let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
+                        let context = DecodingError.Context(codingPath: [], debugDescription: description)
+                        let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+                        
+                        promise.fail(error)
+                        return
+                    }
+                    
+                    map[key] = item
+                }
+            }
+            
+            promise.succeed(map)
+        }
+        
+        return promise.futureResult
+    }
+    
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>

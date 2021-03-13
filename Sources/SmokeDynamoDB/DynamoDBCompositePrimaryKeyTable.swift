@@ -34,6 +34,8 @@ public enum SmokeDynamoDBError: Error {
     case concurrencyError(partitionKey: String, sortKey: String, message: String?)
     case unableToUpdateError(reason: String)
     case unrecognizedError(String, String?)
+    case multipleUnexpectedErrors(cause: [Swift.Error])
+    case batchAPIExceededRetries(retryCount: Int)
 }
 
 public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
@@ -91,6 +93,13 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?>
+    
+    /**
+     * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
+     */
+    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]>
 
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
@@ -138,7 +147,14 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              exclusiveStartKey: String?)
         -> EventLoopFuture<([ReturnedType], String?)>
     
-    // MARK: Monomorphic queries
+    // MARK: Monomorphic batch and queries
+    
+    /**
+     * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
+     */
+    func monomorphicGetItems<AttributesType, ItemType>(
+        forKeys keys: [CompositePrimaryKey<AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]>
     
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the

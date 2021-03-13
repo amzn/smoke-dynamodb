@@ -56,7 +56,7 @@ struct DynamoDBAttributesTypeCodingKey: CodingKey {
     }
 }
 
-public struct CompositePrimaryKey<AttributesType: PrimaryKeyAttributes>: Codable, CustomStringConvertible {
+public struct CompositePrimaryKey<AttributesType: PrimaryKeyAttributes>: Codable, CustomStringConvertible, Hashable {
     public var description: String {
         return "CompositePrimaryKey(partitionKey: \(partitionKey), sortKey: \(sortKey))"
     }

@@ -177,6 +177,40 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
         
         return promise.futureResult
     }
+    
+    public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]> {
+        let promise = self.eventLoop.makePromise(of: [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType].self)
+        
+        accessQueue.async {
+            var map: [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] = [:]
+            
+            keys.forEach { key in
+                if let partition = self.store[key.partitionKey] {
+
+                    guard let value = partition[key.sortKey] else {
+                        return
+                    }
+                    
+                    let itemAsReturnedType: ReturnedType
+                        
+                    do {
+                        itemAsReturnedType = try self.convertToQueryableType(input: value)
+                    } catch {
+                        promise.fail(error)
+                        return
+                    }
+                    
+                    map[key] = itemAsReturnedType
+                }
+            }
+            
+            promise.succeed(map)
+        }
+        
+        return promise.futureResult
+    }
 
     public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void> {
         let promise = self.eventLoop.makePromise(of: Void.self)

@@ -97,6 +97,13 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         return wrappedDynamoDBTable.getItem(forKey: key)
     }
     
+    public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]> {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.getItems(forKeys: keys)
+    }
+    
     public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void> {
         // simply delegate to the wrapped implementation
         return wrappedDynamoDBTable.deleteItem(forKey: key)
@@ -139,6 +146,13 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                               limit: limit,
                                               scanIndexForward: scanIndexForward,
                                               exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    public func monomorphicGetItems<AttributesType, ItemType>(
+        forKeys keys: [CompositePrimaryKey<AttributesType>])
+    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]> {
+        // simply delegate to the wrapped implementation
+        return wrappedDynamoDBTable.monomorphicGetItems(forKeys: keys)
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
