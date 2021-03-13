@@ -14,16 +14,29 @@
 //  TestInput.swift
 //  SmokeDynamoDBTests
 //
-
 import Foundation
 @testable import SmokeDynamoDB
 
-struct AllCodableTypes : PossibleItemTypes {
-    public static var types: [Codable.Type] = [TypeA.self, TypeB.self]
+enum AllQueryableTypes: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (TypeA.self, .init( {.typeA($0)} )),
+        (TypeB.self, .init( {.typeB($0)} )),
+        ]
+    
+    case typeA(StandardTypedDatabaseItem<TypeA>)
+    case typeB(StandardTypedDatabaseItem<TypeB>)
 }
 
-struct SomeCodableTypes : PossibleItemTypes {
-    public static var types: [Codable.Type] = [TypeA.self]
+enum SomeQueryableTypes: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (TypeA.self, .init( {.typeA($0)} )),
+        ]
+    
+    case typeA(StandardTypedDatabaseItem<TypeA>)
 }
 
 struct GSI1PKIndexIdentity : IndexIdentity {
@@ -31,8 +44,16 @@ struct GSI1PKIndexIdentity : IndexIdentity {
     static var identity = "GSI1PK"
 }
 
-struct AllCodableTypesWithIndex : PossibleItemTypes {
-    public static var types: [Codable.Type] = [RowWithIndex<TypeA, GSI1PKIndexIdentity>.self, TypeB.self]
+enum AllQueryableTypesWithIndex: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (RowWithIndex<TypeA, GSI1PKIndexIdentity>.self, .init( {.typeAWithIndex($0)} )),
+        (TypeB.self, .init( {.typeB($0)} )),
+        ]
+    
+    case typeAWithIndex(StandardTypedDatabaseItem<RowWithIndex<TypeA, GSI1PKIndexIdentity>>)
+    case typeB(StandardTypedDatabaseItem<TestTypeB>)
 }
 
 struct TypeA: Codable {

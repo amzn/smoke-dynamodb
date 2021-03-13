@@ -18,12 +18,14 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 /**
  Protocol presenting a Keys Only projection of a DynamoDB table such as a Keys Only GSI projection.
  Provides the ability to query the projection to get the list of keys without attempting to decode the row into a particular data type.
  */
 public protocol DynamoDBCompositePrimaryKeysProjection {
+    var eventLoop: EventLoop { get }
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -31,45 +33,25 @@ public protocol DynamoDBCompositePrimaryKeysProjection {
        function will potentially make multiple calls to DynamoDB to retrieve all results for
        the query.
      */
-    func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                   sortKeyCondition: AttributeCondition?) throws
-        -> [CompositePrimaryKey<AttributesType>]
-
-    func queryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ()) throws
+    func query<AttributesType>(forPartitionKey partitionKey: String,
+                               sortKeyCondition: AttributeCondition?)
+        -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]>
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
        partition doesn't exist, this operation will return an empty list as a response. This
        function will return paginated results based on the limit and exclusiveStartKey provided.
      */
-    func querySync<AttributesType>(forPartitionKey partitionKey: String,
-                                   sortKeyCondition: AttributeCondition?,
-                                   limit: Int?,
-                                   exclusiveStartKey: String?) throws
-        -> ([CompositePrimaryKey<AttributesType>], String?)
-
-    func queryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ()) throws
+    func query<AttributesType>(forPartitionKey partitionKey: String,
+                               sortKeyCondition: AttributeCondition?,
+                               limit: Int?,
+                               exclusiveStartKey: String?)
+        -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
     
-    func querySync<AttributesType>(forPartitionKey partitionKey: String,
+    func query<AttributesType>(forPartitionKey partitionKey: String,
                                    sortKeyCondition: AttributeCondition?,
                                    limit: Int?,
                                    scanIndexForward: Bool,
-                                   exclusiveStartKey: String?) throws
-        -> ([CompositePrimaryKey<AttributesType>], String?)
-
-    func queryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        scanIndexForward: Bool,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ()) throws
+                                   exclusiveStartKey: String?)
+        -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
 }

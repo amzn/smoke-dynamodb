@@ -20,131 +20,127 @@ import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
 import Logging
+import NIO
 
 /// DynamoDBKeysProjection conformance async functions
 public extension AWSDynamoDBCompositePrimaryKeysProjection {
     
-    func queryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes {
-            let partialResults = QueryPaginationResults<AttributesType>()
-            
-            try partialQueryAsync(forPartitionKey: partitionKey,
-                                  sortKeyCondition: sortKeyCondition,
-                                  partialResults: partialResults,
-                                  completion: completion)
+    func query<AttributesType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?) -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]>
+            where AttributesType: PrimaryKeyAttributes {
+        return partialQuery(forPartitionKey: partitionKey,
+                            sortKeyCondition: sortKeyCondition,
+                            exclusiveStartKey: nil)
     }
     
-    private func partialQueryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        partialResults: QueryPaginationResults<AttributesType>,
-        completion: @escaping (SmokeDynamoDBErrorResult<[CompositePrimaryKey<AttributesType>]>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes {
-            func handleQueryResult(result: SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) {
-                switch result {
-                case .success(let paginatedItems):
-                    partialResults.items += paginatedItems.0
-            
-                    // if there are more items
-                    if let lastEvaluatedKey = paginatedItems.1 {
-                        partialResults.exclusiveStartKey = lastEvaluatedKey
-                        
-                        do {
-                            try partialQueryAsync(forPartitionKey: partitionKey,
-                                                  sortKeyCondition: sortKeyCondition,
-                                                  partialResults: partialResults,
-                                                  completion: completion)
-                        } catch {
-                            completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-                        }
-                    } else {
-                        // we have all the items
-                        completion(.success(partialResults.items))
-                    }
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
-            
-            try queryAsync(forPartitionKey: partitionKey,
-                          sortKeyCondition: sortKeyCondition,
-                          limit: nil,
-                          exclusiveStartKey: partialResults.exclusiveStartKey,
-                          completion: handleQueryResult)
-    }
-    
-    func queryAsync<AttributesType>(
+    // function to return a future with the results of a query call and all future paginated calls
+    private func partialQuery<AttributesType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            limit: Int?, exclusiveStartKey: String?,
-            completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes {
-            try queryAsync(forPartitionKey: partitionKey,
-                           sortKeyCondition: sortKeyCondition,
-                           limit: limit,
-                           scanIndexForward: true,
-                           exclusiveStartKey: exclusiveStartKey,
-                           completion: completion)
+            exclusiveStartKey: String?) -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]>
+            where AttributesType: PrimaryKeyAttributes {
+        let queryFuture: EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)> =
+            query(forPartitionKey: partitionKey,
+                  sortKeyCondition: sortKeyCondition,
+                  limit: nil,
+                  scanIndexForward: true,
+                  exclusiveStartKey: nil)
+        
+        return queryFuture.flatMap { paginatedItems in
+            // if there are more items
+            if let lastEvaluatedKey = paginatedItems.1 {
+                // returns a future with all the results from all later paginated calls
+                return self.partialQuery(forPartitionKey: partitionKey,
+                                         sortKeyCondition: sortKeyCondition,
+                                         exclusiveStartKey: lastEvaluatedKey)
+                    .map { partialResult in
+                        // return the results from 'this' call and all later paginated calls
+                        return paginatedItems.0 + partialResult
+                    }
+            } else {
+                // this is it, all results have been obtained
+                let promise = self.eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>].self)
+                promise.succeed(paginatedItems.0)
+                return promise.futureResult
+            }
+        }
     }
     
-    func queryAsync<AttributesType>(
-        forPartitionKey partitionKey: String,
-        sortKeyCondition: AttributeCondition?,
-        limit: Int?,
-        scanIndexForward: Bool,
-        exclusiveStartKey: String?,
-        completion: @escaping (SmokeDynamoDBErrorResult<([CompositePrimaryKey<AttributesType>], String?)>) -> ())
-        throws where AttributesType: PrimaryKeyAttributes {
-            let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
-                                                                              primaryKeyType: AttributesType.self,
-                                                                              sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                              scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+    func query<AttributesType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?, exclusiveStartKey: String?) -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+            where AttributesType: PrimaryKeyAttributes {
+        return query(forPartitionKey: partitionKey,
+                     sortKeyCondition: sortKeyCondition,
+                     limit: limit,
+                     scanIndexForward: true,
+                     exclusiveStartKey: exclusiveStartKey)
+    }
+    
+    func query<AttributesType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            limit: Int?,
+            scanIndexForward: Bool,
+            exclusiveStartKey: String?) -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+            where AttributesType: PrimaryKeyAttributes {
+        let queryInput: DynamoDBModel.QueryInput
+        do {
+            queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
+                                                                          primaryKeyType: AttributesType.self,
+                                                                          sortKeyCondition: sortKeyCondition, limit: limit,
+                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+        } catch {
+            let promise = self.eventLoop.makePromise(of: ([CompositePrimaryKey<AttributesType>], String?).self)
+            promise.fail(error)
+            return promise.futureResult
+        }
         
-            let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
-                "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-            self.logger.debug("\(logMessage)")
+        let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+            "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
         
-            try dynamodb.queryAsync(input: queryInput) { result in
-                switch result {
-                case .success(let queryOutput):
-                    let lastEvaluatedKey: String?
-                    if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                        let encodedLastEvaluatedKey: Data
-                        
-                        do {
-                            encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
-                        } catch {
-                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-                        }
-                        
-                        lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
-                    } else {
-                        lastEvaluatedKey = nil
-                    }
-                    
-                    if let outputAttributeValues = queryOutput.items {
-                        let items: [CompositePrimaryKey<AttributesType>]
-                        
-                        do {
-                            items = try outputAttributeValues.map { values in
-                                let attributeValue = DynamoDBModel.AttributeValue(M: values)
-                                
-                                return try DynamoDBDecoder().decode(attributeValue)
-                            }
-                        } catch {
-                            return completion(.failure(error.asUnrecognizedSmokeDynamoDBError()))
-                        }
-                        
-                        completion(.success((items, lastEvaluatedKey)))
-                    } else {
-                        completion(.success(([], lastEvaluatedKey)))
-                    }
-                case .failure(let error):
-                    return completion(.failure(error.asSmokeDynamoDBError()))
+        return dynamodb.query(input: queryInput).flatMapThrowing { queryOutput in
+            let lastEvaluatedKey: String?
+            if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
+                let encodedLastEvaluatedKey: Data
+                
+                do {
+                    encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
+                } catch {
+                    throw error.asUnrecognizedSmokeDynamoDBError()
                 }
+                
+                lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
+            } else {
+                lastEvaluatedKey = nil
             }
+            
+            if let outputAttributeValues = queryOutput.items {
+                let items: [CompositePrimaryKey<AttributesType>]
+                
+                do {
+                    items = try outputAttributeValues.map { values in
+                        let attributeValue = DynamoDBModel.AttributeValue(M: values)
+                        
+                        return try DynamoDBDecoder().decode(attributeValue)
+                    }
+                } catch {
+                    throw error.asUnrecognizedSmokeDynamoDBError()
+                }
+                
+                return (items, lastEvaluatedKey)
+            } else {
+                return ([], lastEvaluatedKey)
+            }
+        } .flatMapErrorThrowing { error in
+            if let typedError = error as? DynamoDBError {
+                throw typedError.asSmokeDynamoDBError()
+            }
+            
+            throw error.asUnrecognizedSmokeDynamoDBError()
+        }
     }
 }

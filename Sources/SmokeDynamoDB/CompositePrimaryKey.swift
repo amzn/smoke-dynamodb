@@ -39,8 +39,6 @@ public struct StandardPrimaryKeyAttributes: PrimaryKeyAttributes {
 }
 
 public typealias StandardTypedDatabaseItem<RowType: Codable> = TypedDatabaseItem<StandardPrimaryKeyAttributes, RowType>
-public typealias StandardPolymorphicDatabaseItem<PossibleTypes: PossibleItemTypes>
-    = PolymorphicDatabaseItem<StandardPrimaryKeyAttributes, PossibleTypes>
 public typealias StandardCompositePrimaryKey = CompositePrimaryKey<StandardPrimaryKeyAttributes>
 
 struct DynamoDBAttributesTypeCodingKey: CodingKey {

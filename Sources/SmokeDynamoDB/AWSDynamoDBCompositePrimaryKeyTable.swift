@@ -22,23 +22,12 @@ import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 import AsyncHTTPClient
+import NIO
 
 public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
-    internal let dynamodb: AWSDynamoDBClient<InvocationReportingType>
+    internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
     internal let logger: Logger
-
-    internal let defaultPaginationLimit = 100
-
-    internal class QueryPaginationResults<AttributesType: PrimaryKeyAttributes, PossibleTypes: PossibleItemTypes> {
-        var items: [PolymorphicDatabaseItem<AttributesType, PossibleTypes>] = []
-        var exclusiveStartKey: String?
-    }
-    
-    internal class MonomorphicQueryPaginationResults<AttributesType: PrimaryKeyAttributes, ItemType: Codable> {
-        var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
-        var exclusiveStartKey: String?
-    }
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
@@ -54,14 +43,14 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                                   sessionToken: nil)
 
         self.logger = reporting.logger
-        self.dynamodb = AWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                          awsRegion: region, reporting: reporting,
-                                          endpointHostName: endpointHostName,
-                                          endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                          connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                          retryConfiguration: retryConfiguration,
-                                          eventLoopProvider: eventLoopProvider,
-                                          reportingConfiguration: reportingConfiguration)
+        self.dynamodb = _AWSDynamoDBClient(credentialsProvider: staticCredentials,
+                                           awsRegion: region, reporting: reporting,
+                                           endpointHostName: endpointHostName,
+                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
+                                           connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                           retryConfiguration: retryConfiguration,
+                                           eventLoopProvider: eventLoopProvider,
+                                           reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
@@ -77,20 +66,20 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
                     = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
         self.logger = reporting.logger
-        self.dynamodb = AWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                          awsRegion: region, reporting: reporting,
-                                          endpointHostName: endpointHostName,
-                                          endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                          connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                          retryConfiguration: retryConfiguration,
-                                          eventLoopProvider: eventLoopProvider,
-                                          reportingConfiguration: reportingConfiguration)
+        self.dynamodb = _AWSDynamoDBClient(credentialsProvider: credentialsProvider,
+                                           awsRegion: region, reporting: reporting,
+                                           endpointHostName: endpointHostName,
+                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
+                                           connectionTimeoutSeconds: connectionTimeoutSeconds,
+                                           retryConfiguration: retryConfiguration,
+                                           eventLoopProvider: eventLoopProvider,
+                                           reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
     
-    internal init(dynamodb: AWSDynamoDBClient<InvocationReportingType>,
+    internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
                   targetTableName: String,
                   logger: Logger) {
         self.dynamodb = dynamodb
@@ -199,5 +188,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                              expressionAttributeValues: expressionAttributeValues,
                                              key: keyAttributes,
                                              tableName: targetTableName)
+    }
+}
+
+extension AWSDynamoDBCompositePrimaryKeyTable {
+    public var eventLoop: EventLoop {
+        return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }
 }
