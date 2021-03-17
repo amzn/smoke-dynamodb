@@ -84,7 +84,7 @@ And a `AWSDynamoDBCompositePrimaryKeyTable` is created from this generator for e
 let table = generator.with(logger: logger)
 ```
 
-SmokeDynamoDB uses SwiftNIO for its networking and by default, a new SwiftNIO `EventLoopGroup` will be created for a table to perform that networking. Optionally, you can provide an existing `EventLoopGroup` when you create the generator-
+SmokeDynamoDB uses SwiftNIO for its networking and by default a new SwiftNIO `EventLoopGroup` will be created for a table to perform that networking. Optionally, you can provide an existing `EventLoopGroup` when you create the generator-
 
 ```swift
 let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
@@ -129,7 +129,7 @@ The instructions to set up  DynamoDB Local is [here](https://docs.aws.amazon.com
 
 You can then call DynamoDB Local using the following code.
 
-```
+```swift
 import SmokeDynamoDB
 import SmokeAWSCore
 import SmokeAWSHttp
@@ -288,6 +288,8 @@ guard case .testTypeB(let retrievedDatabaseItem2) = batch[key2] else {
     ...
 }
 ```
+
+This operation will automatically handle retrying unprocessed items (with exponential backoff) if the table doesn't have the capacity during the initial request.
 
 ## Monomorphic Queries
 
