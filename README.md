@@ -186,7 +186,7 @@ The `insertItem` operation will attempt to create the following row in the Dynam
 
 By default, this operation will fail if an item with the same partition key and sort key already exists.
 
-**Note:** The `StandardCompositePrimaryKey` will place the partition key in the attribute called *PB* and the sort key in an attribute called *SK*. Custom partition and sort key attribute names can be used by dropping down to the underlying `CompositePrimaryKey` type and the `PrimaryKeyAttributes` protocol.
+**Note:** The `StandardCompositePrimaryKey` will place the partition key in the attribute called *PK* and the sort key in an attribute called *SK*. Custom partition and sort key attribute names can be used by dropping down to the underlying `CompositePrimaryKey` type and the `PrimaryKeyAttributes` protocol.
 
 ## Retrieval 
 
