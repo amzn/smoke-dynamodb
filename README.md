@@ -27,7 +27,7 @@ For swift-tools version 5.2 and greater-
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "2.0.0")
+    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "3.0.0-alpha.5")
 ]
 
 .target(name: ..., dependencies: [
@@ -41,7 +41,7 @@ For swift-tools version 5.1 and prior-
  
 ```swift
 dependencies: [
-    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "2.0.0")
+    .package(url: "https://github.com/amzn/smoke-dynamodb", from: "3.0.0-alpha.5")
 ]
 
 .target(
@@ -68,14 +68,49 @@ For consistency in naming across the library, SmokeDynamoDB will case DynamoDB t
 
 ## Performing operations on a DynamoDB Table
 
-This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBCompositePrimaryKeyTable` protocol. In a production scenario, operations can be performed using `AWSDynamoDBCompositePrimaryKeyTable`-
+This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBCompositePrimaryKeyTable` protocol. In a production scenario, operations can be performed using `AWSDynamoDBCompositePrimaryKeyTable`.
+
+Typically for request-based applications such as microservices, a `AWSDynamoDBCompositePrimaryKeyTableGenerator` is created per application at application start-
 
 ```swift
 let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
     credentialsProvider: credentialsProvider, region: region,
     endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName)
-   
+```
+
+And a `AWSDynamoDBCompositePrimaryKeyTable` is created from this generator for each request-
+
+```swift 
 let table = generator.with(logger: logger)
+```
+
+SmokeDynamoDB uses SwiftNIO for its networking and by default, a new SwiftNIO `EventLoopGroup` will be created for a table to perform that networking. Optionally, you can provide an existing `EventLoopGroup` when you create the generator-
+
+```swift
+let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
+    credentialsProvider: credentialsProvider, region: region,
+    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName,
+    eventLoopProvider: .shared(existingEventLoopGroup)
+```
+
+Typically this existing `EventLoopGroup` will correspond to the group used by the rest of an application. For each particular table instance created from a generator, you can force affinity to a particular `EventLoop` within the provided `EventLoopGroup` by passing it when the table instance is being created-
+
+```swift 
+let table = generator.with(logger: logger,
+                           eventLoop: eventLoop)
+```
+
+This is useful for applications that also use SwiftNIO as a server and want to maintain handle downstream service calls on the same `EventLoop` as the incoming request to the server. 
+
+SmokeFramework (https://github.com/amzn/smoke-framework) based applications can automatically achieve this request-based `EventLoop` affinity by passing the reporting context into the `AWSDynamoDBCompositePrimaryKeyTableGenerator.with(reporting:)` function when creating the table-
+
+```swift
+public func getInvocationContext(invocationReporting: SmokeServerInvocationReporting<SmokeInvocationTraceContext>) -> MyContext {
+    let awsClientInvocationReporting = invocationReporting.withInvocationTraceContext(traceContext: awsClientInvocationTraceContext)
+    let dynamodbTable = self.dynamodbTableGenerator.with(reporting: awsClientInvocationReporting)
+    
+    return MyContext(dynamodbTable: dynamodbTable)
+}
 ```
 
 ## Testing
@@ -84,7 +119,7 @@ let table = generator.with(logger: logger)
 
 The `InMemory*` types - such as `InMemoryDynamoDBCompositePrimaryKeyTable` - provide the abilty to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
 
-The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table inetween accesses. These types are designed to allow unit testing of table concurrency handling.
+The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table inbetween accesses. These types are designed to allow unit testing of table concurrency handling.
 
 ### DynamoDB Local
 
@@ -136,10 +171,10 @@ let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
 let payload = PayloadType(firstly: "firstly", secondly: "secondly")
 let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-try table.insertItemSync(databaseItem)
+try table.insertItem(databaseItem).wait()
 ```
 
-The `insertItemSync` (or `insertItemAsync`) operation will attempt to create the following row in the DynamoDB table-
+The `insertItem` operation will attempt to create the following row in the DynamoDB table-
 * **PK**: "partitionId" (table partition key)
 * **SK**: "sortId" (table sort key)
 * **CreateDate**: <the current date>
@@ -158,10 +193,10 @@ By default, this operation will fail if an item with the same partition key and 
 An item can be retrieved from the DynamoDB table using the following-
 
 ```swift
-let retrievedItem: StandardTypedDatabaseItem<PayloadType>? = try table.getItemSync(forKey: key)
+let retrievedItem: StandardTypedDatabaseItem<PayloadType>? = try table.getItem(forKey: key).wait()
 ```
 
-The `getItemSync` (or `getItemAsync`) operation return an optional `TypedDatabaseItem` which will be nil if the item doesn't exist in the table. These operations will also fail if the *RowType* recorded in the database row doesn't match the type being requested.
+The `getItem` operation return an optional `TypedDatabaseItem` which will be nil if the item doesn't exist in the table. These operations will also fail if the *RowType* recorded in the database row doesn't match the type being requested.
 
 ## Update
 
@@ -170,10 +205,10 @@ An item can be updated in the DynamoDB table using the following-
 ```swift
 let updatedPayload = PayloadType(firstly: "firstlyX2", secondly: "secondlyX2")
 let updatedDatabaseItem = retrievedItem.createUpdatedItem(withValue: updatedPayload)
-try table.updateItemSync(newItem: updatedDatabaseItem, existingItem: retrievedItem)
+try table.updateItem(newItem: updatedDatabaseItem, existingItem: retrievedItem).wait()
 ```
 
-The `updateItemSync` (or `updateItemAsync`) operation will attempt to insert the following row in the DynamoDB table-
+The `updateItem` (or `updateItem`) operation will attempt to insert the following row in the DynamoDB table-
 * **PK**: "partitionId" (table partition key)
 * **SK**: "sortId" (table sort key)
 * **CreateDate**: <the orginial date when the row was created>
@@ -183,14 +218,14 @@ The `updateItemSync` (or `updateItemAsync`) operation will attempt to insert the
 * **firstly**: "firstlyX2"
 * **secondly**: "secondlyX2"
 
-By default, this operation will fail if an item with the same partition key and sort key doesn't exist in the table and if the existing row doesn't have the same version number as the `existingItem` submitted in the operation. The `DynamoDBCompositePrimaryKeyTable` protocol also provides the `clobberItemSync` and `clobberItemAsync` operations which will overwrite a row in the database regardless of the existing row.
+By default, this operation will fail if an item with the same partition key and sort key doesn't exist in the table and if the existing row doesn't have the same version number as the `existingItem` submitted in the operation. The `DynamoDBCompositePrimaryKeyTable` protocol also provides the `clobberItem` operation which will overwrite a row in the database regardless of the existing row.
 
 ## Conditionally Update
 
-`conditionallyUpdateItemSync` and `conditionallyUpdateItemAsync` operations will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can throw an exception to indicate that the current row is unable to be updated.
+The `conditionallyUpdateItem` operation will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can throw an exception to indicate that the current row is unable to be updated.
 
 ```swift
-try table.conditionallyUpdateItemSync(forKey: key, updatedPayloadProvider: updatedPayloadProvider)
+try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait()
 ```
 
 ## Delete
@@ -198,35 +233,92 @@ try table.conditionallyUpdateItemSync(forKey: key, updatedPayloadProvider: updat
 An item can be deleted in the DynamoDB table using the following-
 
 ```swift
-try table.deleteItemSync(forKey: key)
+try table.deleteItem(forKey: key).wait()
 ```
 
-The `deleteItemSync` and `deleteItemAsync` operations will succeed even if the specified row doesn't exist in the database table.
+The `deleteItem` operation will succeed even if the specified row doesn't exist in the database table.
 
-## Queries
+## Queries and Batch
 
 All or a subset of the rows from a parition can be retreived using a query-
 
 ```swift
-struct ExpectedCodableTypes: PossibleItemTypes {
-    public static var types: [Codable.Type] = [PayloadType.self]
+enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
+    typealias AttributesType = StandardPrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<StandardPrimaryKeyAttributes, Self>)] = [
+        (TypeA.self, .init( {.typeA($0)} )),
+        (TypeB.self, .init( {.typeB($0)} )),
+        ]
+    
+    case typeA(StandardTypedDatabaseItem<TypeA>)
+    case typeB(StandardTypedDatabaseItem<TypeB>)
 }
 
-let retrievedItems: [StandardPolymorphicDatabaseItem<ExpectedCodableTypes>] =
-    try table.querySync(forPartitionKey: "partitionId",
-                        sortKeyCondition: nil)
+let paginatedItems: ([TestPolymorphicOperationReturnType], String?) =
+    try table.query(forPartitionKey: partitionId,
+                    sortKeyCondition: nil,
+                    limit: 100,
+                    exclusiveStartKey: exclusiveStartKey).wait()
                                  
-for item in retrievedItems {                         
-    switch item.rowValue {
-    case let payloadType as PayloadType:
+for item in paginatedItems.0 {                         
+    switch item {
+    case .typeA(let databaseItem):
         ...
-    default:
-        // handle unknown row in database
+    case .typeB(let databaseItem):
     }
 }
 ```
 
-The sort key condition can restrict the query to a subset of the partition rows. A nil condition will return all rows in the partition. The `querySync` and `queryAsync` operations will fail if the partition contains rows that are not specified in the output `PossibleItemTypes` type.
+1. The sort key condition can restrict the query to a subset of the partition rows. A nil condition will return all rows in the partition. 
+2. The `query` operation will fail if the partition contains rows that are not specified in the output `PolymorphicOperationReturnType` type.
+3. The optional String returned by the  `query` operation can be used as the `exclusiveStartKey` in another request to retreive the next "page" of results from DynamoDB.
+4. There is an overload of the `query` operation that doesn't accept a `limit` or `exclusiveStartKey`. This overload will internally handle the API pagination, making multiple calls to DynamoDB if necessary.
+
+A similar operation utilises DynamoDB's BatchGetItem API, returning items in a dictionary keyed by the provided `CompositePrimaryKey` instance-
+
+```swift
+let batch: [StandardCompositePrimaryKey: TestPolymorphicOperationReturnType] = try table.getItems(forKeys: [key1, key2]).wait()
+
+guard case .testTypeA(let retrievedDatabaseItem1) = batch[key1] else {
+    ...
+}
+
+guard case .testTypeB(let retrievedDatabaseItem2) = batch[key2] else {
+    ...
+}
+```
+
+## Monomorphic Queries
+
+In addition to the `query` operation, there is a seperate set of operations that provide a simpler API when a query will only retrieve rows of the same type.
+
+```swift
+let paginatedItems: ([StandardTypedDatabaseItem<TestTypeA>], String?) =
+    try table.monomorphicQuery(forPartitionKey: "partitionId",
+                               sortKeyCondition: nil,
+                               limit: 100,
+                               exclusiveStartKey: exclusiveStartKey).wait()
+                                 
+for databaseItem in paginatedItems.0 {                         
+    ...
+}
+```
+
+There is also an equivalant `monomorphicGetItems` DynamoDB's BatchGetItem API-
+
+```swift
+let batch: [StandardCompositePrimaryKey: StandardTypedDatabaseItem<TestTypeA>]
+    = try table.monomorphicGetItems(forKeys: [key1, key2]).wait()
+    
+guard let retrievedDatabaseItem1 = batch[key1] else {
+    ...
+}
+        
+guard let retrievedDatabaseItem2 = batch[key2] else {
+    ...
+}
+```
 
 ## Recording updates in a historical parition
 
@@ -234,55 +326,55 @@ This package contains a number of convenience functions for storing versions of 
 
 ### Insertion
 
-`insertItemWithHistoricalRowSync` and `insertItemWithHistoricalRowAsync` operations provide a single call to insert both a primary and historical item-
+The `insertItemWithHistoricalRow` operation provide a single call to insert both a primary and historical item-
 
 ```swift
-try table.insertItemWithHistoricalRowSync(primaryItem: databaseItem, historicalItem: historicalItem)
+try table.insertItemWithHistoricalRow(primaryItem: databaseItem, historicalItem: historicalItem).wait()
 ```
 
 ### Update
 
-`updateItemWithHistoricalRowSync` and `updateItemWithHistoricalRowAsync` operations provide a single call to update a primary item and insert a historical item-
+The `updateItemWithHistoricalRow` operation provide a single call to update a primary item and insert a historical item-
 
 ```swift
-try table.updateItemWithHistoricalRowSync(primaryItem: updatedItem, 
-                                          existingItem: databaseItem, 
-                                          historicalItem: historicalItem)
+try table.updateItemWithHistoricalRow(primaryItem: updatedItem, 
+                                      existingItem: databaseItem, 
+                                      historicalItem: historicalItem).wait()
 ```
 
 ### Clobber
 
-`clobberItemWithHistoricalRowSync` and `clobberItemWithHistoricalRowAsync` operations will attempt to insert or update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row (if it exists) until the appropriate `insert` or  `update` operation succeeds. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table. The primary item may not exist in the database table to begin with.
+The `clobberItemWithHistoricalRow` operation will attempt to insert or update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row (if it exists) until the appropriate `insert` or  `update` operation succeeds. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table. The primary item may not exist in the database table to begin with.
 
 ```swift
-try table.clobberItemWithHistoricalRowSync(primaryItemProvider: primaryItemProvider,
-                                           historicalItemProvider: historicalItemProvider)
+try table.clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                       historicalItemProvider: historicalItemProvider).wait()
 ```
 
-The `clobberItemWithHistoricalRow*` are typically used when it is unknown if the primary item already exists in the database table and you want to either insert it or write a new version of that row (which may or may not be based on the existing item).
+The `clobberItemWithHistoricalRow` operation is typically used when it is unknown if the primary item already exists in the database table and you want to either insert it or write a new version of that row (which may or may not be based on the existing item).
 
-These operations can fail with an concurrency error if the `insert` or  `update` operation repeatedly fails (the default is after 10 attempts).
+This operation can fail with an concurrency error if the `insert` or  `update` operation repeatedly fails (the default is after 10 attempts).
 
 ### Conditionally Update
 
-`conditionallyUpdateItemWithHistoricalRowSync` and `conditionallyUpdateItemWithHistoricalRowAsync` operations will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can thrown an exception to indicate that the current row is unable to be updated. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table.
+The `conditionallyUpdateItemWithHistoricalRow` operation will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can thrown an exception to indicate that the current row is unable to be updated. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table.
 
 ```swift
-try table.conditionallyUpdateItemWithHistoricalRowSync(
+try table.conditionallyUpdateItemWithHistoricalRow(
     forPrimaryKey: dKey,
     primaryItemProvider: conditionalUpdatePrimaryItemProvider,
-    historicalItemProvider: conditionalUpdateHistoricalItemProvider)
+    historicalItemProvider: conditionalUpdateHistoricalItemProvider).wait()
 ```
 
-The `conditionallyUpdateItemWithHistoricalRow*` operations are typically used when it is known that the primary item exists and you want to test if you can update it based on some attribute of its current version. A common scenario is adding a subordinate related item to the primary item where there is a limit of the number of related items. Here you would want to test the current version of the primary item to ensure the number of related items isn't exceeded.
+The `conditionallyUpdateItemWithHistoricalRow` operation is typically used when it is known that the primary item exists and you want to test if you can update it based on some attribute of its current version. A common scenario is adding a subordinate related item to the primary item where there is a limit of the number of related items. Here you would want to test the current version of the primary item to ensure the number of related items isn't exceeded.
 
-These operations can fail with an concurrency error if the  `update` operation repeatedly fails (the default is after 10 attempts).
+This operation can fail with an concurrency error if the  `update` operation repeatedly fails (the default is after 10 attempts).
 
-**Note:** The `clobberItemWithHistoricalRow*` and `conditionallyUpdateItemWithHistoricalRow*` operations are similar in nature but have slightly different use cases. The `clobber` operations are typically used to create or update the primary item. The `conditionallyUpdate` operations are typically used when creating a subordinate related item that requires checking if the primary item can be updated.
+**Note:** The `clobberItemWithHistoricalRow` operation is similar in nature but have slightly different use cases. The `clobber` operation is typically used to create or update the primary item. The `conditionallyUpdate` operation is typically used when creating a subordinate related item that requires checking if the primary item can be updated.
 
 ## Managing versioned rows
 
-`clobberVersionedItemWithHistoricalRowSync` and `clobberVersionedItemWithHistoricalRowAsync` operations provide a mechanism for managing mutable database rows and storing all previous versions of that row in a historical partition. These operations store the primary item under a "version zero" sort key with a payload that replicates the current version of the row. This historical partition contains rows for each version, including the current version under a sort key for that version.
+The `clobberVersionedItemWithHistoricalRow` operation provide a mechanism for managing mutable database rows and storing all previous versions of that row in a historical partition. This operation stores the primary item under a "version zero" sort key with a payload that replicates the current version of the row. This historical partition contains rows for each version, including the current version under a sort key for that version.
 
 ```swift
 let payload1 = PayloadType(firstly: "firstly", secondly: "secondly")
@@ -295,51 +387,51 @@ func generateSortKey(withVersion version: Int) -> String {
     return [prefix, "sortId"].dynamodbKey
 }
     
-try table.clobberVersionedItemWithHistoricalRowSync(forPrimaryKey: partitionKey,
-                                                    andHistoricalKey: historicalPartitionKey,
-                                                    item: payload1,
-                                                    primaryKeyType: StandardPrimaryKeyAttributes.self,
-                                                    generateSortKey: generateSortKey)
+try table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
+                                                andHistoricalKey: historicalPartitionKey,
+                                                item: payload1,
+                                                primaryKeyType: StandardPrimaryKeyAttributes.self,
+                                                generateSortKey: generateSortKey).wait()
                                                              
 // the v0 row, copy of version 1
 let key1 = StandardCompositePrimaryKey(partitionKey: partitionKey, sortKey: generateSortKey(withVersion: 0))
-let item1: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItemSync(forKey: key1)
+let item1: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key1).wait()
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 // the v1 row, has version 1
 let key2 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 1))
-let item2: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItemSync(forKey: key2)
+let item2: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key2).wait()
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 let payload2 = PayloadType(firstly: "thirdly", secondly: "fourthly")
         
-try table.clobberVersionedItemWithHistoricalRowSync(forPrimaryKey: partitionKey,
-                                                    andHistoricalKey: historicalPartitionKey,
-                                                    item: payload2,
-                                                    primaryKeyType: StandardPrimaryKeyAttributes.self,
-                                                    generateSortKey: generateSortKey)
+try table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
+                                                andHistoricalKey: historicalPartitionKey,
+                                                item: payload2,
+                                                primaryKeyType: StandardPrimaryKeyAttributes.self,
+                                                generateSortKey: generateSortKey).wait()
         
 // the v0 row, copy of version 2
 let key3 = StandardCompositePrimaryKey(partitionKey: partitionKey, sortKey: generateSortKey(withVersion: 0))
-let item3: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItemSync(forKey: key3)
+let item3: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key3).wait()
 item1.rowValue.itemVersion // 2
 item1.rowStatus.rowVersion // 2
 item1.rowValue.rowValue // payload2
         
 // the v1 row, still has version 1
 let key4 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 1))
-let item4: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItemSync(forKey: key4)
+let item4: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key4).wait()
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 // the v2 row, has version 2
 let key5 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 2))
-let item5: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItemSync(forKey: key5)
+let item5: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key5).wait()
 item1.rowValue.itemVersion // 2
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload2
