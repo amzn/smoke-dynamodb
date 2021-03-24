@@ -45,7 +45,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                   sortKeyCondition: sortKeyCondition,
                   limit: nil,
                   scanIndexForward: true,
-                  exclusiveStartKey: nil)
+                  exclusiveStartKey: exclusiveStartKey)
         
         return queryFuture.flatMap { paginatedItems in
             // if there are more items

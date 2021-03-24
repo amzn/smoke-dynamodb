@@ -38,7 +38,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
 
     public let eventLoop: EventLoop
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
-    let accessQueue = DispatchQueue(label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue")
+    let accessQueue = DispatchQueue(
+        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue",
+        target: DispatchQueue.global())
 
     public init(eventLoop: EventLoop) {
         self.eventLoop = eventLoop

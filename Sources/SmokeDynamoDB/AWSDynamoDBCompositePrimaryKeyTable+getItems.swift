@@ -41,8 +41,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
         let eventLoop: EventLoop
         
-        private let retryQueue =
-            DispatchQueue(label: "com.amazon.SmokeDynamoDB.AWSDynamoDBCompositePrimaryKeyTable.GetItemsRetriable.retryQueue")
+        private let retryQueue = DispatchQueue.global()
         
         var retriesRemaining: Int
         var input: BatchGetItemInput
