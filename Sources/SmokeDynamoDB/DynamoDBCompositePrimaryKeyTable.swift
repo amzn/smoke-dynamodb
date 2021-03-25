@@ -147,6 +147,27 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              exclusiveStartKey: String?)
         -> EventLoopFuture<([ReturnedType], String?)>
     
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * This function will potentially make multiple calls to DynamoDB to retrieve all results.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+        partitionKeys: [String],
+        attributes: [String]?,
+        additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]>
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+        partitionKeys: [String],
+        attributes: [String]?,
+        additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)>
+    
     // MARK: Monomorphic batch and queries
     
     /**
@@ -177,4 +198,25 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                         scanIndexForward: Bool,
                                                         exclusiveStartKey: String?)
         -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * This function will potentially make multiple calls to DynamoDB to retrieve all results.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    func monomorphicExecute<AttributesType, ItemType>(
+        partitionKeys: [String],
+        attributes: [String]?,
+        additionalWhereClause: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    func monomorphicExecute<AttributesType, ItemType>(
+        partitionKeys: [String],
+        attributes: [String]?,
+        additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
 }

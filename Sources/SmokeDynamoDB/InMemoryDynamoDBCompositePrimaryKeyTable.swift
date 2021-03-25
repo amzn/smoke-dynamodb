@@ -34,16 +34,23 @@ extension TypedDatabaseItem: PolymorphicOperationReturnTypeConvertable {
     }
 }
 
+public typealias ExecuteItemFilterType = (String, String, String, PolymorphicOperationReturnTypeConvertable)
+    -> Bool
+
 public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
 
     public let eventLoop: EventLoop
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
-    let accessQueue = DispatchQueue(
+    internal let accessQueue = DispatchQueue(
         label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue",
         target: DispatchQueue.global())
+    
+    internal let executeItemFilter: ExecuteItemFilterType?
 
-    public init(eventLoop: EventLoop) {
+    public init(eventLoop: EventLoop,
+                executeItemFilter: ExecuteItemFilterType? = nil) {
         self.eventLoop = eventLoop
+        self.executeItemFilter = executeItemFilter
     }
 
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
@@ -344,7 +351,7 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
         return promise.futureResult
     }
     
-    private func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
+    internal func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
         let storedRowTypeName = input.rowTypeIdentifier
         
         var queryableTypeProviders: [String: PolymorphicOperationReturnOption<ReturnedType.AttributesType, ReturnedType>] = [:]
