@@ -56,7 +56,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -81,7 +81,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -110,7 +110,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -138,7 +138,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -167,7 +167,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -204,7 +204,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -246,7 +246,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -295,7 +295,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
                                                      simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -344,7 +344,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait()
@@ -365,7 +365,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                     sortKey: "sortId")
+                                              sortKey: "sortId")
         
         let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
         do {

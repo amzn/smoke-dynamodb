@@ -79,7 +79,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     return self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
                                                         updatedPayloadProvider: updatedPayloadProvider)
                 } else {
-                    // propagate the error as its not an error causing a retry
+                    // propagate the error as it's not an error causing a retry
                     let promise = self.eventLoop.makePromise(of: Void.self)
                     promise.fail(error)
                     return promise.futureResult
@@ -105,8 +105,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
         return getItem(forKey: key).flatMap { (databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>?) in
             guard let databaseItem = databaseItemOptional else {
                 let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
-                                                                    sortKey: key.sortKey,
-                                                                    message: "Item not present in database.")
+                                                                      sortKey: key.sortKey,
+                                                                      message: "Item not present in database.")
                 
                 let promise = self.eventLoop.makePromise(of: Void.self)
                 promise.fail(error)
@@ -124,7 +124,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                         return self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
                                                             updatedPayloadProvider: updatedPayloadProvider)
                     } else {
-                        // propagate the error as its not an error causing a retry
+                        // propagate the error as it's not an error causing a retry
                         let promise = self.eventLoop.makePromise(of: Void.self)
                         promise.fail(error)
                         return promise.futureResult

@@ -78,7 +78,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                     historicalItemProvider: historicalItemProvider,
                                                     withRetries: retries - 1)
             } else {
-                // propagate the error as its not an error causing a retry
+                // propagate the error as it's not an error causing a retry
                 let promise = self.eventLoop.makePromise(of: Void.self)
                 promise.fail(error)
                 return promise.futureResult
@@ -231,7 +231,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                                 primaryItemProvider: primaryItemProvider,
                                                                 historicalItemProvider: historicalItemProvider, withRetries: retries - 1)
             } else {
-                // propagate the error as its not an error causing a retry
+                // propagate the error as it's not an error causing a retry
                 let promise = self.eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>.self)
                 promise.fail(error)
                 return promise.futureResult
@@ -254,7 +254,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                                 primaryItemProvider: primaryItemProvider,
                                                                 historicalItemProvider: historicalItemProvider, withRetries: retries - 1)
             } else {
-                // propagate the error as its not an error causing a retry
+                // propagate the error as it's not an error causing a retry
                 let promise = self.eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>.self)
                 promise.fail(error)
                 return promise.futureResult
