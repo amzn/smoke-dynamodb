@@ -165,6 +165,54 @@ public extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
+    func conditionallyUpdateItemWithHistoricalRow<AttributesType, ItemType>(
+            compositePrimaryKey: CompositePrimaryKey<AttributesType>,
+            primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>>,
+            historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
+            withRetries retries: Int = 10) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>> {
+        guard retries > 0 else {
+            let error = SmokeDynamoDBError.concurrencyError(partitionKey: compositePrimaryKey.partitionKey,
+                                                            sortKey: compositePrimaryKey.sortKey,
+                                                            message: "Unable to complete request to update versioned item in specified number of attempts")
+            
+            let promise = self.eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>.self)
+            promise.fail(error)
+            return promise.futureResult
+        }
+        
+        return getItem(forKey: compositePrimaryKey).flatMap { (existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>?) in
+            guard let existingItem = existingItemOptional else {
+                let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
+                                                          sortKey: compositePrimaryKey.sortKey,
+                                                          message: "Item not present in database.")
+                
+                let promise = self.eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>.self)
+                promise.fail(error)
+                return promise.futureResult
+            }
+            
+            let updatedItemFuture = primaryItemProvider(existingItem)
+            
+            return updatedItemFuture.flatMap { updatedItem in
+                let historicalItem = historicalItemProvider(updatedItem)
+                
+                let errorHandler: ((Error) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>>) = self.getUpdateItemErrorHandler(
+                    forPrimaryKey: compositePrimaryKey,
+                    primaryItemProvider: primaryItemProvider,
+                    historicalItemProvider: historicalItemProvider,
+                    withRetries: retries)
+
+                return self.updateItemWithHistoricalRow(primaryItem: updatedItem,
+                                                        existingItem: existingItem,
+                                                        historicalItem: historicalItem)
+                    .map { _ in
+                        // return the updated item
+                        return updatedItem
+                    } .flatMapError(errorHandler)
+            }
+        }
+    }
+    
     /**
      Create a error handler to pass to `updateItemWithHistoricalRowAsync` from
      `conditionallyUpdateItemWithHistoricalRowAsync`, capturing the current updatedItem and passing it to the outer
@@ -173,6 +221,29 @@ public extension DynamoDBCompositePrimaryKeyTable {
     private func getUpdateItemErrorHandler<AttributesType, ItemType>(
             forPrimaryKey compositePrimaryKey: CompositePrimaryKey<AttributesType>,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
+            historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
+            withRetries retries: Int) -> (Error) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>> {
+        func handleUpdateItemError(error: Error) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>> {
+            // If there was a failure due to conditionalCheckFailed
+            if case SmokeDynamoDBError.conditionalCheckFailed = error {
+                // try again
+                return conditionallyUpdateItemWithHistoricalRow(compositePrimaryKey: compositePrimaryKey,
+                                                                primaryItemProvider: primaryItemProvider,
+                                                                historicalItemProvider: historicalItemProvider, withRetries: retries - 1)
+            } else {
+                // propagate the error as its not an error causing a retry
+                let promise = self.eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>.self)
+                promise.fail(error)
+                return promise.futureResult
+            }
+        }
+
+        return handleUpdateItemError
+    }
+    
+    private func getUpdateItemErrorHandler<AttributesType, ItemType>(
+            forPrimaryKey compositePrimaryKey: CompositePrimaryKey<AttributesType>,
+            primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int) -> (Error) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>> {
         func handleUpdateItemError(error: Error) -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>> {
