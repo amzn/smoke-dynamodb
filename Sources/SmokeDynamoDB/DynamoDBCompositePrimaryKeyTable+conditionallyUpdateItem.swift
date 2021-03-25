@@ -79,10 +79,56 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     return self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
                                                         updatedPayloadProvider: updatedPayloadProvider)
                 } else {
-                    // propagate the error as its not an error causing a retry
+                    // propagate the error as it's not an error causing a retry
                     let promise = self.eventLoop.makePromise(of: Void.self)
                     promise.fail(error)
                     return promise.futureResult
+                }
+            }
+        }
+    }
+    
+    func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
+            forKey key: CompositePrimaryKey<AttributesType>,
+            withRetries retries: Int = 10,
+            updatedPayloadProvider: @escaping (ItemType) -> EventLoopFuture<ItemType>) -> EventLoopFuture<Void> {
+        guard retries > 0 else {
+            let error = SmokeDynamoDBError.concurrencyError(partitionKey: key.partitionKey,
+                                                            sortKey: key.sortKey,
+                                                            message: "Unable to complete request to update versioned item in specified number of attempts")
+            
+            let promise = self.eventLoop.makePromise(of: Void.self)
+            promise.fail(error)
+            return promise.futureResult
+        }
+        
+        return getItem(forKey: key).flatMap { (databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>?) in
+            guard let databaseItem = databaseItemOptional else {
+                let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
+                                                                      sortKey: key.sortKey,
+                                                                      message: "Item not present in database.")
+                
+                let promise = self.eventLoop.makePromise(of: Void.self)
+                promise.fail(error)
+                return promise.futureResult
+            }
+            
+            let updatedPayloadFuture = updatedPayloadProvider(databaseItem.rowValue)
+            
+            return updatedPayloadFuture.flatMap { updatedPayload in
+                let updatedDatabaseItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
+                
+                return self.updateItem(newItem: updatedDatabaseItem, existingItem: databaseItem).flatMapError { error in
+                    if case SmokeDynamoDBError.conditionalCheckFailed = error {
+                        // try again
+                        return self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
+                                                            updatedPayloadProvider: updatedPayloadProvider)
+                    } else {
+                        // propagate the error as it's not an error causing a retry
+                        let promise = self.eventLoop.makePromise(of: Void.self)
+                        promise.fail(error)
+                        return promise.futureResult
+                    }
                 }
             }
         }
