@@ -25,7 +25,9 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
     public var eventLoop: EventLoop
 
     public var keys: [Any] = []
-    private let accessQueue = DispatchQueue(label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue")
+    private let accessQueue = DispatchQueue(
+        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue",
+        target: DispatchQueue.global())
 
     public init(keys: [Any] = [], eventLoop: EventLoop) {
         self.keys = keys
