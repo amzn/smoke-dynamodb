@@ -25,7 +25,7 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]> {
         let promise = self.eventLoop.makePromise(of: [ReturnedType].self)
         
@@ -50,7 +50,7 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?,
             nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
         let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
@@ -76,7 +76,7 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
     func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
         let promise = self.eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
@@ -111,7 +111,7 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     
     func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?,
             nextToken: String?)
     -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {

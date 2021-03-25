@@ -150,21 +150,21 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]> {
         // simply delegate to the wrapped implementation
         return wrappedDynamoDBTable.execute(partitionKeys: partitionKeys,
-                                            attributes: attributes,
+                                            attributesFilter: attributesFilter,
                                             additionalWhereClause: additionalWhereClause)
     }
     
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
         // simply delegate to the wrapped implementation
         return wrappedDynamoDBTable.execute(partitionKeys: partitionKeys,
-                                            attributes: attributes,
+                                            attributesFilter: attributesFilter,
                                             additionalWhereClause: additionalWhereClause,
                                             nextToken: nextToken)
     }
@@ -178,21 +178,21 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     
     public func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
         // simply delegate to the wrapped implementation
         return wrappedDynamoDBTable.monomorphicExecute(partitionKeys: partitionKeys,
-                                                       attributes: attributes,
+                                                       attributesFilter: attributesFilter,
                                                        additionalWhereClause: additionalWhereClause)
     }
     
     public func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
         // simply delegate to the wrapped implementation
         return wrappedDynamoDBTable.monomorphicExecute(partitionKeys: partitionKeys,
-                                                       attributes: attributes,
+                                                       attributesFilter: attributesFilter,
                                                        additionalWhereClause: additionalWhereClause,
                                                        nextToken: nextToken)
     }

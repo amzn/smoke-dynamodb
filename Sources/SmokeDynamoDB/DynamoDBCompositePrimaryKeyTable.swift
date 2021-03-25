@@ -155,7 +155,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
-        attributes: [String]?,
+        attributesFilter: [String]?,
         additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]>
     
     /**
@@ -165,7 +165,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
-        attributes: [String]?,
+        attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)>
     
     // MARK: Monomorphic batch and queries
@@ -207,7 +207,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
-        attributes: [String]?,
+        attributesFilter: [String]?,
         additionalWhereClause: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     
     /**
@@ -217,6 +217,6 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
-        attributes: [String]?,
+        attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
 }

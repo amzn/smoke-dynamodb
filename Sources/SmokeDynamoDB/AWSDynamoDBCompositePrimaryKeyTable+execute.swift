@@ -26,11 +26,11 @@ import NIO
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?,
             nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
         let statement = getStatement(partitionKeys: partitionKeys,
-                                     attributes: attributes,
+                                     attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: ReturnedType.AttributesType.partitionKeyAttributeName,
                                      additionalWhereClause: additionalWhereClause)
         let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
@@ -67,21 +67,21 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(partitionKeys: [String],
-                                                               attributes: [String]?,
+                                                               attributesFilter: [String]?,
                                                                additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]> {
         return partialExecute(partitionKeys: partitionKeys,
-                              attributes: attributes,
+                              attributesFilter: attributesFilter,
                               additionalWhereClause: additionalWhereClause,
                               nextToken: nil)
     }
     
     func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?, nextToken: String?)
     -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
         let statement = getStatement(partitionKeys: partitionKeys,
-                                     attributes: attributes,
+                                     attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: AttributesType.partitionKeyAttributeName,
                                      additionalWhereClause: additionalWhereClause)
         let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
@@ -116,24 +116,24 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func monomorphicExecute<AttributesType, ItemType>(partitionKeys: [String],
-                                                      attributes: [String]?,
+                                                      attributesFilter: [String]?,
                                                       additionalWhereClause: String?)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
         return monomorphicPartialExecute(partitionKeys: partitionKeys,
-                                         attributes: attributes,
+                                         attributesFilter: attributesFilter,
                                          additionalWhereClause: additionalWhereClause,
                                          nextToken: nil)
     }
     
     // function to return a future with the results of an execute call and all future paginated calls
     private func partialExecute<ReturnedType: PolymorphicOperationReturnType>(
-        partitionKeys: [String],
-                                                          attributes: [String]?,
-                                                          additionalWhereClause: String?,
+            partitionKeys: [String],
+            attributesFilter: [String]?,
+            additionalWhereClause: String?,
             nextToken: String?) -> EventLoopFuture<[ReturnedType]> {
         let executeFuture: EventLoopFuture<([ReturnedType], String?)> =
             execute(partitionKeys: partitionKeys,
-                    attributes: attributes,
+                    attributesFilter: attributesFilter,
                     additionalWhereClause: additionalWhereClause,
                     nextToken: nextToken)
         
@@ -142,7 +142,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             if let returnedNextToken = paginatedItems.1 {
                 // returns a future with all the results from all later paginated calls
                 return self.partialExecute(partitionKeys: partitionKeys,
-                                           attributes: attributes,
+                                           attributesFilter: attributesFilter,
                                            additionalWhereClause: additionalWhereClause,
                                            nextToken: returnedNextToken)
                     .map { partialResult in
@@ -160,12 +160,12 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     private func monomorphicPartialExecute<AttributesType, ItemType>(
             partitionKeys: [String],
-            attributes: [String]?,
+            attributesFilter: [String]?,
             additionalWhereClause: String?,
             nextToken: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
         let executeFuture: EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> =
             monomorphicExecute(partitionKeys: partitionKeys,
-                               attributes: attributes,
+                               attributesFilter: attributesFilter,
                                additionalWhereClause: additionalWhereClause,
                                nextToken: nextToken)
         
@@ -174,7 +174,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             if let returnedNextToken = paginatedItems.1 {
                 // returns a future with all the results from all later paginated calls
                 return self.monomorphicPartialExecute(partitionKeys: partitionKeys,
-                                                      attributes: attributes,
+                                                      attributesFilter: attributesFilter,
                                                       additionalWhereClause: additionalWhereClause,
                                                       nextToken: returnedNextToken)
                     .map { partialResult in
@@ -191,10 +191,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     private func getStatement(partitionKeys: [String],
-                              attributes: [String]?,
+                              attributesFilter: [String]?,
                               partitionKeyAttributeName: String,
                               additionalWhereClause: String?) -> String {
-        let attributesString = attributes?.joined(separator: ", ") ?? "*"
+        let attributesFilterString = attributesFilter?.joined(separator: ", ") ?? "*"
         
         let partitionWhereClause: String
         if partitionKeys.count == 1 {
@@ -211,7 +211,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
         
         return """
-            SELECT \(attributesString) FROM "\(self.targetTableName)" WHERE \(partitionWhereClause)\(whereClausePostfix)
+            SELECT \(attributesFilterString) FROM "\(self.targetTableName)" WHERE \(partitionWhereClause)\(whereClausePostfix)
             """
     }
 }
