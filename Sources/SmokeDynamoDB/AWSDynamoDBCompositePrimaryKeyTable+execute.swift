@@ -29,6 +29,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             attributesFilter: [String]?,
             additionalWhereClause: String?,
             nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
+        // if there are no partitions, there will be no results to return
+        // succeed immediately with empty results
+        guard partitionKeys.count > 0 else {
+            let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
+            promise.succeed(([], nil))
+            return promise.futureResult
+        }
+        
         let statement = getStatement(partitionKeys: partitionKeys,
                                      attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: ReturnedType.AttributesType.partitionKeyAttributeName,
@@ -80,6 +88,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             attributesFilter: [String]?,
             additionalWhereClause: String?, nextToken: String?)
     -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
+        // if there are no partitions, there will be no results to return
+        // succeed immediately with empty results
+        guard partitionKeys.count > 0 else {
+            let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
+            promise.succeed(([], nil))
+            return promise.futureResult
+        }
+        
         let statement = getStatement(partitionKeys: partitionKeys,
                                      attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: AttributesType.partitionKeyAttributeName,
