@@ -54,7 +54,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -81,7 +81,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -101,7 +101,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let updatedPayload = TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
@@ -125,7 +125,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // add to the database a lot of items - a number that isn't a multiple of the pagination page size
         for index in 0..<1376 {
             let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId_\(index)")
+                                                  sortKey: "sortId_\(index)")
             let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
             let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
             
@@ -184,7 +184,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // add to the database a lot of items - a number that isn't a multiple of the pagination page size
         for index in 0..<1376 {
             let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId_\(index)")
+                                                  sortKey: "sortId_\(index)")
             let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
             let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
             
@@ -244,7 +244,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // add to the database a lot of items - a number that isn't a multiple of the pagination page size
         for index in 0..<1376 {
             let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId_\(index)")
+                                                  sortKey: "sortId_\(index)")
             let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
             let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
             
@@ -276,7 +276,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         // add to the database a lot of items - a number that isn't a multiple of the pagination page size
         for index in 0..<1376 {
             let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId_\(index)")
+                                                  sortKey: "sortId_\(index)")
             let payload = TestTypeA(firstly: "firstly_\(index)", secondly: "secondly_\(index)")
             let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
             
@@ -304,7 +304,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -323,7 +323,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
@@ -342,7 +342,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let updatedPayload = TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
@@ -370,7 +370,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
-                                                        sortKey: "sortId")
+                                              sortKey: "sortId")
         let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
         let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
