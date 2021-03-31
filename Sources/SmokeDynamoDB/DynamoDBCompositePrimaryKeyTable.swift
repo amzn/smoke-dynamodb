@@ -149,7 +149,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         -> EventLoopFuture<([ReturnedType], String?)>
     
     /**
-     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * Uses the ExecuteStatement API to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request. This function handles pagination internally.
      * This function will potentially make multiple calls to DynamoDB to retrieve all results.
      *
      * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
@@ -161,6 +162,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     
     /**
      * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
+     * Caller of this function needs to handle pagination on their side.
      *
      * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
      */
@@ -202,6 +205,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     
     /**
      * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request. This function handles pagination internally.
      * This function will potentially make multiple calls to DynamoDB to retrieve all results.
      *
      * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
@@ -213,6 +217,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     
     /**
      * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
+     * Caller of this function needs to handle pagination on their side.
      *
      * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
      */
