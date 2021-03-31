@@ -22,6 +22,9 @@ import SmokeHTTPClient
 import Logging
 import NIO
 
+// ExecuteStatement has a maximum of 50 of decomposed read operations per request
+private let maximumKeysPerExecuteStatement = 50
+
 /// DynamoDBTable conformance execute function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
@@ -34,6 +37,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         guard partitionKeys.count > 0 else {
             let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
             promise.succeed(([], nil))
+            return promise.futureResult
+        }
+        
+        guard partitionKeys.count <= maximumKeysPerExecuteStatement else {
+            let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
+            promise.fail(SmokeDynamoDBError.validationError(
+                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request."))
             return promise.futureResult
         }
         
@@ -93,6 +103,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         guard partitionKeys.count > 0 else {
             let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
             promise.succeed(([], nil))
+            return promise.futureResult
+        }
+        
+        guard partitionKeys.count <= maximumKeysPerExecuteStatement else {
+            let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
+            promise.fail(SmokeDynamoDBError.validationError(
+                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request."))
             return promise.futureResult
         }
         

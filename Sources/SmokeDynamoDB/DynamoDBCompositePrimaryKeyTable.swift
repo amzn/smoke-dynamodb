@@ -36,6 +36,7 @@ public enum SmokeDynamoDBError: Error {
     case unrecognizedError(String, String?)
     case multipleUnexpectedErrors(cause: [Swift.Error])
     case batchAPIExceededRetries(retryCount: Int)
+    case validationError(reason: String)
 }
 
 public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
