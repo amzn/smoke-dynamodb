@@ -117,9 +117,9 @@ public func getInvocationContext(invocationReporting: SmokeServerInvocationRepor
 
 ### In Memory mocking
 
-The `InMemory*` types - such as `InMemoryDynamoDBCompositePrimaryKeyTable` - provide the abilty to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
+The `InMemory*` types - such as `InMemoryDynamoDBCompositePrimaryKeyTable` - provide the ability to perform basic validation of table operations by using an in-memory dictionary to simulate the behaviour of a DynamoDb table. More advanced behaviours such as indexes are not simulated with these types.
 
-The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table inbetween accesses. These types are designed to allow unit testing of table concurrency handling.
+The `SimulateConcurrency*` types provide a wrapper around another table and simulates additional writes to that table in-between accesses. These types are designed to allow unit testing of table concurrency handling.
 
 ### DynamoDB Local
 
@@ -211,7 +211,7 @@ try table.updateItem(newItem: updatedDatabaseItem, existingItem: retrievedItem).
 The `updateItem` (or `updateItem`) operation will attempt to insert the following row in the DynamoDB table-
 * **PK**: "partitionId" (table partition key)
 * **SK**: "sortId" (table sort key)
-* **CreateDate**: <the orginial date when the row was created>
+* **CreateDate**: <the original date when the row was created>
 * **RowType**: "PayloadType"
 * **RowVersion**: 2
 * **LastUpdatedDate**: <the current date>
@@ -240,7 +240,7 @@ The `deleteItem` operation will succeed even if the specified row doesn't exist 
 
 ## Queries and Batch
 
-All or a subset of the rows from a parition can be retreived using a query-
+All or a subset of the rows from a partition can be retrieved using a query-
 
 ```swift
 enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
@@ -255,13 +255,13 @@ enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
     case typeB(StandardTypedDatabaseItem<TypeB>)
 }
 
-let paginatedItems: ([TestPolymorphicOperationReturnType], String?) =
+let (queryItems, nextPageToken): ([TestPolymorphicOperationReturnType], String?) =
     try table.query(forPartitionKey: partitionId,
                     sortKeyCondition: nil,
                     limit: 100,
                     exclusiveStartKey: exclusiveStartKey).wait()
                                  
-for item in paginatedItems.0 {                         
+for item in queryItems {                         
     switch item {
     case .typeA(let databaseItem):
         ...
@@ -272,7 +272,7 @@ for item in paginatedItems.0 {
 
 1. The sort key condition can restrict the query to a subset of the partition rows. A nil condition will return all rows in the partition. 
 2. The `query` operation will fail if the partition contains rows that are not specified in the output `PolymorphicOperationReturnType` type.
-3. The optional String returned by the  `query` operation can be used as the `exclusiveStartKey` in another request to retreive the next "page" of results from DynamoDB.
+3. The optional String returned by the `query` operation can be used as the `exclusiveStartKey` in another request to retrieve the next "page" of results from DynamoDB.
 4. There is an overload of the `query` operation that doesn't accept a `limit` or `exclusiveStartKey`. This overload will internally handle the API pagination, making multiple calls to DynamoDB if necessary.
 
 A similar operation utilises DynamoDB's BatchGetItem API, returning items in a dictionary keyed by the provided `CompositePrimaryKey` instance-
@@ -296,18 +296,18 @@ This operation will automatically handle retrying unprocessed items (with expone
 In addition to the `query` operation, there is a seperate set of operations that provide a simpler API when a query will only retrieve rows of the same type.
 
 ```swift
-let paginatedItems: ([StandardTypedDatabaseItem<TestTypeA>], String?) =
+let (queryItems, nextPageToken): ([StandardTypedDatabaseItem<TestTypeA>], String?) =
     try table.monomorphicQuery(forPartitionKey: "partitionId",
                                sortKeyCondition: nil,
                                limit: 100,
                                exclusiveStartKey: exclusiveStartKey).wait()
                                  
-for databaseItem in paginatedItems.0 {                         
+for databaseItem in queryItems {                         
     ...
 }
 ```
 
-There is also an equivalant `monomorphicGetItems` DynamoDB's BatchGetItem API-
+There is also an equivalent `monomorphicGetItems` DynamoDB's BatchGetItem API-
 
 ```swift
 let batch: [StandardCompositePrimaryKey: StandardTypedDatabaseItem<TestTypeA>]
@@ -322,9 +322,98 @@ guard let retrievedDatabaseItem2 = batch[key2] else {
 }
 ```
 
-## Recording updates in a historical parition
+## Queries on Indices
 
-This package contains a number of convenience functions for storing versions of a row in a historical parition
+There are two mechanisms for querying on indices depending on if you have any projected attributes.
+
+### Using Projected Attributes
+
+If you are projecting all attributes or some attributes (for this option to work you **must** project at least the attributes managed directly by `smoke-dynamodb` which are `CreateDate`, `LastUpdatedDate`, `RowType` and `RowVersion`), you can use the `DynamoDBCompositePrimaryKeyTable` protocol and its conforming types as usual but with a custom `PrimaryKeyAttributes` type-
+
+```swift
+public struct GSI1PrimaryKeyAttributes: PrimaryKeyAttributes {
+    public static var partitionKeyAttributeName: String {
+        return "GSI-1-PK"
+    }
+    public static var sortKeyAttributeName: String {
+        return "GSI-1-SK"
+    }
+    public static var indexName: String? {
+        return "GSI-1"
+    }
+}
+
+enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
+    typealias AttributesType = GSI1PrimaryKeyAttributes
+    
+    static var types: [(Codable.Type, PolymorphicOperationReturnOption<GSI1PrimaryKeyAttributes, Self>)] = [
+        (TypeA.self, .init( {.typeA($0)} )),
+        (TypeB.self, .init( {.typeB($0)} )),
+        ]
+    
+    case typeA(StandardTypedDatabaseItem<TypeA>)
+    case typeB(StandardTypedDatabaseItem<TypeB>)
+}
+
+let (queryItems, nextPageToken): ([TestPolymorphicOperationReturnType], String?) =
+    try table.query(forPartitionKey: partitionId,
+                    sortKeyCondition: nil,
+                    limit: 100,
+                    exclusiveStartKey: exclusiveStartKey).wait()
+                                 
+for item in queryItems {                         
+    switch item {
+    case .typeA(let databaseItem):
+        ...
+    case .typeB(let databaseItem):
+    }
+}
+```
+
+and similarly for monomorphic queries-
+
+```swift
+let (queryItems, nextPageToken): ([TypedDatabaseItem<GSI1PrimaryKeyAttributes, TestTypeA>], String?) =
+    try table.monomorphicQuery(forPartitionKey: "partitionId",
+                               sortKeyCondition: nil,
+                               limit: 100,
+                               exclusiveStartKey: exclusiveStartKey).wait()
+                                 
+for databaseItem in queryItems {                         
+    ...
+}
+```
+
+### Using No Projected Attributes
+
+To simply query a partition on an index that has no projected attributes, you can use the `DynamoDBCompositePrimaryKeysProjection` protocol and conforming types like ` AWSDynamoDBCompositePrimaryKeysProjection`. This type is created using a generator class in the same way as the primary table type-
+
+```swift
+let generator = AWSDynamoDBCompositePrimaryKeysProjectionGenerator(
+    credentialsProvider: credentialsProvider, region: region,
+    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName)
+
+let projection = generator.with(logger: logger)
+```
+
+The list of keys in a partition can then be retrieved using the functions provided by this protocol-
+
+```swift
+let (queryItems, nextPageToken): ([CompositePrimaryKey<GSI1PrimaryKeyAttributes>], String?) =
+    try projection.query(
+        forPartitionKey: "partitionId",
+        sortKeyCondition: nil,
+        limit: 100,
+        exclusiveStartKey: exclusiveStartKey).wait()
+                                 
+for primaryKey in queryItems {                         
+    ...
+}
+```
+
+## Recording updates in a historical partition
+
+This package contains a number of convenience functions for storing versions of a row in a historical partition
 
 ### Insertion
 
@@ -355,7 +444,7 @@ try table.clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
 
 The `clobberItemWithHistoricalRow` operation is typically used when it is unknown if the primary item already exists in the database table and you want to either insert it or write a new version of that row (which may or may not be based on the existing item).
 
-This operation can fail with an concurrency error if the `insert` or  `update` operation repeatedly fails (the default is after 10 attempts).
+This operation can fail with a concurrency error if the `insert` or  `update` operation repeatedly fails (the default is after 10 attempts).
 
 ### Conditionally Update
 
@@ -370,7 +459,7 @@ try table.conditionallyUpdateItemWithHistoricalRow(
 
 The `conditionallyUpdateItemWithHistoricalRow` operation is typically used when it is known that the primary item exists and you want to test if you can update it based on some attribute of its current version. A common scenario is adding a subordinate related item to the primary item where there is a limit of the number of related items. Here you would want to test the current version of the primary item to ensure the number of related items isn't exceeded.
 
-This operation can fail with an concurrency error if the  `update` operation repeatedly fails (the default is after 10 attempts).
+This operation can fail with a concurrency error if the  `update` operation repeatedly fails (the default is after 10 attempts).
 
 **Note:** The `clobberItemWithHistoricalRow` operation is similar in nature but have slightly different use cases. The `clobber` operation is typically used to create or update the primary item. The `conditionallyUpdate` operation is typically used when creating a subordinate related item that requires checking if the primary item can be updated.
 
@@ -498,7 +587,7 @@ let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
 let table = generator.with(logger: logger)
 ```
 
-Internally `AWSDynamoDBCompositePrimaryKeyTable` uses a custom Decoder and Encoder to serialize types that conform to `Codable` to and from the JSON schema required by the DynamoDB service. These Decoder and Encoder implementation automatically captialize attribute names.
+Internally `AWSDynamoDBCompositePrimaryKeyTable` uses a custom Decoder and Encoder to serialize types that conform to `Codable` to and from the JSON schema required by the DynamoDB service. These Decoder and Encoder implementation automatically capitalize attribute names.
 
 # Customization
 
