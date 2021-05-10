@@ -42,7 +42,7 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public let eventLoop: EventLoop
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
     internal let accessQueue = DispatchQueue(
-        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue",
+        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeyTable.accessQueue",
         target: DispatchQueue.global())
     
     internal let executeItemFilter: ExecuteItemFilterType?
