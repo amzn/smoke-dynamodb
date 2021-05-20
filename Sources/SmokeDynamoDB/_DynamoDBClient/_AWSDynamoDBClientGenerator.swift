@@ -19,6 +19,7 @@
 // AWSDynamoDBClientGenerator.swift
 // DynamoDBClient
 //
+
 import Foundation
 import DynamoDBModel
 import DynamoDBClient
