@@ -1,6 +1,6 @@
 // swift-tools-version:5.2
 //
-// Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License").
 // You may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import PackageDescription
 let package = Package(
     name: "smoke-dynamodb",
     platforms: [
-        .macOS(.v10_15), .iOS(.v10)
+        .macOS(.v10_15), .iOS(.v13), .watchOS(.v6), .tvOS(.v13)
         ],
     products: [
         .library(
