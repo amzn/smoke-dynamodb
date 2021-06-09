@@ -838,6 +838,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, requestLimitExceeded.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func batchExecuteStatement(
             input: DynamoDBModel.BatchExecuteStatementInput) async throws -> DynamoDBModel.BatchExecuteStatementOutput
 
@@ -850,6 +851,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func batchGetItem(
             input: DynamoDBModel.BatchGetItemInput) async throws -> DynamoDBModel.BatchGetItemOutput
 
@@ -862,6 +864,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func batchWriteItem(
             input: DynamoDBModel.BatchWriteItemInput) async throws -> DynamoDBModel.BatchWriteItemOutput
 
@@ -874,6 +877,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, continuousBackupsUnavailable, internalServer, limitExceeded, tableInUse, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func createBackup(
             input: DynamoDBModel.CreateBackupInput) async throws -> DynamoDBModel.CreateBackupOutput
 
@@ -886,6 +890,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: globalTableAlreadyExists, internalServer, limitExceeded, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func createGlobalTable(
             input: DynamoDBModel.CreateGlobalTableInput) async throws -> DynamoDBModel.CreateGlobalTableOutput
 
@@ -898,6 +903,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func createTable(
             input: DynamoDBModel.CreateTableInput) async throws -> DynamoDBModel.CreateTableOutput
 
@@ -910,6 +916,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, backupNotFound, internalServer, limitExceeded.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func deleteBackup(
             input: DynamoDBModel.DeleteBackupInput) async throws -> DynamoDBModel.DeleteBackupOutput
 
@@ -922,6 +929,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func deleteItem(
             input: DynamoDBModel.DeleteItemInput) async throws -> DynamoDBModel.DeleteItemOutput
 
@@ -934,6 +942,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func deleteTable(
             input: DynamoDBModel.DeleteTableInput) async throws -> DynamoDBModel.DeleteTableOutput
 
@@ -946,6 +955,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: backupNotFound, internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeBackup(
             input: DynamoDBModel.DescribeBackupInput) async throws -> DynamoDBModel.DescribeBackupOutput
 
@@ -958,6 +968,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeContinuousBackups(
             input: DynamoDBModel.DescribeContinuousBackupsInput) async throws -> DynamoDBModel.DescribeContinuousBackupsOutput
 
@@ -970,6 +981,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeContributorInsights(
             input: DynamoDBModel.DescribeContributorInsightsInput) async throws -> DynamoDBModel.DescribeContributorInsightsOutput
 
@@ -981,6 +993,7 @@ protocol _DynamoDBClientProtocol {
      - Returns: The DescribeEndpointsResponse object to be passed back from the caller of this async operation.
          Will be validated before being returned to caller.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeEndpoints(
             input: DynamoDBModel.DescribeEndpointsRequest) async throws -> DynamoDBModel.DescribeEndpointsResponse
 
@@ -993,6 +1006,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: exportNotFound, internalServer, limitExceeded.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeExport(
             input: DynamoDBModel.DescribeExportInput) async throws -> DynamoDBModel.DescribeExportOutput
 
@@ -1005,6 +1019,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeGlobalTable(
             input: DynamoDBModel.DescribeGlobalTableInput) async throws -> DynamoDBModel.DescribeGlobalTableOutput
 
@@ -1017,6 +1032,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeGlobalTableSettings(
             input: DynamoDBModel.DescribeGlobalTableSettingsInput) async throws -> DynamoDBModel.DescribeGlobalTableSettingsOutput
 
@@ -1029,6 +1045,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeKinesisStreamingDestination(
             input: DynamoDBModel.DescribeKinesisStreamingDestinationInput) async throws -> DynamoDBModel.DescribeKinesisStreamingDestinationOutput
 
@@ -1041,6 +1058,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeLimits(
             input: DynamoDBModel.DescribeLimitsInput) async throws -> DynamoDBModel.DescribeLimitsOutput
 
@@ -1053,6 +1071,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeTable(
             input: DynamoDBModel.DescribeTableInput) async throws -> DynamoDBModel.DescribeTableOutput
 
@@ -1065,6 +1084,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeTableReplicaAutoScaling(
             input: DynamoDBModel.DescribeTableReplicaAutoScalingInput) async throws -> DynamoDBModel.DescribeTableReplicaAutoScalingOutput
 
@@ -1077,6 +1097,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func describeTimeToLive(
             input: DynamoDBModel.DescribeTimeToLiveInput) async throws -> DynamoDBModel.DescribeTimeToLiveOutput
 
@@ -1089,6 +1110,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func disableKinesisStreamingDestination(
             input: DynamoDBModel.KinesisStreamingDestinationInput) async throws -> DynamoDBModel.KinesisStreamingDestinationOutput
 
@@ -1101,6 +1123,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func enableKinesisStreamingDestination(
             input: DynamoDBModel.KinesisStreamingDestinationInput) async throws -> DynamoDBModel.KinesisStreamingDestinationOutput
 
@@ -1113,6 +1136,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, duplicateItem, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func executeStatement(
             input: DynamoDBModel.ExecuteStatementInput) async throws -> DynamoDBModel.ExecuteStatementOutput
 
@@ -1125,6 +1149,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: idempotentParameterMismatch, internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled, transactionInProgress.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func executeTransaction(
             input: DynamoDBModel.ExecuteTransactionInput) async throws -> DynamoDBModel.ExecuteTransactionOutput
 
@@ -1137,6 +1162,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: exportConflict, internalServer, invalidExportTime, limitExceeded, pointInTimeRecoveryUnavailable, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func exportTableToPointInTime(
             input: DynamoDBModel.ExportTableToPointInTimeInput) async throws -> DynamoDBModel.ExportTableToPointInTimeOutput
 
@@ -1149,6 +1175,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func getItem(
             input: DynamoDBModel.GetItemInput) async throws -> DynamoDBModel.GetItemOutput
 
@@ -1161,6 +1188,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listBackups(
             input: DynamoDBModel.ListBackupsInput) async throws -> DynamoDBModel.ListBackupsOutput
 
@@ -1173,6 +1201,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listContributorInsights(
             input: DynamoDBModel.ListContributorInsightsInput) async throws -> DynamoDBModel.ListContributorInsightsOutput
 
@@ -1185,6 +1214,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listExports(
             input: DynamoDBModel.ListExportsInput) async throws -> DynamoDBModel.ListExportsOutput
 
@@ -1197,6 +1227,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listGlobalTables(
             input: DynamoDBModel.ListGlobalTablesInput) async throws -> DynamoDBModel.ListGlobalTablesOutput
 
@@ -1209,6 +1240,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listTables(
             input: DynamoDBModel.ListTablesInput) async throws -> DynamoDBModel.ListTablesOutput
 
@@ -1221,6 +1253,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func listTagsOfResource(
             input: DynamoDBModel.ListTagsOfResourceInput) async throws -> DynamoDBModel.ListTagsOfResourceOutput
 
@@ -1233,6 +1266,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func putItem(
             input: DynamoDBModel.PutItemInput) async throws -> DynamoDBModel.PutItemOutput
 
@@ -1245,6 +1279,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func query(
             input: DynamoDBModel.QueryInput) async throws -> DynamoDBModel.QueryOutput
 
@@ -1257,6 +1292,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, backupNotFound, internalServer, limitExceeded, tableAlreadyExists, tableInUse.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func restoreTableFromBackup(
             input: DynamoDBModel.RestoreTableFromBackupInput) async throws -> DynamoDBModel.RestoreTableFromBackupOutput
 
@@ -1269,6 +1305,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, invalidRestoreTime, limitExceeded, pointInTimeRecoveryUnavailable, tableAlreadyExists, tableInUse, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func restoreTableToPointInTime(
             input: DynamoDBModel.RestoreTableToPointInTimeInput) async throws -> DynamoDBModel.RestoreTableToPointInTimeOutput
 
@@ -1281,6 +1318,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func scan(
             input: DynamoDBModel.ScanInput) async throws -> DynamoDBModel.ScanOutput
 
@@ -1291,6 +1329,7 @@ protocol _DynamoDBClientProtocol {
          - input: The validated TagResourceInput object being passed to this operation.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func tagResource(
             input: DynamoDBModel.TagResourceInput) async throws
 
@@ -1303,6 +1342,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func transactGetItems(
             input: DynamoDBModel.TransactGetItemsInput) async throws -> DynamoDBModel.TransactGetItemsOutput
 
@@ -1315,6 +1355,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: idempotentParameterMismatch, internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled, transactionInProgress.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func transactWriteItems(
             input: DynamoDBModel.TransactWriteItemsInput) async throws -> DynamoDBModel.TransactWriteItemsOutput
 
@@ -1325,6 +1366,7 @@ protocol _DynamoDBClientProtocol {
          - input: The validated UntagResourceInput object being passed to this operation.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func untagResource(
             input: DynamoDBModel.UntagResourceInput) async throws
 
@@ -1337,6 +1379,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: continuousBackupsUnavailable, internalServer, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateContinuousBackups(
             input: DynamoDBModel.UpdateContinuousBackupsInput) async throws -> DynamoDBModel.UpdateContinuousBackupsOutput
 
@@ -1349,6 +1392,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateContributorInsights(
             input: DynamoDBModel.UpdateContributorInsightsInput) async throws -> DynamoDBModel.UpdateContributorInsightsOutput
 
@@ -1361,6 +1405,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer, replicaAlreadyExists, replicaNotFound, tableNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateGlobalTable(
             input: DynamoDBModel.UpdateGlobalTableInput) async throws -> DynamoDBModel.UpdateGlobalTableOutput
 
@@ -1373,6 +1418,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, indexNotFound, internalServer, limitExceeded, replicaNotFound, resourceInUse.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateGlobalTableSettings(
             input: DynamoDBModel.UpdateGlobalTableSettingsInput) async throws -> DynamoDBModel.UpdateGlobalTableSettingsOutput
 
@@ -1385,6 +1431,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateItem(
             input: DynamoDBModel.UpdateItemInput) async throws -> DynamoDBModel.UpdateItemOutput
 
@@ -1397,6 +1444,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateTable(
             input: DynamoDBModel.UpdateTableInput) async throws -> DynamoDBModel.UpdateTableOutput
 
@@ -1409,6 +1457,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateTableReplicaAutoScaling(
             input: DynamoDBModel.UpdateTableReplicaAutoScalingInput) async throws -> DynamoDBModel.UpdateTableReplicaAutoScalingOutput
 
@@ -1421,6 +1470,7 @@ protocol _DynamoDBClientProtocol {
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
+    @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
     func updateTimeToLive(
             input: DynamoDBModel.UpdateTimeToLiveInput) async throws -> DynamoDBModel.UpdateTimeToLiveOutput
     #endif
