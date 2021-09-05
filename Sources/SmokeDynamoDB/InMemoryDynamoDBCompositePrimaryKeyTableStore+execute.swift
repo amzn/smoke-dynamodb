@@ -12,7 +12,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  InMemoryDynamoDBCompositePrimaryKeyTable+execute.swift
+//  InMemoryDynamoDBCompositePrimaryKeyTableStore+execute.swift
 //  SmokeDynamoDB
 //
 
@@ -21,13 +21,14 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
-public extension InMemoryDynamoDBCompositePrimaryKeyTable {
+extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
             attributesFilter: [String]?,
-            additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]> {
-        let promise = self.eventLoop.makePromise(of: [ReturnedType].self)
+            additionalWhereClause: String?,
+            eventLoop: EventLoop) -> EventLoopFuture<[ReturnedType]> {
+        let promise = eventLoop.makePromise(of: [ReturnedType].self)
         
         accessQueue.async {
             let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
@@ -52,8 +53,9 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
-        let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
+            nextToken: String?,
+            eventLoop: EventLoop) -> EventLoopFuture<([ReturnedType], String?)> {
+        let promise = eventLoop.makePromise(of: ([ReturnedType], String?).self)
         
         accessQueue.async {
             let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
@@ -77,9 +79,10 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
             attributesFilter: [String]?,
-            additionalWhereClause: String?)
+            additionalWhereClause: String?,
+            eventLoop: EventLoop)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
-        let promise = self.eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
+        let promise = eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
         
         accessQueue.async {
             let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
@@ -113,9 +116,10 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?)
+            nextToken: String?,
+            eventLoop: EventLoop)
     -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
-        let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
+        let promise = eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
         
         accessQueue.async {
             let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)

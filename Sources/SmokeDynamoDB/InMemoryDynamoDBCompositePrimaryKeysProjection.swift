@@ -24,83 +24,33 @@ import NIO
 public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
     public var eventLoop: EventLoop
 
-    public var keys: [Any] = []
-    private let accessQueue = DispatchQueue(
-        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeysProjection.accessQueue",
-        target: DispatchQueue.global())
+    internal let keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore
+    
+    public var keys: [Any] {
+        return keysWrapper.keys
+    }
 
     public init(keys: [Any] = [], eventLoop: EventLoop) {
-        self.keys = keys
+        self.keysWrapper = InMemoryDynamoDBCompositePrimaryKeysProjectionStore(keys: keys)
         self.eventLoop = eventLoop
+    }
+    
+    internal init(eventLoop: EventLoop,
+                  keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
+        self.eventLoop = eventLoop
+        self.keysWrapper = keysWrapper
+    }
+    
+    public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeysProjection {
+        return InMemoryDynamoDBCompositePrimaryKeysProjection(eventLoop: eventLoop,
+                                                              keysWrapper: self.keysWrapper)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?)
             -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
-        let promise = self.eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>].self)
-        
-        accessQueue.async {
-            var items: [CompositePrimaryKey<AttributesType>] = []
-                
-            let sortedKeys = self.keys.compactMap { $0 as? CompositePrimaryKey<AttributesType> }.sorted(by: { (left, right) -> Bool in
-                return left.sortKey < right.sortKey
-            })
-                
-            sortKeyIteration: for key in sortedKeys {
-                if key.partitionKey != partitionKey {
-                    // don't include this in the results
-                    continue sortKeyIteration
-                }
-                
-                let sortKey = key.sortKey
-
-                if let currentSortKeyCondition = sortKeyCondition {
-                    switch currentSortKeyCondition {
-                    case .equals(let value):
-                        if !(value == sortKey) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .lessThan(let value):
-                        if !(sortKey < value) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .lessThanOrEqual(let value):
-                        if !(sortKey <= value) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .greaterThan(let value):
-                        if !(sortKey > value) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .greaterThanOrEqual(let value):
-                        if !(sortKey >= value) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .between(let value1, let value2):
-                        if !(sortKey > value1 && sortKey < value2) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    case .beginsWith(let value):
-                        if !(sortKey.hasPrefix(value)) {
-                            // don't include this in the results
-                            continue sortKeyIteration
-                        }
-                    }
-                }
-
-                items.append(key)
-            }
-
-            promise.succeed(items)
-        }
-        
-        return promise.futureResult
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                 eventLoop: self.eventLoop)
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
@@ -109,11 +59,8 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
                                           exclusiveStartKey: String?)
             -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
-        return query(forPartitionKey: partitionKey,
-                     sortKeyCondition: sortKeyCondition,
-                     limit: limit,
-                     scanIndexForward: true,
-                     exclusiveStartKey: exclusiveStartKey)
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                 limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
@@ -121,42 +68,10 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
                                       limit: Int?,
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?)
-            -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
-            where AttributesType: PrimaryKeyAttributes {
-        // get all the results
-        return query(forPartitionKey: partitionKey,
-                     sortKeyCondition: sortKeyCondition)
-            .map { (rawItems: [CompositePrimaryKey<AttributesType>]) in
-                let items: [CompositePrimaryKey<AttributesType>]
-                if !scanIndexForward {
-                    items = rawItems.reversed()
-                } else {
-                    items = rawItems
-                }
-
-                let startIndex: Int
-                // if there is an exclusiveStartKey
-                if let exclusiveStartKey = exclusiveStartKey {
-                    guard let storedStartIndex = Int(exclusiveStartKey) else {
-                        fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
-                    }
-
-                    startIndex = storedStartIndex
-                } else {
-                    startIndex = 0
-                }
-
-                let endIndex: Int
-                let lastEvaluatedKey: String?
-                if let limit = limit, startIndex + limit < items.count {
-                    endIndex = startIndex + limit
-                    lastEvaluatedKey = String(endIndex)
-                } else {
-                    endIndex = items.count
-                    lastEvaluatedKey = nil
-                }
-
-                return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
-            }
+    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+    where AttributesType: PrimaryKeyAttributes {
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                 limit: limit, scanIndexForward: scanIndexForward,
+                                 exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
     }
 }
