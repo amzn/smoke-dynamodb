@@ -23,19 +23,29 @@ import NIO
 
 internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
 
-    public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
+    internal var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
     internal let accessQueue = DispatchQueue(
         label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeyTable.accessQueue",
         target: DispatchQueue.global())
     
     internal let executeItemFilter: ExecuteItemFilterType?
 
-    public init(executeItemFilter: ExecuteItemFilterType? = nil) {
+    init(executeItemFilter: ExecuteItemFilterType? = nil) {
         self.executeItemFilter = executeItemFilter
     }
+    
+    func getStore(eventLoop: EventLoop) -> EventLoopFuture<[String: [String: PolymorphicOperationReturnTypeConvertable]]> {
+        let promise = eventLoop.makePromise(of: [String: [String: PolymorphicOperationReturnTypeConvertable]].self)
+        
+        accessQueue.async {
+            promise.succeed(self.store)
+        }
+        
+        return promise.futureResult
+    }
 
-    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                              eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
@@ -68,8 +78,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
 
-    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                      eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
@@ -92,9 +102,9 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
 
-    public func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
@@ -139,8 +149,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
 
-    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                                  eventLoop: EventLoop)
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                           eventLoop: EventLoop)
         -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         let promise = eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>?.self)
         
@@ -172,7 +182,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
     
-    public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
         forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
         eventLoop: EventLoop)
     -> EventLoopFuture<[CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]> {
@@ -207,8 +217,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
 
-    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                           eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                    eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
@@ -219,8 +229,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
     
-    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     eventLoop: EventLoop) -> EventLoopFuture<Void>
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              eventLoop: EventLoop) -> EventLoopFuture<Void>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         let promise = eventLoop.makePromise(of: Void.self)
         
@@ -269,9 +279,9 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
 
-    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                                    sortKeyCondition: AttributeCondition?,
-                                                                    eventLoop: EventLoop)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             eventLoop: EventLoop)
         -> EventLoopFuture<[ReturnedType]> {
         let promise = eventLoop.makePromise(of: [ReturnedType].self)
         
@@ -356,11 +366,11 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         }
     }
     
-    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                                    sortKeyCondition: AttributeCondition?,
-                                                                    limit: Int?,
-                                                                    exclusiveStartKey: String?,
-                                                                    eventLoop: EventLoop)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?,
+                                                             eventLoop: EventLoop)
             -> EventLoopFuture<([ReturnedType], String?)> {
         return query(forPartitionKey: partitionKey,
                      sortKeyCondition: sortKeyCondition,
@@ -370,12 +380,12 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                      eventLoop: eventLoop)
     }
 
-    public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                                    sortKeyCondition: AttributeCondition?,
-                                                                    limit: Int?,
-                                                                    scanIndexForward: Bool,
-                                                                    exclusiveStartKey: String?,
-                                                                    eventLoop: EventLoop)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?,
+                                                             eventLoop: EventLoop)
             -> EventLoopFuture<([ReturnedType], String?)> {
         // get all the results
         return query(forPartitionKey: partitionKey,

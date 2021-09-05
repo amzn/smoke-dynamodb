@@ -43,7 +43,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     internal let storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore
     
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] {
-        return storeWrapper.store
+        do {
+            return try storeWrapper.getStore(eventLoop: self.eventLoop).wait()
+        } catch {
+            fatalError("Unable to retrieve InMemoryDynamoDBCompositePrimaryKeyTable store.")
+        }
     }
     
     public init(eventLoop: EventLoop,

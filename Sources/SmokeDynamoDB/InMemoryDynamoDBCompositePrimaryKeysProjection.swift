@@ -27,7 +27,11 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
     internal let keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore
     
     public var keys: [Any] {
-        return keysWrapper.keys
+        do {
+            return try keysWrapper.getKeys(eventLoop: self.eventLoop).wait()
+        } catch {
+            fatalError("Unable to retrieve InMemoryDynamoDBCompositePrimaryKeysProjection keys.")
+        }
     }
 
     public init(keys: [Any] = [], eventLoop: EventLoop) {

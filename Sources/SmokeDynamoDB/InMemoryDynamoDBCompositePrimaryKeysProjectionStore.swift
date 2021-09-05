@@ -30,6 +30,16 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
     public init(keys: [Any] = []) {
         self.keys = keys
     }
+    
+    func getKeys(eventLoop: EventLoop) -> EventLoopFuture<[Any]> {
+        let promise = eventLoop.makePromise(of: [Any].self)
+        
+        accessQueue.async {
+            promise.succeed(self.keys)
+        }
+        
+        return promise.futureResult
+    }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
