@@ -127,8 +127,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     }
                 } else {
                     let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
-                                                                  sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                  message: "Existing item does not exist.")
+                                                                          sortKey: newItem.compositePrimaryKey.sortKey,
+                                                                          message: "Existing item does not exist.")
                     promise.fail(error)
                     return
                 }
@@ -361,7 +361,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         if let provider = queryableTypeProviders[storedRowTypeName] {
             return try provider.getReturnType(input: input)
         } else {
-            // throw an exception, we don't what this type is
+            // throw an exception, we don't know what this type is
             throw SmokeDynamoDBError.unexpectedType(provided: storedRowTypeName)
         }
     }
