@@ -88,7 +88,14 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * if the item at the specified key is not the existing item provided.
      */
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+    
+    /**
+     * Update item requires having gotten an item from the database previously and will not update
+     * if the item at the specified key is not the existing item provided.
+     */
+    func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)]) -> EventLoopFuture<Void>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
@@ -114,6 +121,19 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * if the item at the specified key is not the existing item provided.
      */
     func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response.
+     */
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void>
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response. This operation will not modify the table
+     * if the item at the specified key is not the existing item provided.
+     */
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void>
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the

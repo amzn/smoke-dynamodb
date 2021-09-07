@@ -66,6 +66,15 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
+    public func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)]) -> EventLoopFuture<Void> {
+        let futures = items.map { (new, existing) in
+            return updateItem(newItem: new, existingItem: existing)
+        }
+        
+        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
     -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> where AttributesType : PrimaryKeyAttributes,
                                                                            ItemType : Decodable, ItemType : Encodable {
@@ -89,6 +98,27 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
     -> EventLoopFuture<Void> where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return self.primaryTable.deleteItem(existingItem: existingItem) .flatMap { _ in
             return self.gsiLogic.onDeleteItem(forKey: existingItem.compositePrimaryKey, gsiDataStore: self.gsiDataStore)
+        }
+    }
+    
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void> {
+        return self.primaryTable.deleteItems(forKeys: keys).flatMap {
+            let futures = keys.map { key in
+                return self.gsiLogic.onDeleteItem(forKey: key, gsiDataStore: self.gsiDataStore)
+            }
+            
+            return EventLoopFuture.andAllComplete(futures, on: eventLoop)
+        }
+    }
+    
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
+        
+        return self.primaryTable.deleteItems(existingItems: existingItems).flatMap {
+            let futures = existingItems.map { existingItem in
+                return self.gsiLogic.onDeleteItem(forKey: existingItem.compositePrimaryKey, gsiDataStore: self.gsiDataStore)
+            }
+            
+            return EventLoopFuture.andAllComplete(futures, on: eventLoop)
         }
     }
     

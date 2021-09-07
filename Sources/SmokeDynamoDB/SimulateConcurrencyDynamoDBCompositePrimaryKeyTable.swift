@@ -91,6 +91,15 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         return wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
     }
     
+    public func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)]) -> EventLoopFuture<Void> {
+        let futures = items.map { (new, existing) in
+            return updateItem(newItem: new, existingItem: existing)
+        }
+        
+        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
             -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         // simply delegate to the wrapped implementation
@@ -112,6 +121,14 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return wrappedDynamoDBTable.deleteItem(existingItem: existingItem)
+    }
+    
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void> {
+        return wrappedDynamoDBTable.deleteItems(forKeys: keys)
+    }
+    
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
+        return wrappedDynamoDBTable.deleteItems(existingItems: existingItems)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
