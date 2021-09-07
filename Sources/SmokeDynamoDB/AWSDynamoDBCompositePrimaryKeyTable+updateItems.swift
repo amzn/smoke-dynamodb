@@ -28,7 +28,7 @@ private let maximumUpdatesPerExecuteStatement = 25
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     private func updateChunkedItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                         existing: TypedDatabaseItem<AttributesType, ItemType>)])
+                                                                         existing: TypedDatabaseItem<AttributesType, ItemType>?)])
     -> EventLoopFuture<Void> {
         // if there are no items, there is nothing to update
         guard items.count > 0 else {
@@ -40,9 +40,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let statements: [BatchStatementRequest]
         do {
             statements = try items.map { (new, existing) -> BatchStatementRequest in
-                let statement = try getUpdateExpression(tableName: self.targetTableName,
+                let statement: String
+                if let existing = existing {
+                    statement = try getUpdateExpression(tableName: self.targetTableName,
                                                         newItem: new,
                                                         existingItem: existing)
+                } else {
+                    statement = try getInsertExpression(tableName: self.targetTableName,
+                                                        newItem: new)
+                }
                 
                 return BatchStatementRequest(consistentRead: true, statement: statement)
             }
@@ -59,8 +65,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
     }
     
-    func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)])
+    func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                  existing: TypedDatabaseItem<AttributesType, ItemType>?)])
     -> EventLoopFuture<Void> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.

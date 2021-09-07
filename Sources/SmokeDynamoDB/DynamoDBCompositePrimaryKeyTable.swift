@@ -94,8 +94,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Update item requires having gotten an item from the database previously and will not update
      * if the item at the specified key is not the existing item provided.
      */
-    func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)]) -> EventLoopFuture<Void>
+    func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                       existing: TypedDatabaseItem<AttributesType, ItemType>?)]) -> EventLoopFuture<Void>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.

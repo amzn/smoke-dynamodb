@@ -80,6 +80,15 @@ extension DynamoDBCompositePrimaryKeyTable {
             + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)='\(existingItem.rowStatus.rowVersion)'"
     }
     
+    func getInsertExpression<AttributesType, ItemType>(tableName: String,
+                                                       newItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> String {
+        let newAttributes = try getAttributes(forItem: newItem)
+        let flattenedAttribute = try getFlattenedMapAttribute(attribute: newAttributes)
+        
+        // according to https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html
+        return "INSERT INTO \(tableName) value \(flattenedAttribute) "
+    }
+    
     func getDeleteExpression<ItemType: DatabaseItem>(tableName: String,
                                                      existingItem: ItemType) throws -> String {
         return "DELETE FROM \(tableName) "
@@ -224,7 +233,7 @@ extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
-    private func getFlattenedAttribute(attribute: DynamoDBModel.AttributeValue) throws -> String? {
+    func getFlattenedAttribute(attribute: DynamoDBModel.AttributeValue) throws -> String? {
         if attribute.B != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Binary types.")
         } else if let typedAttribute = attribute.BOOL {

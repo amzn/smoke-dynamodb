@@ -66,10 +66,15 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
-    public func updateItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                          existing: TypedDatabaseItem<AttributesType, ItemType>)]) -> EventLoopFuture<Void> {
-        let futures = items.map { (new, existing) in
-            return updateItem(newItem: new, existingItem: existing)
+    public func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
+                                                                         existing: TypedDatabaseItem<AttributesType, ItemType>?)])
+    -> EventLoopFuture<Void> {
+        let futures = items.map { (new, existing) -> EventLoopFuture<Void> in
+            if let existing = existing {
+                return updateItem(newItem: new, existingItem: existing)
+            } else {
+                return insertItem(new)
+            }
         }
         
         return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
