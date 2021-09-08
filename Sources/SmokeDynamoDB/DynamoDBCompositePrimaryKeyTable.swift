@@ -69,6 +69,13 @@ public enum AttributeCondition {
     case beginsWith(String)
 }
 
+public enum WriteEntry<AttributesType: PrimaryKeyAttributes, ItemType: Codable> {
+    case update(new: TypedDatabaseItem<AttributesType, ItemType>, existing: TypedDatabaseItem<AttributesType, ItemType>)
+    case insert(new: TypedDatabaseItem<AttributesType, ItemType>)
+    case deleteAtKey(key: CompositePrimaryKey<AttributesType>)
+    case deleteItem(existing: TypedDatabaseItem<AttributesType, ItemType>)
+}
+
 public protocol DynamoDBCompositePrimaryKeyTable {
     var eventLoop: EventLoop { get }
 
@@ -92,11 +99,9 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
     
     /**
-     * Update item requires having gotten an item from the database previously and will not update
-     * if the item at the specified key is not the existing item provided.
+     * Provides the ability to bulk write database rows
      */
-    func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                       existing: TypedDatabaseItem<AttributesType, ItemType>?)]) -> EventLoopFuture<Void>
+    func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.

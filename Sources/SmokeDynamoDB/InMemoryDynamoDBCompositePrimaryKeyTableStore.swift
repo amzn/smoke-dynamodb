@@ -149,14 +149,18 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
     
-    public func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                         existing: TypedDatabaseItem<AttributesType, ItemType>?)],
-                                                             eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let futures = items.map { (new, existing) -> EventLoopFuture<Void> in
-            if let existing = existing {
+    public func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                    eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let futures = entries.map { entry -> EventLoopFuture<Void> in
+            switch entry {
+            case .update(new: let new, existing: let existing):
                 return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
-            } else {
+            case .insert(new: let new):
                 return insertItem(new, eventLoop: eventLoop)
+            case .deleteAtKey(key: let key):
+                return deleteItem(forKey: key, eventLoop: eventLoop)
+            case .deleteItem(existing: let existing):
+                return deleteItem(existingItem: existing, eventLoop: eventLoop)
             }
         }
         

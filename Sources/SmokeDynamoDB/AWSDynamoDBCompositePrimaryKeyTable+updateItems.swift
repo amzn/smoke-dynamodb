@@ -27,11 +27,10 @@ private let maximumUpdatesPerExecuteStatement = 25
 
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
-    private func updateChunkedItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                         existing: TypedDatabaseItem<AttributesType, ItemType>?)])
+    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         // if there are no items, there is nothing to update
-        guard items.count > 0 else {
+        guard entries.count > 0 else {
             let promise = self.eventLoop.makePromise(of: Void.self)
             promise.succeed(())
             return promise.futureResult
@@ -39,15 +38,22 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let statements: [BatchStatementRequest]
         do {
-            statements = try items.map { (new, existing) -> BatchStatementRequest in
+            statements = try entries.map { entry -> BatchStatementRequest in
                 let statement: String
-                if let existing = existing {
+                switch entry {
+                case .update(new: let new, existing: let existing):
                     statement = try getUpdateExpression(tableName: self.targetTableName,
                                                         newItem: new,
                                                         existingItem: existing)
-                } else {
+                case .insert(new: let new):
                     statement = try getInsertExpression(tableName: self.targetTableName,
                                                         newItem: new)
+                case .deleteAtKey(key: let key):
+                    statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                        existingKey: key)
+                case .deleteItem(existing: let existing):
+                    statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                        existingItem: existing)
                 }
                 
                 return BatchStatementRequest(consistentRead: true, statement: statement)
@@ -99,14 +105,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
     }
     
-    func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,
-                                                                  existing: TypedDatabaseItem<AttributesType, ItemType>?)])
+    func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedItems = items.chunked(by: maximumUpdatesPerExecuteStatement)
-        let futures = chunkedItems.map { chunk -> EventLoopFuture<Void> in
-            return updateChunkedItems(chunk)
+        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let futures = chunkedEntries.map { chunk -> EventLoopFuture<Void> in
+            return writeChunkedItems(chunk)
         }
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
