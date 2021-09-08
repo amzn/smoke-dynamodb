@@ -105,7 +105,7 @@ extension DynamoDBCompositePrimaryKeyTable {
     }
     
     /*
-     Function to return the differences between two items. This is used to them create an UPDATE
+     Function to return the differences between two items. This is used to then create an UPDATE
      query that just specifies the values that are changing.
      */
     func diffItems<AttributesType, ItemType>(
@@ -121,13 +121,13 @@ extension DynamoDBCompositePrimaryKeyTable {
                                newAttribute: DynamoDBModel.AttributeValue,
                                existingAttribute: DynamoDBModel.AttributeValue) throws -> [AttributeDifference] {
         if newAttribute.B != nil || existingAttribute.B != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Binary types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary types.")
         } else if let newTypedAttribute = newAttribute.BOOL, let existingTypedAttribute = existingAttribute.BOOL {
             if newTypedAttribute != existingTypedAttribute {
                 return [.update(path: path, value: String(newTypedAttribute))]
             }
         } else if newAttribute.BS != nil || existingAttribute.BS != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Binary Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary Set types.")
         } else if let newTypedAttribute = newAttribute.L, let existingTypedAttribute = existingAttribute.L {
             return try diffListAttribute(path: path, newAttribute: newTypedAttribute, existingAttribute: existingTypedAttribute)
         } else if let newTypedAttribute = newAttribute.M, let existingTypedAttribute = existingAttribute.M {
@@ -137,7 +137,7 @@ extension DynamoDBCompositePrimaryKeyTable {
                 return [.update(path: path, value: String(newTypedAttribute))]
             }
         } else if newAttribute.NS != nil || existingAttribute.NS  != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Number Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Number Set types.")
         } else if newAttribute.NULL != nil && existingAttribute.NULL != nil {
             // always equal
             return []
@@ -146,7 +146,7 @@ extension DynamoDBCompositePrimaryKeyTable {
                 return [.update(path: path, value: "'\(newTypedAttribute)'")]
             }
         } else if newAttribute.SS != nil || existingAttribute.SS  != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande String Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
         } else {
             // new value is a different type and could be replaced
             return try updateAttribute(newPath: path, attribute: newAttribute)
@@ -239,11 +239,11 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     func getFlattenedAttribute(attribute: DynamoDBModel.AttributeValue) throws -> String? {
         if attribute.B != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Binary types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary types.")
         } else if let typedAttribute = attribute.BOOL {
             return String(typedAttribute)
         } else if attribute.BS != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Binary Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary Set types.")
         } else if let typedAttribute = attribute.L {
             return try getFlattenedListAttribute(attribute: typedAttribute)
         } else if let typedAttribute = attribute.M {
@@ -251,13 +251,13 @@ extension DynamoDBCompositePrimaryKeyTable {
         } else if let typedAttribute = attribute.N {
             return String(typedAttribute)
         } else if attribute.NS != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande Number Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Number Set types.")
         } else if attribute.NULL != nil {
             return nil
         } else if let typedAttribute = attribute.S {
             return "'\(typedAttribute)'"
         } else if attribute.SS != nil {
-            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to hande String Set types.")
+            throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
         }
         
         return nil
