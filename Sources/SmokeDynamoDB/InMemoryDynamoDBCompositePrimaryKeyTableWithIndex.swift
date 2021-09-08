@@ -66,7 +66,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
-    public func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         let futures = entries.map { entry -> EventLoopFuture<Void> in
             switch entry {

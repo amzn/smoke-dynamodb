@@ -105,7 +105,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
     }
     
-    func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.

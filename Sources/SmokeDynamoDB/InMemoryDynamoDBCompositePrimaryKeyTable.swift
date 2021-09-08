@@ -80,9 +80,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
         return storeWrapper.updateItem(newItem: newItem, existingItem: existingItem, eventLoop: self.eventLoop)
     }
     
-    public func bulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
-        return storeWrapper.bulkWrite(entries, eventLoop: self.eventLoop)
+        return storeWrapper.monomorphicBulkWrite(entries, eventLoop: self.eventLoop)
     }
 
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
