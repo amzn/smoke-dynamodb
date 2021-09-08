@@ -109,6 +109,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return updateChunkedItems(chunk)
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
 }

@@ -64,11 +64,11 @@ extension DynamoDBCompositePrimaryKeyTable {
         let elements = attributeDifferences.map { attributeDifference -> String in
             switch attributeDifference {
             case .update(path: let path, value: let value):
-                return "SET \(path)=\(value)"
+                return "SET \"\(path)\"=\(value)"
             case .remove(path: let path):
-                return "REMOVE \(path)"
+                return "REMOVE \"\(path)\""
             case .listAppend(path: let path, value: let value):
-                return "SET \(path)=list_append(\(path),\(value)"
+                return "SET \"\(path)\"=list_append(\(path),\(value)"
             }
         }
         

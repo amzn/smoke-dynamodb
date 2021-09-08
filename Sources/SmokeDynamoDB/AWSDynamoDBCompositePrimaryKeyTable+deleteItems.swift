@@ -95,7 +95,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return deleteChunkedItems(chunk)
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
     
     func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
@@ -106,6 +106,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return deleteChunkedItems(chunk)
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
 }

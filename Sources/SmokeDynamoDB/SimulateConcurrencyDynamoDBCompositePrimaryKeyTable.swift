@@ -102,7 +102,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
             }
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: self.eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
     
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)

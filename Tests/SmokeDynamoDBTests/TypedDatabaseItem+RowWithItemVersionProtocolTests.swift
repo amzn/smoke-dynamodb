@@ -363,8 +363,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
-                                 + "SET theList[1]='eigthly' "
-                                 + "SET theList=list_append(theList,['ninthly', 'tenthly'] "
+                                 + "SET \"theList[1]\"='eigthly' "
+                                 + "SET \"theList\"=list_append(theList,['ninthly', 'tenthly'] "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
@@ -386,7 +386,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
-                                 + "SET theList=['thirdly', 'eigthly', 'ninthly', 'tenthly'] "
+                                 + "SET \"theList\"=['thirdly', 'eigthly', 'ninthly', 'tenthly'] "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
@@ -408,7 +408,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
-                                 + "REMOVE theList "
+                                 + "REMOVE \"theList\" "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }

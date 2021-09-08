@@ -160,7 +160,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
             }
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
@@ -298,7 +298,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
             return deleteItem(forKey: key, eventLoop: eventLoop)
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
     
     func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
@@ -307,7 +307,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
             return deleteItem(existingItem: existingItem, eventLoop: eventLoop)
         }
         
-        return EventLoopFuture.andAllComplete(futures, on: eventLoop)
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
