@@ -76,6 +76,8 @@ public enum WriteEntry<AttributesType: PrimaryKeyAttributes, ItemType: Codable> 
     case deleteItem(existing: TypedDatabaseItem<AttributesType, ItemType>)
 }
 
+public typealias StandardWriteEntry<ItemType: Codable> = WriteEntry<StandardPrimaryKeyAttributes, ItemType>
+
 public protocol DynamoDBCompositePrimaryKeyTable {
     var eventLoop: EventLoop { get }
 
