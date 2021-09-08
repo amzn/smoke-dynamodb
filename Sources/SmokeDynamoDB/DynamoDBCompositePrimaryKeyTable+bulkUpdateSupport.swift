@@ -104,6 +104,10 @@ extension DynamoDBCompositePrimaryKeyTable {
             + "AND \(AttributesType.sortKeyAttributeName)='\(existingKey.sortKey)'"
     }
     
+    /*
+     Function to return the differences between two items. This is used to them create an UPDATE
+     query that just specifies the values that are changing.
+     */
     func diffItems<AttributesType, ItemType>(
                 newItem: TypedDatabaseItem<AttributesType, ItemType>,
                 existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> [AttributeDifference] {
