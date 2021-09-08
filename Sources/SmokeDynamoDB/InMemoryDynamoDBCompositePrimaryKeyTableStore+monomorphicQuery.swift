@@ -12,7 +12,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  InMemoryDynamoDBCompositePrimaryKeyTable+monomorphicQuery.swift
+//  InMemoryDynamoDBCompositePrimaryKeyTableStore+monomorphicQuery.swift
 //  SmokeDynamoDB
 //
 
@@ -21,12 +21,13 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
-public extension InMemoryDynamoDBCompositePrimaryKeyTable {
+extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
     
     func monomorphicGetItems<AttributesType, ItemType>(
-        forKeys keys: [CompositePrimaryKey<AttributesType>])
+        forKeys keys: [CompositePrimaryKey<AttributesType>],
+        eventLoop: EventLoop)
     -> EventLoopFuture<[CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]> {
-        let promise = self.eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>].self)
+        let promise = eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>].self)
         
         accessQueue.async {
             var map: [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>] = [:]
@@ -59,10 +60,11 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
     }
     
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                    sortKeyCondition: AttributeCondition?)
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    eventLoop: EventLoop)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        let promise = self.eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
+        let promise = eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
         
         accessQueue.async {
             var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
@@ -138,12 +140,14 @@ public extension InMemoryDynamoDBCompositePrimaryKeyTable {
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             scanIndexForward: Bool,
-            exclusiveStartKey: String?)
+            exclusiveStartKey: String?,
+            eventLoop: EventLoop)
             -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         // get all the results
         return monomorphicQuery(forPartitionKey: partitionKey,
-                                sortKeyCondition: sortKeyCondition)
+                                sortKeyCondition: sortKeyCondition,
+                                eventLoop: eventLoop)
             .map { (rawItems: [TypedDatabaseItem<AttributesType, ItemType>]) in
                 let items: [TypedDatabaseItem<AttributesType, ItemType>]
                 if !scanIndexForward {
