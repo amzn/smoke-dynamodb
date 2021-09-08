@@ -116,7 +116,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return self.gsiLogic.onDeleteItem(forKey: key, gsiDataStore: self.gsiDataStore)
             }
             
-            return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
+            return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
         }
     }
     
@@ -127,7 +127,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return self.gsiLogic.onDeleteItem(forKey: existingItem.compositePrimaryKey, gsiDataStore: self.gsiDataStore)
             }
             
-            return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
+            return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
         }
     }
     
