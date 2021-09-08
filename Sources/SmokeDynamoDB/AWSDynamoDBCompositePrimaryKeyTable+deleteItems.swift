@@ -52,8 +52,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
         
-        return dynamodb.batchExecuteStatement(input: executeInput).map { _ in
-            
+        return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { response in
+            try self.throwOnBatchExecuteStatementErrors(response: response)
         }
     }
     
@@ -82,8 +82,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
         
-        return dynamodb.batchExecuteStatement(input: executeInput).map { _ in
-            
+        return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { response in
+            try self.throwOnBatchExecuteStatementErrors(response: response)
         }
     }
     

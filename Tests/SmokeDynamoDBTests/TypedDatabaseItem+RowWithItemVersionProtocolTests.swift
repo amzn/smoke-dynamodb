@@ -362,11 +362,11 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
-        XCTAssertEqual(expression, "UPDATE TableName "
+        XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "SET theList[1]='eigthly' "
                                  + "SET theList=list_append(theList,['ninthly', 'tenthly'] "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
-                                 + "AND RowVersion='1'")
+                                 + "AND RowVersion=1")
     }
     
     func testListFieldAdditionExpression() throws {
@@ -385,10 +385,10 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
-        XCTAssertEqual(expression, "UPDATE TableName "
+        XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "SET theList=['thirdly', 'eigthly', 'ninthly', 'tenthly'] "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
-                                 + "AND RowVersion='1'")
+                                 + "AND RowVersion=1")
     }
     
     func testListFieldRemovalExpression() throws {
@@ -407,10 +407,10 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
-        XCTAssertEqual(expression, "UPDATE TableName "
+        XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "REMOVE theList "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
-                                 + "AND RowVersion='1'")
+                                 + "AND RowVersion=1")
     }
     
     func testDeleteItemExpression() throws {
@@ -426,9 +426,9 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         
         let expression = try table.getDeleteExpression(tableName: tableName,
                                                        existingItem: databaseItemA)
-        XCTAssertEqual(expression, "DELETE FROM TableName "
+        XCTAssertEqual(expression, "DELETE FROM \"TableName\" "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
-                                 + "AND RowVersion='1'")
+                                 + "AND RowVersion=1")
     }
     
     func testDeleteKeyExpression() throws {
@@ -444,9 +444,9 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         
         let expression = try table.getDeleteExpression(tableName: tableName,
                                                        existingItem: databaseItemA)
-        XCTAssertEqual(expression, "DELETE FROM TableName "
+        XCTAssertEqual(expression, "DELETE FROM \"TableName\" "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
-                                 + "AND RowVersion='1'")
+                                 + "AND RowVersion=1")
     }
     
     static var allTests = [

@@ -60,9 +60,43 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
         
-        return dynamodb.batchExecuteStatement(input: executeInput).map { _ in
-            
+        return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { response in
+            try self.throwOnBatchExecuteStatementErrors(response: response)
         }
+    }
+    
+    func throwOnBatchExecuteStatementErrors(response: DynamoDBModel.BatchExecuteStatementOutput) throws {
+        var errorMap: [String: Int] = [:]
+        var errorCount = 0
+        response.responses?.forEach { response in
+            if let error = response.error {
+                errorCount += 1
+                
+                var messageElements: [String] = []
+                if let code = error.code {
+                    messageElements.append(code.rawValue)
+                }
+                
+                if let message = error.message {
+                    messageElements.append(message)
+                }
+                
+                
+                if !messageElements.isEmpty {
+                    let message = messageElements.joined(separator: ":")
+                    var updatedErrorCount = errorMap[message] ?? 0
+                    updatedErrorCount += 1
+                    errorMap[message] = updatedErrorCount
+                }
+            }
+        }
+        
+        guard errorCount > 0 else {
+            // no errors
+            return
+        }
+        
+        throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
     }
     
     func updateOrInsertItems<AttributesType, ItemType>(_ items: [(new: TypedDatabaseItem<AttributesType, ItemType>,

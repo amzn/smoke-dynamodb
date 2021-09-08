@@ -74,10 +74,10 @@ extension DynamoDBCompositePrimaryKeyTable {
         
         let combinedElements = elements.joined(separator: " ")
         
-        return "UPDATE \(tableName) \(combinedElements) "
+        return "UPDATE \"\(tableName)\" \(combinedElements) "
             + "WHERE \(AttributesType.partitionKeyAttributeName)='\(newItem.compositePrimaryKey.partitionKey)' "
             + "AND \(AttributesType.sortKeyAttributeName)='\(newItem.compositePrimaryKey.sortKey)' "
-            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)='\(existingItem.rowStatus.rowVersion)'"
+            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
     func getInsertExpression<AttributesType, ItemType>(tableName: String,
@@ -86,20 +86,20 @@ extension DynamoDBCompositePrimaryKeyTable {
         let flattenedAttribute = try getFlattenedMapAttribute(attribute: newAttributes)
         
         // according to https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html
-        return "INSERT INTO \(tableName) value \(flattenedAttribute) "
+        return "INSERT INTO \"\(tableName)\" value \(flattenedAttribute)"
     }
     
     func getDeleteExpression<ItemType: DatabaseItem>(tableName: String,
                                                      existingItem: ItemType) throws -> String {
-        return "DELETE FROM \(tableName) "
+        return "DELETE FROM \"\(tableName)\" "
             + "WHERE \(ItemType.AttributesType.partitionKeyAttributeName)='\(existingItem.compositePrimaryKey.partitionKey)' "
             + "AND \(ItemType.AttributesType.sortKeyAttributeName)='\(existingItem.compositePrimaryKey.sortKey)' "
-            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)='\(existingItem.rowStatus.rowVersion)'"
+            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
     func getDeleteExpression<AttributesType>(tableName: String,
                                              existingKey: CompositePrimaryKey<AttributesType>) throws -> String {
-        return "DELETE FROM \(tableName) "
+        return "DELETE FROM \"\(tableName)\" "
             + "WHERE \(AttributesType.partitionKeyAttributeName)='\(existingKey.partitionKey)' "
             + "AND \(AttributesType.sortKeyAttributeName)='\(existingKey.sortKey)'"
     }
