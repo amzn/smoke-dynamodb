@@ -148,6 +148,24 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         return promise.futureResult
     }
+    
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                    eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let futures = entries.map { entry -> EventLoopFuture<Void> in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
+            case .insert(new: let new):
+                return insertItem(new, eventLoop: eventLoop)
+            case .deleteAtKey(key: let key):
+                return deleteItem(forKey: key, eventLoop: eventLoop)
+            case .deleteItem(existing: let existing):
+                return deleteItem(existingItem: existing, eventLoop: eventLoop)
+            }
+        }
+        
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
+    }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
                                            eventLoop: EventLoop)
@@ -229,9 +247,8 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return promise.futureResult
     }
     
-    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                              eventLoop: EventLoop) -> EventLoopFuture<Void>
-            where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+    func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType,
+                                            eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
@@ -277,6 +294,24 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         }
         
         return promise.futureResult
+    }
+    
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                     eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let futures = keys.map { key in
+            return deleteItem(forKey: key, eventLoop: eventLoop)
+        }
+        
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
+    }
+    
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
+                                             eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let futures = existingItems.map { existingItem in
+            return deleteItem(existingItem: existingItem, eventLoop: eventLoop)
+        }
+        
+        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,

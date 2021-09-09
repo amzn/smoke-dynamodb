@@ -123,24 +123,10 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         let conditionExpression = "#rowversion = :versionnumber AND #createdate = :creationdate"
 
         return DynamoDBModel.PutItemInput(conditionExpression: conditionExpression,
-                                                      expressionAttributeNames: expressionAttributeNames,
-                                                      expressionAttributeValues: expressionAttributeValues,
-                                                      item: attributes,
-                                                      tableName: targetTableName)
-    }
-
-    internal func getAttributes<AttributesType, ItemType>(forItem item: TypedDatabaseItem<AttributesType, ItemType>) throws
-        -> [String: DynamoDBModel.AttributeValue] {
-            let attributeValue = try DynamoDBEncoder().encode(item)
-
-            let attributes: [String: DynamoDBModel.AttributeValue]
-            if let itemAttributes = attributeValue.M {
-                attributes = itemAttributes
-            } else {
-                throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a map.")
-            }
-
-            return attributes
+                                          expressionAttributeNames: expressionAttributeNames,
+                                          expressionAttributeValues: expressionAttributeValues,
+                                          item: attributes,
+                                          tableName: targetTableName)
     }
 
     internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.GetItemInput {

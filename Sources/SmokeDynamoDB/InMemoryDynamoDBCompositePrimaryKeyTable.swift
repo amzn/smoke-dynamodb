@@ -79,6 +79,11 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
                                                      existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
         return storeWrapper.updateItem(newItem: newItem, existingItem: existingItem, eventLoop: self.eventLoop)
     }
+    
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Void> {
+        return storeWrapper.monomorphicBulkWrite(entries, eventLoop: self.eventLoop)
+    }
 
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
     -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
@@ -93,6 +98,14 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
 
     public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void> {
         return storeWrapper.deleteItem(forKey: key, eventLoop: self.eventLoop)
+    }
+    
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void> {
+        return storeWrapper.deleteItems(forKeys: keys, eventLoop: self.eventLoop)
+    }
+    
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
+        return storeWrapper.deleteItems(existingItems: existingItems, eventLoop: self.eventLoop)
     }
     
     public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>

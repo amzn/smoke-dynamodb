@@ -32,7 +32,19 @@ public struct RowStatus: Codable {
     }
 }
 
-public struct TypedDatabaseItem<AttributesType: PrimaryKeyAttributes, RowType: Codable>: Codable {
+public protocol DatabaseItem {
+    associatedtype AttributesType: PrimaryKeyAttributes
+    
+    var compositePrimaryKey: CompositePrimaryKey<AttributesType> { get }
+    var createDate: Date { get }
+    var rowStatus: RowStatus { get }
+}
+
+public protocol StandardDatabaseItem: DatabaseItem where AttributesType == StandardPrimaryKeyAttributes {
+    
+}
+
+public struct TypedDatabaseItem<AttributesType: PrimaryKeyAttributes, RowType: Codable>: DatabaseItem, Codable {
     public let compositePrimaryKey: CompositePrimaryKey<AttributesType>
     public let createDate: Date
     public let rowStatus: RowStatus

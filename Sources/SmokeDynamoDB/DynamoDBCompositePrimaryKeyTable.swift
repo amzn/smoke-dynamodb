@@ -37,6 +37,7 @@ public enum SmokeDynamoDBError: Error {
     case multipleUnexpectedErrors(cause: [Swift.Error])
     case batchAPIExceededRetries(retryCount: Int)
     case validationError(reason: String)
+    case batchErrorsReturned(errorCount: Int, messageMap: [String: Int])
 }
 
 public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
@@ -68,6 +69,15 @@ public enum AttributeCondition {
     case beginsWith(String)
 }
 
+public enum WriteEntry<AttributesType: PrimaryKeyAttributes, ItemType: Codable> {
+    case update(new: TypedDatabaseItem<AttributesType, ItemType>, existing: TypedDatabaseItem<AttributesType, ItemType>)
+    case insert(new: TypedDatabaseItem<AttributesType, ItemType>)
+    case deleteAtKey(key: CompositePrimaryKey<AttributesType>)
+    case deleteItem(existing: TypedDatabaseItem<AttributesType, ItemType>)
+}
+
+public typealias StandardWriteEntry<ItemType: Codable> = WriteEntry<StandardPrimaryKeyAttributes, ItemType>
+
 public protocol DynamoDBCompositePrimaryKeyTable {
     var eventLoop: EventLoop { get }
 
@@ -88,7 +98,12 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * if the item at the specified key is not the existing item provided.
      */
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+    
+    /**
+     * Provides the ability to bulk write database rows
+     */
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
@@ -114,6 +129,19 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * if the item at the specified key is not the existing item provided.
      */
     func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response.
+     */
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void>
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response. This operation will not modify the table
+     * if the item at the specified key is not the existing item provided.
+     */
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void>
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the

@@ -66,6 +66,24 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Void> {
+        let futures = entries.map { entry -> EventLoopFuture<Void> in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                return updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                return insertItem(new)
+            case .deleteAtKey(key: let key):
+                return deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                return deleteItem(existingItem: existing)
+            }
+        }
+        
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
     -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> where AttributesType : PrimaryKeyAttributes,
                                                                            ItemType : Decodable, ItemType : Encodable {
@@ -89,6 +107,27 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
     -> EventLoopFuture<Void> where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return self.primaryTable.deleteItem(existingItem: existingItem) .flatMap { _ in
             return self.gsiLogic.onDeleteItem(forKey: existingItem.compositePrimaryKey, gsiDataStore: self.gsiDataStore)
+        }
+    }
+    
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void> {
+        return self.primaryTable.deleteItems(forKeys: keys).flatMap {
+            let futures = keys.map { key in
+                return self.gsiLogic.onDeleteItem(forKey: key, gsiDataStore: self.gsiDataStore)
+            }
+            
+            return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+        }
+    }
+    
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
+        
+        return self.primaryTable.deleteItems(existingItems: existingItems).flatMap {
+            let futures = existingItems.map { existingItem in
+                return self.gsiLogic.onDeleteItem(forKey: existingItem.compositePrimaryKey, gsiDataStore: self.gsiDataStore)
+            }
+            
+            return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
         }
     }
     

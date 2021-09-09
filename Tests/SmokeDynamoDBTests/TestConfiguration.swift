@@ -30,6 +30,20 @@ struct TestTypeB: Codable, Equatable, CustomRowTypeIdentifier {
     let fourthly: String
 }
 
+struct TestTypeC: Codable {
+    let theString: String?
+    let theNumber: Int?
+    let theStruct: TestTypeA?
+    let theList: [String]?
+    
+    init(theString: String?, theNumber: Int?, theStruct: TestTypeA?, theList: [String]?) {
+        self.theString = theString
+        self.theNumber = theNumber
+        self.theStruct = theStruct
+        self.theList = theList
+    }
+}
+
 enum TestQueryableTypes: PolymorphicOperationReturnType {
     typealias AttributesType = StandardPrimaryKeyAttributes
     

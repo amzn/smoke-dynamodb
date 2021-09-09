@@ -91,6 +91,24 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         return wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
     }
     
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Void> {
+        let futures = entries.map { entry -> EventLoopFuture<Void> in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                return updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                return insertItem(new)
+            case .deleteAtKey(key: let key):
+                return deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                return deleteItem(existingItem: existing)
+            }
+        }
+        
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
             -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         // simply delegate to the wrapped implementation
@@ -112,6 +130,14 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return wrappedDynamoDBTable.deleteItem(existingItem: existingItem)
+    }
+    
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) -> EventLoopFuture<Void> {
+        return wrappedDynamoDBTable.deleteItems(forKeys: keys)
+    }
+    
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) -> EventLoopFuture<Void> {
+        return wrappedDynamoDBTable.deleteItems(existingItems: existingItems)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
