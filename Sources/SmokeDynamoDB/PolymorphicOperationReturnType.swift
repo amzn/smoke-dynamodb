@@ -88,7 +88,7 @@ internal struct ReturnTypeDecodable<ReturnType: PolymorphicOperationReturnType>:
         if let provider = queryableTypeProviders[storedRowTypeName] {
             self.decodedValue = try provider.getReturnType(from: decoder)
         } else {
-            // throw an exception, we don't what this type is
+            // throw an exception, we don't know what this type is
             throw SmokeDynamoDBError.unexpectedType(provided: storedRowTypeName)
         }
     }
