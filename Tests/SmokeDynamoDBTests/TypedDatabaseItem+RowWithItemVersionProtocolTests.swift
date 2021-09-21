@@ -364,7 +364,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "SET \"theList[1]\"='eigthly' "
-                                 + "SET \"theList\"=list_append(theList,['ninthly', 'tenthly'] "
+                                 + "SET \"theList\"=list_append(theList,['ninthly', 'tenthly']) "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
