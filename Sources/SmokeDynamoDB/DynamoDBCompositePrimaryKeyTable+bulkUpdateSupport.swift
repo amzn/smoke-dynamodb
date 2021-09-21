@@ -68,7 +68,7 @@ extension DynamoDBCompositePrimaryKeyTable {
             case .remove(path: let path):
                 return "REMOVE \"\(path)\""
             case .listAppend(path: let path, value: let value):
-                return "SET \"\(path)\"=list_append(\(path),\(value)"
+                return "SET \"\(path)\"=list_append(\(path),\(value))"
             }
         }
         
