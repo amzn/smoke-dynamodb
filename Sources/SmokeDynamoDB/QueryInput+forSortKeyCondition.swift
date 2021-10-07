@@ -80,7 +80,8 @@ extension QueryInput {
             inputExclusiveStartKey = nil
         }
 
-        return DynamoDBModel.QueryInput(exclusiveStartKey: inputExclusiveStartKey,
+        return DynamoDBModel.QueryInput(consistentRead: true,
+                                        exclusiveStartKey: inputExclusiveStartKey,
                                         expressionAttributeNames: expressionAttributeNames,
                                         expressionAttributeValues: expressionAttributeValues,
                                         indexName: primaryKeyType.indexName,
