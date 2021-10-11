@@ -114,7 +114,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
 
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                                    sortKeyCondition: AttributeCondition?)
+                                                                    sortKeyCondition: AttributeCondition?,
+                                                                    consistentRead: Bool)
     -> EventLoopFuture<[ReturnedType]> {
         return storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition, eventLoop: self.eventLoop)
     }
@@ -122,7 +123,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                                     sortKeyCondition: AttributeCondition?,
                                                                     limit: Int?,
-                                                                    exclusiveStartKey: String?)
+                                                                    exclusiveStartKey: String?,
+                                                                    consistentRead: Bool)
     -> EventLoopFuture<([ReturnedType], String?)> {
         return storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                   limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
@@ -132,7 +134,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
                                                                     sortKeyCondition: AttributeCondition?,
                                                                     limit: Int?,
                                                                     scanIndexForward: Bool,
-                                                                    exclusiveStartKey: String?)
+                                                                    exclusiveStartKey: String?,
+                                                                    consistentRead: Bool)
     -> EventLoopFuture<([ReturnedType], String?)> {
         return storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                   limit: limit, scanIndexForward: scanIndexForward,
@@ -182,7 +185,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                    sortKeyCondition: AttributeCondition?)
+                                                           sortKeyCondition: AttributeCondition?,
+                                                           consistentRead: Bool)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
@@ -194,7 +198,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             scanIndexForward: Bool,
-            exclusiveStartKey: String?)
+            exclusiveStartKey: String?,
+            consistentRead: Bool)
     -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
