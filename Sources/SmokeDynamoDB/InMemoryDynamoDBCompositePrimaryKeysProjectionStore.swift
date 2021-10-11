@@ -43,6 +43,7 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
+                                      consistentRead: Bool? = nil,
                                       eventLoop: EventLoop)
             -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
         let promise = eventLoop.makePromise(of: [CompositePrimaryKey<AttributesType>].self)
@@ -112,10 +113,11 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?,
-                                          limit: Int?,
-                                          exclusiveStartKey: String?,
-                                          eventLoop: EventLoop)
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      exclusiveStartKey: String?,
+                                      consistentRead: Bool? = nil,
+                                      eventLoop: EventLoop)
             -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
         return query(forPartitionKey: partitionKey,
@@ -123,6 +125,7 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
                      limit: limit,
                      scanIndexForward: true,
                      exclusiveStartKey: exclusiveStartKey,
+                     consistentRead: consistentRead,
                      eventLoop: eventLoop)
     }
 
@@ -131,12 +134,14 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
                                       limit: Int?,
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?,
+                                      consistentRead: Bool? = nil,
                                       eventLoop: EventLoop)
             -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
         // get all the results
         return query(forPartitionKey: partitionKey,
                      sortKeyCondition: sortKeyCondition,
+                     consistentRead: consistentRead,
                      eventLoop: eventLoop)
             .map { (rawItems: [CompositePrimaryKey<AttributesType>]) in
                 let items: [CompositePrimaryKey<AttributesType>]

@@ -150,7 +150,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
        the query.
      */
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                             sortKeyCondition: AttributeCondition?)
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             consistentRead: Bool?)
         -> EventLoopFuture<[ReturnedType]>
 
     /**
@@ -161,7 +162,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
-                                                             exclusiveStartKey: String?)
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool?)
         -> EventLoopFuture<([ReturnedType], String?)>
     
     /**
@@ -173,7 +175,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              scanIndexForward: Bool,
-                                                             exclusiveStartKey: String?)
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool?)
         -> EventLoopFuture<([ReturnedType], String?)>
     
     /**
@@ -216,7 +219,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
        the query.
      */
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                    sortKeyCondition: AttributeCondition?)
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    consistentRead: Bool?)
         -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
     
     /**
@@ -228,7 +232,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                         sortKeyCondition: AttributeCondition?,
                                                         limit: Int?,
                                                         scanIndexForward: Bool,
-                                                        exclusiveStartKey: String?)
+                                                        exclusiveStartKey: String?,
+                                                        consistentRead: Bool?)
         -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
     
     /**

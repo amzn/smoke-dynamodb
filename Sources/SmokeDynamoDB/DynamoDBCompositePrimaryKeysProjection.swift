@@ -34,7 +34,8 @@ public protocol DynamoDBCompositePrimaryKeysProjection {
        the query.
      */
     func query<AttributesType>(forPartitionKey partitionKey: String,
-                               sortKeyCondition: AttributeCondition?)
+                               sortKeyCondition: AttributeCondition?,
+                               consistentRead: Bool?)
         -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]>
 
     /**
@@ -45,13 +46,15 @@ public protocol DynamoDBCompositePrimaryKeysProjection {
     func query<AttributesType>(forPartitionKey partitionKey: String,
                                sortKeyCondition: AttributeCondition?,
                                limit: Int?,
-                               exclusiveStartKey: String?)
+                               exclusiveStartKey: String?,
+                               consistentRead: Bool?)
         -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
     
     func query<AttributesType>(forPartitionKey partitionKey: String,
-                                   sortKeyCondition: AttributeCondition?,
-                                   limit: Int?,
-                                   scanIndexForward: Bool,
-                                   exclusiveStartKey: String?)
+                               sortKeyCondition: AttributeCondition?,
+                               limit: Int?,
+                               scanIndexForward: Bool,
+                               exclusiveStartKey: String?,
+                               consistentRead: Bool?)
         -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
 }

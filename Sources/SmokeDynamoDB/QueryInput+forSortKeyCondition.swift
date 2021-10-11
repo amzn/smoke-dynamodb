@@ -25,7 +25,8 @@ extension QueryInput {
                                                                  sortKeyCondition: AttributeCondition?,
                                                                  limit: Int?,
                                                                  scanIndexForward: Bool,
-                                                                 exclusiveStartKey: String?) throws
+                                                                 exclusiveStartKey: String?,
+                                                                 consistentRead: Bool?) throws
         -> DynamoDBModel.QueryInput where AttributesType: PrimaryKeyAttributes {
         let expressionAttributeValues: [String: DynamoDBModel.AttributeValue]
         let expressionAttributeNames: [String: String]
@@ -80,7 +81,7 @@ extension QueryInput {
             inputExclusiveStartKey = nil
         }
 
-        return DynamoDBModel.QueryInput(consistentRead: true,
+        return DynamoDBModel.QueryInput(consistentRead: consistentRead,
                                         exclusiveStartKey: inputExclusiveStartKey,
                                         expressionAttributeNames: expressionAttributeNames,
                                         expressionAttributeValues: expressionAttributeValues,

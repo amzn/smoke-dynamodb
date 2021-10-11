@@ -51,31 +51,36 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                      sortKeyCondition: AttributeCondition?)
+                                      sortKeyCondition: AttributeCondition?,
+                                      consistentRead: Bool?)
             -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
         return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                 eventLoop: self.eventLoop)
+                                 consistentRead: consistentRead, eventLoop: self.eventLoop)
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?,
-                                          limit: Int?,
-                                          exclusiveStartKey: String?)
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      exclusiveStartKey: String?,
+                                      consistentRead: Bool?)
             -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
         return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                 limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
+                                 limit: limit, exclusiveStartKey: exclusiveStartKey,
+                                 consistentRead: consistentRead, eventLoop: self.eventLoop)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       scanIndexForward: Bool,
-                                      exclusiveStartKey: String?)
+                                      exclusiveStartKey: String?,
+                                      consistentRead: Bool?)
     -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
     where AttributesType: PrimaryKeyAttributes {
         return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                  limit: limit, scanIndexForward: scanIndexForward,
-                                 exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
+                                 exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead,
+                                 eventLoop: self.eventLoop)
     }
 }
