@@ -21,6 +21,7 @@ import DynamoDBModel
 extension QueryInput {
         internal static func forSortKeyCondition<AttributesType>(forPartitionKey partitionKey: String,
                                                                  targetTableName: String,
+                                                                 consistentRead: Bool,
                                                                  primaryKeyType: AttributesType.Type,
                                                                  sortKeyCondition: AttributeCondition?,
                                                                  limit: Int?,
@@ -80,7 +81,8 @@ extension QueryInput {
             inputExclusiveStartKey = nil
         }
 
-        return DynamoDBModel.QueryInput(consistentRead: true,
+            return DynamoDBModel.QueryInput(
+                                        consistentRead: consistentRead,
                                         exclusiveStartKey: inputExclusiveStartKey,
                                         expressionAttributeNames: expressionAttributeNames,
                                         expressionAttributeValues: expressionAttributeValues,

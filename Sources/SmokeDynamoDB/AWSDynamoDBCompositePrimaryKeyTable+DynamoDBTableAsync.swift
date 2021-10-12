@@ -203,7 +203,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             -> EventLoopFuture<([ReturnedType], String?)> {
         let queryInput: DynamoDBModel.QueryInput
         do {
-            queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
+            queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName, consistentRead: true,
                                                                           primaryKeyType: ReturnedType.AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
                                                                           scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
@@ -334,7 +334,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let queryInput: DynamoDBModel.QueryInput
         do {
             queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(
-                forPartitionKey: partitionKey, targetTableName: targetTableName,
+                forPartitionKey: partitionKey, targetTableName: targetTableName, consistentRead: true,
                 primaryKeyType: AttributesType.self,
                 sortKeyCondition: sortKeyCondition, limit: limit,
                 scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)

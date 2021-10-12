@@ -89,7 +89,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
         let queryInput: DynamoDBModel.QueryInput
         do {
             queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
-                                                                          primaryKeyType: AttributesType.self,
+                                                                          consistentRead: false, primaryKeyType: AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
                                                                           scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
         } catch {
