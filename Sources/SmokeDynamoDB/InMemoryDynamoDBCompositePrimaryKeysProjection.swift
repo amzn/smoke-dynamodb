@@ -52,16 +52,15 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?)
-            -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
-        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                 eventLoop: self.eventLoop)
+    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition, eventLoop: self.eventLoop)
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?,
-                                          limit: Int?,
-                                          exclusiveStartKey: String?)
-            -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      exclusiveStartKey: String?)
+    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
         return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                  limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)

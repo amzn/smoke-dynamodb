@@ -112,10 +112,10 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                          sortKeyCondition: AttributeCondition?,
-                                          limit: Int?,
-                                          exclusiveStartKey: String?,
-                                          eventLoop: EventLoop)
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      exclusiveStartKey: String?,
+                                      eventLoop: EventLoop)
             -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
             where AttributesType: PrimaryKeyAttributes {
         return query(forPartitionKey: partitionKey,

@@ -147,23 +147,27 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func query<ReturnedType: PolymorphicOperationReturnType>(
             forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?) -> EventLoopFuture<[ReturnedType]> {
+            sortKeyCondition: AttributeCondition?,
+            consistentRead: Bool) -> EventLoopFuture<[ReturnedType]> {
         return partialQuery(forPartitionKey: partitionKey,
                             sortKeyCondition: sortKeyCondition,
-                            exclusiveStartKey: nil)
+                            exclusiveStartKey: nil,
+                            consistentRead: consistentRead)
     }
     
     // function to return a future with the results of a query call and all future paginated calls
     private func partialQuery<ReturnedType: PolymorphicOperationReturnType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            exclusiveStartKey: String?) -> EventLoopFuture<[ReturnedType]> {
+            exclusiveStartKey: String?,
+            consistentRead: Bool) -> EventLoopFuture<[ReturnedType]> {
         let queryFuture: EventLoopFuture<([ReturnedType], String?)> =
             query(forPartitionKey: partitionKey,
                   sortKeyCondition: sortKeyCondition,
                   limit: nil,
                   scanIndexForward: true,
-                  exclusiveStartKey: exclusiveStartKey)
+                  exclusiveStartKey: exclusiveStartKey,
+                  consistentRead: consistentRead)
         
         return queryFuture.flatMap { paginatedItems in
             // if there are more items
@@ -171,7 +175,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 // returns a future with all the results from all later paginated calls
                 return self.partialQuery(forPartitionKey: partitionKey,
                                          sortKeyCondition: sortKeyCondition,
-                                         exclusiveStartKey: lastEvaluatedKey)
+                                         exclusiveStartKey: lastEvaluatedKey,
+                                         consistentRead: consistentRead)
                     .map { partialResult in
                         // return the results from 'this' call and all later paginated calls
                         return paginatedItems.0 + partialResult
@@ -188,25 +193,29 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func query<ReturnedType: PolymorphicOperationReturnType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            limit: Int?, exclusiveStartKey: String?) -> EventLoopFuture<([ReturnedType], String?)> {
+            limit: Int?, exclusiveStartKey: String?,
+            consistentRead: Bool) -> EventLoopFuture<([ReturnedType], String?)> {
         return query(forPartitionKey: partitionKey,
                      sortKeyCondition: sortKeyCondition,
                      limit: limit,
                      scanIndexForward: true,
-                     exclusiveStartKey: exclusiveStartKey)
+                     exclusiveStartKey: exclusiveStartKey,
+                     consistentRead: consistentRead)
     }
     
     func query<ReturnedType: PolymorphicOperationReturnType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            limit: Int?, scanIndexForward: Bool, exclusiveStartKey: String?)
+            limit: Int?, scanIndexForward: Bool, exclusiveStartKey: String?,
+            consistentRead: Bool)
             -> EventLoopFuture<([ReturnedType], String?)> {
         let queryInput: DynamoDBModel.QueryInput
         do {
             queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: ReturnedType.AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey,
+                                                                          consistentRead: consistentRead)
         } catch {
             let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
             promise.fail(error)
@@ -284,25 +293,29 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func monomorphicQuery<AttributesType, ItemType>(
             forPartitionKey partitionKey: String,
-            sortKeyCondition: AttributeCondition?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
+            sortKeyCondition: AttributeCondition?,
+            consistentRead: Bool) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return monomorphicPartialQuery(forPartitionKey: partitionKey,
                                        sortKeyCondition: sortKeyCondition,
-                                       exclusiveStartKey: nil)
+                                       exclusiveStartKey: nil,
+                                       consistentRead: consistentRead)
     }
     
     // function to return a future with the results of a query call and all future paginated calls
     private func monomorphicPartialQuery<AttributesType, ItemType>(
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
-            exclusiveStartKey: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
+            exclusiveStartKey: String?,
+            consistentRead: Bool) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         let queryFuture: EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> =
             monomorphicQuery(forPartitionKey: partitionKey,
                              sortKeyCondition: sortKeyCondition,
                              limit: nil,
                              scanIndexForward: true,
-                             exclusiveStartKey: nil)
+                             exclusiveStartKey: nil,
+                             consistentRead: consistentRead)
         
         return queryFuture.flatMap { paginatedItems in
             // if there are more items
@@ -310,7 +323,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 // returns a future with all the results from all later paginated calls
                 return self.monomorphicPartialQuery(forPartitionKey: partitionKey,
                                                     sortKeyCondition: sortKeyCondition,
-                                                    exclusiveStartKey: lastEvaluatedKey)
+                                                    exclusiveStartKey: lastEvaluatedKey,
+                                                    consistentRead: consistentRead)
                     .map { partialResult in
                         // return the results from 'this' call and all later paginated calls
                         return paginatedItems.0 + partialResult
@@ -329,7 +343,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             sortKeyCondition: AttributeCondition?,
             limit: Int?,
             scanIndexForward: Bool,
-            exclusiveStartKey: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+            exclusiveStartKey: String?,
+            consistentRead: Bool) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         let queryInput: DynamoDBModel.QueryInput
         do {
@@ -337,7 +352,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 forPartitionKey: partitionKey, targetTableName: targetTableName,
                 primaryKeyType: AttributesType.self,
                 sortKeyCondition: sortKeyCondition, limit: limit,
-                scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+                scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey,
+                consistentRead: consistentRead)
         } catch {
             let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
             promise.fail(error)

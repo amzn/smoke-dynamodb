@@ -49,9 +49,9 @@ public protocol DynamoDBCompositePrimaryKeysProjection {
         -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
     
     func query<AttributesType>(forPartitionKey partitionKey: String,
-                                   sortKeyCondition: AttributeCondition?,
-                                   limit: Int?,
-                                   scanIndexForward: Bool,
-                                   exclusiveStartKey: String?)
+                               sortKeyCondition: AttributeCondition?,
+                               limit: Int?,
+                               scanIndexForward: Bool,
+                               exclusiveStartKey: String?)
         -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
 }

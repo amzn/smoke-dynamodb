@@ -77,6 +77,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                      limit: limit,
                      scanIndexForward: true,
                      exclusiveStartKey: exclusiveStartKey)
+        
     }
     
     func query<AttributesType>(
@@ -91,7 +92,8 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
             queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(forPartitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
-                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey)
+                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey,
+                                                                          consistentRead: false)
         } catch {
             let promise = self.eventLoop.makePromise(of: ([CompositePrimaryKey<AttributesType>], String?).self)
             promise.fail(error)
