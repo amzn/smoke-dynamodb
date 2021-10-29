@@ -19,7 +19,7 @@ import Foundation
 import DynamoDBModel
 
 extension QueryInput {
-        internal static func forSortKeyCondition<AttributesType>(forPartitionKey partitionKey: String,
+        internal static func forSortKeyCondition<AttributesType>(partitionKey: String,
                                                                  targetTableName: String,
                                                                  primaryKeyType: AttributesType.Type,
                                                                  sortKeyCondition: AttributeCondition?,

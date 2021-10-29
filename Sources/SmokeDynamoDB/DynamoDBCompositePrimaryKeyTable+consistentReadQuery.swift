@@ -77,4 +77,62 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                 exclusiveStartKey: exclusiveStartKey,
                                 consistentRead: true)
     }
+    
+#if compiler(>=5.5) && canImport(_Concurrency)
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?) async throws
+    -> [ReturnedType] {
+        return try await query(forPartitionKey: partitionKey,
+                               sortKeyCondition: sortKeyCondition).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?) async throws
+    -> ([ReturnedType], String?) {
+        return try await query(forPartitionKey: partitionKey,
+                               sortKeyCondition: sortKeyCondition,
+                               limit: limit,
+                               exclusiveStartKey: exclusiveStartKey).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?) async throws
+    -> ([ReturnedType], String?) {
+        return try await query(forPartitionKey: partitionKey,
+                               sortKeyCondition: sortKeyCondition,
+                               limit: limit,
+                               scanIndexForward: scanIndexForward,
+                               exclusiveStartKey: exclusiveStartKey).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?) async throws
+    -> [TypedDatabaseItem<AttributesType, ItemType>] {
+        return try await monomorphicQuery(forPartitionKey: partitionKey,
+                                          sortKeyCondition: sortKeyCondition).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    limit: Int?,
+                                                    scanIndexForward: Bool,
+                                                    exclusiveStartKey: String?) async throws
+    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+        return try await monomorphicQuery(forPartitionKey: partitionKey,
+                                          sortKeyCondition: sortKeyCondition,
+                                          limit: limit,
+                                          scanIndexForward: scanIndexForward,
+                                          exclusiveStartKey: exclusiveStartKey).get()
+    }
+#endif
 }

@@ -51,4 +51,77 @@ public protocol DynamoDBCompositePrimaryKeyGSILogic {
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                       gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) -> EventLoopFuture<Void>
+    
+#if compiler(>=5.5) && canImport(_Concurrency)
+    /**
+     * Called when an item is inserted on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onInsertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+
+    /**
+     * Called when an item is clobbered on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onClobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                 gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+
+    /**
+     * Called when an item is updated on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onUpdateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+ 
+    /**
+     * Called when an item is delete on the main table. Can be used to also delete the corresponding item on the GSI.
+
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                      gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+#endif
 }
+
+// For async/await APIs, simply delegate to the EventLoopFuture implementation until support is dropped for Swift <5.5
+public extension DynamoDBCompositePrimaryKeyGSILogic {
+#if compiler(>=5.5) && canImport(_Concurrency)
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onInsertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+        try await onInsertItem(item, gsiDataStore: gsiDataStore).get()
+    }
+
+    /**
+     * Called when an item is clobbered on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onClobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                 gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+        try await onClobberItem(item, gsiDataStore: gsiDataStore).get()
+    }
+
+    /**
+     * Called when an item is updated on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onUpdateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+        try await onUpdateItem(newItem: newItem, existingItem: existingItem, gsiDataStore: gsiDataStore).get()
+    }
+ 
+    /**
+     * Called when an item is delete on the main table. Can be used to also delete the corresponding item on the GSI.
+
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                      gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+        try await onDeleteItem(forKey: key, gsiDataStore: gsiDataStore).get()
+    }
+#endif
+}
+

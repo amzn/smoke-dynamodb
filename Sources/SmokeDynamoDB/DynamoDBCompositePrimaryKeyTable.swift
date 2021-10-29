@@ -259,4 +259,383 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+    
+#if compiler(>=5.5) && canImport(_Concurrency)
+    
+    /**
+     * Insert item is a non-destructive API. If an item already exists with the specified key this
+     * API should fail.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws
+
+    /**
+     * Clobber item is destructive API. Regardless of what is present in the database the provided
+     * item will be inserted.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws
+
+    /**
+     * Update item requires having gotten an item from the database previously and will not update
+     * if the item at the specified key is not the existing item provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    
+    /**
+     * Provides the ability to bulk write database rows
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+
+    /**
+     * Retrieves an item from the database table. Returns nil if the item doesn't exist.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>?
+    
+    /**
+     * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+    -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]
+
+    /**
+     * Removes an item from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    
+    /**
+     * Removes an item from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response. This operation will not modify the table
+     * if the item at the specified key is not the existing item provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+    
+    /**
+     * Removes items from the database table. Is an idempotent operation; running it multiple times
+     * on the same item or attribute does not result in an error response. This operation will not modify the table
+     * if the item at the specified key is not the existing item provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws
+
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will potentially make multiple calls to DynamoDB to retrieve all results for
+       the query.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             consistentRead: Bool) async throws
+        -> [ReturnedType]
+
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will return paginated results based on the limit and exclusiveStartKey provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) async throws
+        -> ([ReturnedType], String?)
+    
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will return paginated results based on the limit and exclusiveStartKey provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) async throws
+        -> ([ReturnedType], String?)
+    
+    /**
+     * Uses the ExecuteStatement API to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request. This function handles pagination internally.
+     * This function will potentially make multiple calls to DynamoDB to retrieve all results.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?) async throws -> [ReturnedType]
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
+     * Caller of this function needs to handle pagination on their side.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?, nextToken: String?) async throws -> ([ReturnedType], String?)
+    
+    // MARK: Monomorphic batch and queries
+    
+    /**
+     * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicGetItems<AttributesType, ItemType>(
+        forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+    -> [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]
+    
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will potentially make multiple calls to DynamoDB to retrieve all results for
+       the query.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    consistentRead: Bool) async throws
+        -> [TypedDatabaseItem<AttributesType, ItemType>]
+    
+    /**
+     * Queries a partition in the database table and optionally a sort key condition. If the
+       partition doesn't exist, this operation will return an empty list as a response. This
+       function will return paginated results based on the limit and exclusiveStartKey provided.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                        sortKeyCondition: AttributeCondition?,
+                                                        limit: Int?,
+                                                        scanIndexForward: Bool,
+                                                        exclusiveStartKey: String?,
+                                                        consistentRead: Bool) async throws
+        -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request. This function handles pagination internally.
+     * This function will potentially make multiple calls to DynamoDB to retrieve all results.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicExecute<AttributesType, ItemType>(
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?) async throws -> [TypedDatabaseItem<AttributesType, ItemType>]
+    
+    /**
+     * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
+     * ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
+     * Caller of this function needs to handle pagination on their side.
+     *
+     * https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteStatement.html
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicExecute<AttributesType, ItemType>(
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?, nextToken: String?) async throws -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
+    
+#endif
+}
+
+// For async/await APIs, simply delegate to the EventLoopFuture implementation until support is dropped for Swift <5.5
+public extension DynamoDBCompositePrimaryKeyTable {
+#if compiler(>=5.5) && canImport(_Concurrency)
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+        return try await insertItem(item).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+        return try await clobberItem(item).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+        return try await updateItem(newItem: newItem, existingItem: existingItem).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+        return try await monomorphicBulkWrite(entries).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    -> TypedDatabaseItem<AttributesType, ItemType>? {
+        return try await getItem(forKey: key).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+    -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {
+        return try await getItems(forKeys: keys).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws {
+        try await deleteItem(forKey: key).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+        try await deleteItem(existingItem: existingItem).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws {
+        try await deleteItems(forKeys: keys).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws {
+        try await deleteItems(existingItems: existingItems).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             consistentRead: Bool) async throws
+    -> [ReturnedType] {
+        try await query(forPartitionKey: partitionKey,
+                        sortKeyCondition: sortKeyCondition,
+                        consistentRead: consistentRead).get()
+    }
+
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) async throws
+    -> ([ReturnedType], String?) {
+        try await query(forPartitionKey: partitionKey,
+                        sortKeyCondition: sortKeyCondition,
+                        limit: limit,
+                        exclusiveStartKey: exclusiveStartKey,
+                        consistentRead: consistentRead).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) async throws
+    -> ([ReturnedType], String?) {
+        try await query(forPartitionKey: partitionKey,
+                        sortKeyCondition: sortKeyCondition,
+                        limit: limit,
+                        scanIndexForward: scanIndexForward,
+                        exclusiveStartKey: exclusiveStartKey,
+                        consistentRead: consistentRead).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+            partitionKeys: [String],
+            attributesFilter: [String]?,
+            additionalWhereClause: String?) async throws -> [ReturnedType] {
+        try await execute(partitionKeys: partitionKeys,
+                          attributesFilter: attributesFilter,
+                          additionalWhereClause: additionalWhereClause).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func execute<ReturnedType: PolymorphicOperationReturnType>(
+            partitionKeys: [String],
+            attributesFilter: [String]?,
+            additionalWhereClause: String?, nextToken: String?) async throws -> ([ReturnedType], String?) {
+        try await execute(partitionKeys: partitionKeys,
+                          attributesFilter: attributesFilter,
+                          additionalWhereClause: additionalWhereClause,
+                          nextToken: nextToken).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicGetItems<AttributesType, ItemType>(
+        forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+    -> [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>] {
+        try await monomorphicGetItems(forKeys: keys).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    consistentRead: Bool) async throws
+    -> [TypedDatabaseItem<AttributesType, ItemType>] {
+        try await monomorphicQuery(forPartitionKey: partitionKey,
+                                   sortKeyCondition: sortKeyCondition,
+                                   consistentRead: consistentRead).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
+                                                    sortKeyCondition: AttributeCondition?,
+                                                    limit: Int?,
+                                                    scanIndexForward: Bool,
+                                                    exclusiveStartKey: String?,
+                                                    consistentRead: Bool) async throws
+    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+        try await monomorphicQuery(forPartitionKey: partitionKey,
+                                   sortKeyCondition: sortKeyCondition,
+                                   limit: limit,
+                                   scanIndexForward: scanIndexForward,
+                                   exclusiveStartKey: exclusiveStartKey,
+                                   consistentRead: consistentRead).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicExecute<AttributesType, ItemType>(
+            partitionKeys: [String],
+            attributesFilter: [String]?,
+            additionalWhereClause: String?) async throws -> [TypedDatabaseItem<AttributesType, ItemType>] {
+        try await monomorphicExecute(partitionKeys: partitionKeys,
+                                     attributesFilter: attributesFilter,
+                                     additionalWhereClause: additionalWhereClause).get()
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func monomorphicExecute<AttributesType, ItemType>(
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?, nextToken: String?) async throws
+    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+        try await monomorphicExecute(partitionKeys: partitionKeys,
+                                     attributesFilter: attributesFilter,
+                                     additionalWhereClause: additionalWhereClause,
+                                     nextToken: nextToken).get()
+    }
+#endif
 }
