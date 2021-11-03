@@ -88,6 +88,78 @@ public extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
+#if compiler(>=5.5) && canImport(_Concurrency)
+    /**
+     Method to conditionally update an item at the specified key for a number of retries.
+     This method is useful for database rows that may be updated simultaneously by different clients
+     and each client will only attempt to update based on the current row value.
+     On each attempt, the updatedPayloadProvider will be passed the current row value. It can either
+     generate an updated payload or fail with an error if an updated payload is not valid. If an updated
+     payload is returned, this method will attempt to update the row. This update may fail due to
+     concurrency, in which case the process will repeat until the retry limit has been reached.
+ 
+     - Parameters:
+         _: the key of the item to update
+         withRetries: the number of times to attempt to retry the update before failing.
+         updatedPayloadProvider: the provider that will return updated payloads.
+     */
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
+            forKey key: CompositePrimaryKey<AttributesType>,
+            withRetries retries: Int = 10,
+            updatedPayloadProvider: @escaping (ItemType) async throws -> ItemType) async throws {
+        try await conditionallyUpdateItemInternal(
+            forKey: key,
+            withRetries: retries,
+            updatedPayloadProvider: updatedPayloadProvider)
+    }
+    
+    // Explicitly specify an overload with sync updatedPayloadProvider
+    // to avoid the compiler matching a call site with such a provider with the EventLoopFuture-returning overload.
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
+            forKey key: CompositePrimaryKey<AttributesType>,
+            withRetries retries: Int = 10,
+            updatedPayloadProvider: @escaping (ItemType) throws -> ItemType) async throws {
+        try await conditionallyUpdateItemInternal(
+            forKey: key,
+            withRetries: retries,
+            updatedPayloadProvider: updatedPayloadProvider)
+    }
+    
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    private func conditionallyUpdateItemInternal<AttributesType, ItemType: Codable>(
+            forKey key: CompositePrimaryKey<AttributesType>,
+            withRetries retries: Int = 10,
+            updatedPayloadProvider: @escaping (ItemType) async throws -> ItemType) async throws {
+        guard retries > 0 else {
+            throw SmokeDynamoDBError.concurrencyError(partitionKey: key.partitionKey,
+                                                      sortKey: key.sortKey,
+                                                      message: "Unable to complete request to update versioned item in specified number of attempts")
+        }
+        
+        let databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: key)
+        
+        guard let databaseItem = databaseItemOptional else {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
+                                                            sortKey: key.sortKey,
+                                                            message: "Item not present in database.")
+        }
+        
+        let updatedPayload = try await updatedPayloadProvider(databaseItem.rowValue)
+
+        let updatedDatabaseItem = databaseItem.createUpdatedItem(withValue: updatedPayload)
+        
+        do {
+            try await self.updateItem(newItem: updatedDatabaseItem, existingItem: databaseItem)
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // try again
+            return try await self.conditionallyUpdateItem(forKey: key, withRetries: retries - 1,
+                                                          updatedPayloadProvider: updatedPayloadProvider)
+        }
+    }
+#endif
+    
     func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
             forKey key: CompositePrimaryKey<AttributesType>,
             withRetries retries: Int = 10,
