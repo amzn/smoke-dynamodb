@@ -72,7 +72,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                 historicalItemProvider: historicalItemProvider)
     }
     
-#if compiler(>=5.5) && canImport(_Concurrency)
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      * This operation provide a mechanism for managing mutable database rows
      * and storing all previous versions of that row in a historical partition.
@@ -90,7 +90,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
                            version number.
      - completion: completion handler providing an error that was thrown or nil
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func clobberVersionedItemWithHistoricalRow<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
         forPrimaryKey partitionKey: String,
         andHistoricalKey historicalKey: String,

@@ -1075,7 +1075,7 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
             errorType: DynamoDBError.self)
     }
 
-    #if compiler(>=5.5) && canImport(_Concurrency)
+    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      Invokes the BatchExecuteStatement operation returning aynchronously at a later time once the operation is complete.
 
@@ -1085,7 +1085,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, requestLimitExceeded.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func batchExecuteStatement(
             input: DynamoDBModel.BatchExecuteStatementInput) async throws -> DynamoDBModel.BatchExecuteStatementOutput {
         return try await executeWithOutput(
@@ -1105,7 +1104,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func batchGetItem(
             input: DynamoDBModel.BatchGetItemInput) async throws -> DynamoDBModel.BatchGetItemOutput {
         return try await executeWithOutput(
@@ -1125,7 +1123,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func batchWriteItem(
             input: DynamoDBModel.BatchWriteItemInput) async throws -> DynamoDBModel.BatchWriteItemOutput {
         return try await executeWithOutput(
@@ -1145,7 +1142,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, continuousBackupsUnavailable, internalServer, limitExceeded, tableInUse, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func createBackup(
             input: DynamoDBModel.CreateBackupInput) async throws -> DynamoDBModel.CreateBackupOutput {
         return try await executeWithOutput(
@@ -1165,7 +1161,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: globalTableAlreadyExists, internalServer, limitExceeded, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func createGlobalTable(
             input: DynamoDBModel.CreateGlobalTableInput) async throws -> DynamoDBModel.CreateGlobalTableOutput {
         return try await executeWithOutput(
@@ -1185,7 +1180,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func createTable(
             input: DynamoDBModel.CreateTableInput) async throws -> DynamoDBModel.CreateTableOutput {
         return try await executeWithOutput(
@@ -1205,7 +1199,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, backupNotFound, internalServer, limitExceeded.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func deleteBackup(
             input: DynamoDBModel.DeleteBackupInput) async throws -> DynamoDBModel.DeleteBackupOutput {
         return try await executeWithOutput(
@@ -1225,7 +1218,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func deleteItem(
             input: DynamoDBModel.DeleteItemInput) async throws -> DynamoDBModel.DeleteItemOutput {
         return try await executeWithOutput(
@@ -1245,7 +1237,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func deleteTable(
             input: DynamoDBModel.DeleteTableInput) async throws -> DynamoDBModel.DeleteTableOutput {
         return try await executeWithOutput(
@@ -1265,7 +1256,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: backupNotFound, internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeBackup(
             input: DynamoDBModel.DescribeBackupInput) async throws -> DynamoDBModel.DescribeBackupOutput {
         return try await executeWithOutput(
@@ -1285,7 +1275,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeContinuousBackups(
             input: DynamoDBModel.DescribeContinuousBackupsInput) async throws -> DynamoDBModel.DescribeContinuousBackupsOutput {
         return try await executeWithOutput(
@@ -1305,7 +1294,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeContributorInsights(
             input: DynamoDBModel.DescribeContributorInsightsInput) async throws -> DynamoDBModel.DescribeContributorInsightsOutput {
         return try await executeWithOutput(
@@ -1324,7 +1312,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
      - Returns: The DescribeEndpointsResponse object to be passed back from the caller of this async operation.
          Will be validated before being returned to caller.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeEndpoints(
             input: DynamoDBModel.DescribeEndpointsRequest) async throws -> DynamoDBModel.DescribeEndpointsResponse {
         return try await executeWithOutput(
@@ -1344,7 +1331,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: exportNotFound, internalServer, limitExceeded.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeExport(
             input: DynamoDBModel.DescribeExportInput) async throws -> DynamoDBModel.DescribeExportOutput {
         return try await executeWithOutput(
@@ -1364,7 +1350,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeGlobalTable(
             input: DynamoDBModel.DescribeGlobalTableInput) async throws -> DynamoDBModel.DescribeGlobalTableOutput {
         return try await executeWithOutput(
@@ -1384,7 +1369,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeGlobalTableSettings(
             input: DynamoDBModel.DescribeGlobalTableSettingsInput) async throws -> DynamoDBModel.DescribeGlobalTableSettingsOutput {
         return try await executeWithOutput(
@@ -1404,7 +1388,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeKinesisStreamingDestination(
             input: DynamoDBModel.DescribeKinesisStreamingDestinationInput) async throws -> DynamoDBModel.DescribeKinesisStreamingDestinationOutput {
         return try await executeWithOutput(
@@ -1424,7 +1407,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeLimits(
             input: DynamoDBModel.DescribeLimitsInput) async throws -> DynamoDBModel.DescribeLimitsOutput {
         return try await executeWithOutput(
@@ -1444,7 +1426,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeTable(
             input: DynamoDBModel.DescribeTableInput) async throws -> DynamoDBModel.DescribeTableOutput {
         return try await executeWithOutput(
@@ -1464,7 +1445,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeTableReplicaAutoScaling(
             input: DynamoDBModel.DescribeTableReplicaAutoScalingInput) async throws -> DynamoDBModel.DescribeTableReplicaAutoScalingOutput {
         return try await executeWithOutput(
@@ -1484,7 +1464,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func describeTimeToLive(
             input: DynamoDBModel.DescribeTimeToLiveInput) async throws -> DynamoDBModel.DescribeTimeToLiveOutput {
         return try await executeWithOutput(
@@ -1504,7 +1483,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func disableKinesisStreamingDestination(
             input: DynamoDBModel.KinesisStreamingDestinationInput) async throws -> DynamoDBModel.KinesisStreamingDestinationOutput {
         return try await executeWithOutput(
@@ -1524,7 +1502,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func enableKinesisStreamingDestination(
             input: DynamoDBModel.KinesisStreamingDestinationInput) async throws -> DynamoDBModel.KinesisStreamingDestinationOutput {
         return try await executeWithOutput(
@@ -1544,7 +1521,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, duplicateItem, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func executeStatement(
             input: DynamoDBModel.ExecuteStatementInput) async throws -> DynamoDBModel.ExecuteStatementOutput {
         return try await executeWithOutput(
@@ -1564,7 +1540,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: idempotentParameterMismatch, internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled, transactionInProgress.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func executeTransaction(
             input: DynamoDBModel.ExecuteTransactionInput) async throws -> DynamoDBModel.ExecuteTransactionOutput {
         return try await executeWithOutput(
@@ -1584,7 +1559,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: exportConflict, internalServer, invalidExportTime, limitExceeded, pointInTimeRecoveryUnavailable, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func exportTableToPointInTime(
             input: DynamoDBModel.ExportTableToPointInTimeInput) async throws -> DynamoDBModel.ExportTableToPointInTimeOutput {
         return try await executeWithOutput(
@@ -1604,7 +1578,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func getItem(
             input: DynamoDBModel.GetItemInput) async throws -> DynamoDBModel.GetItemOutput {
         return try await executeWithOutput(
@@ -1624,7 +1597,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listBackups(
             input: DynamoDBModel.ListBackupsInput) async throws -> DynamoDBModel.ListBackupsOutput {
         return try await executeWithOutput(
@@ -1644,7 +1616,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listContributorInsights(
             input: DynamoDBModel.ListContributorInsightsInput) async throws -> DynamoDBModel.ListContributorInsightsOutput {
         return try await executeWithOutput(
@@ -1664,7 +1635,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listExports(
             input: DynamoDBModel.ListExportsInput) async throws -> DynamoDBModel.ListExportsOutput {
         return try await executeWithOutput(
@@ -1684,7 +1654,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listGlobalTables(
             input: DynamoDBModel.ListGlobalTablesInput) async throws -> DynamoDBModel.ListGlobalTablesOutput {
         return try await executeWithOutput(
@@ -1704,7 +1673,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listTables(
             input: DynamoDBModel.ListTablesInput) async throws -> DynamoDBModel.ListTablesOutput {
         return try await executeWithOutput(
@@ -1724,7 +1692,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func listTagsOfResource(
             input: DynamoDBModel.ListTagsOfResourceInput) async throws -> DynamoDBModel.ListTagsOfResourceOutput {
         return try await executeWithOutput(
@@ -1744,7 +1711,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func putItem(
             input: DynamoDBModel.PutItemInput) async throws -> DynamoDBModel.PutItemOutput {
         return try await executeWithOutput(
@@ -1764,7 +1730,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func query(
             input: DynamoDBModel.QueryInput) async throws -> DynamoDBModel.QueryOutput {
         return try await executeWithOutput(
@@ -1784,7 +1749,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: backupInUse, backupNotFound, internalServer, limitExceeded, tableAlreadyExists, tableInUse.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func restoreTableFromBackup(
             input: DynamoDBModel.RestoreTableFromBackupInput) async throws -> DynamoDBModel.RestoreTableFromBackupOutput {
         return try await executeWithOutput(
@@ -1804,7 +1768,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, invalidRestoreTime, limitExceeded, pointInTimeRecoveryUnavailable, tableAlreadyExists, tableInUse, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func restoreTableToPointInTime(
             input: DynamoDBModel.RestoreTableToPointInTimeInput) async throws -> DynamoDBModel.RestoreTableToPointInTimeOutput {
         return try await executeWithOutput(
@@ -1824,7 +1787,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func scan(
             input: DynamoDBModel.ScanInput) async throws -> DynamoDBModel.ScanOutput {
         return try await executeWithOutput(
@@ -1842,7 +1804,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          - input: The validated TagResourceInput object being passed to this operation.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func tagResource(
             input: DynamoDBModel.TagResourceInput) async throws {
         return try await executeWithoutOutput(
@@ -1862,7 +1823,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func transactGetItems(
             input: DynamoDBModel.TransactGetItemsInput) async throws -> DynamoDBModel.TransactGetItemsOutput {
         return try await executeWithOutput(
@@ -1882,7 +1842,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: idempotentParameterMismatch, internalServer, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionCanceled, transactionInProgress.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func transactWriteItems(
             input: DynamoDBModel.TransactWriteItemsInput) async throws -> DynamoDBModel.TransactWriteItemsOutput {
         return try await executeWithOutput(
@@ -1900,7 +1859,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          - input: The validated UntagResourceInput object being passed to this operation.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func untagResource(
             input: DynamoDBModel.UntagResourceInput) async throws {
         return try await executeWithoutOutput(
@@ -1920,7 +1878,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: continuousBackupsUnavailable, internalServer, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateContinuousBackups(
             input: DynamoDBModel.UpdateContinuousBackupsInput) async throws -> DynamoDBModel.UpdateContinuousBackupsOutput {
         return try await executeWithOutput(
@@ -1940,7 +1897,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateContributorInsights(
             input: DynamoDBModel.UpdateContributorInsightsInput) async throws -> DynamoDBModel.UpdateContributorInsightsOutput {
         return try await executeWithOutput(
@@ -1960,7 +1916,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, internalServer, replicaAlreadyExists, replicaNotFound, tableNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateGlobalTable(
             input: DynamoDBModel.UpdateGlobalTableInput) async throws -> DynamoDBModel.UpdateGlobalTableOutput {
         return try await executeWithOutput(
@@ -1980,7 +1935,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: globalTableNotFound, indexNotFound, internalServer, limitExceeded, replicaNotFound, resourceInUse.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateGlobalTableSettings(
             input: DynamoDBModel.UpdateGlobalTableSettingsInput) async throws -> DynamoDBModel.UpdateGlobalTableSettingsOutput {
         return try await executeWithOutput(
@@ -2000,7 +1954,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: conditionalCheckFailed, internalServer, itemCollectionSizeLimitExceeded, provisionedThroughputExceeded, requestLimitExceeded, resourceNotFound, transactionConflict.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateItem(
             input: DynamoDBModel.UpdateItemInput) async throws -> DynamoDBModel.UpdateItemOutput {
         return try await executeWithOutput(
@@ -2020,7 +1973,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateTable(
             input: DynamoDBModel.UpdateTableInput) async throws -> DynamoDBModel.UpdateTableOutput {
         return try await executeWithOutput(
@@ -2040,7 +1992,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateTableReplicaAutoScaling(
             input: DynamoDBModel.UpdateTableReplicaAutoScalingInput) async throws -> DynamoDBModel.UpdateTableReplicaAutoScalingOutput {
         return try await executeWithOutput(
@@ -2060,7 +2011,6 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          Will be validated before being returned to caller.
            The possible errors are: internalServer, limitExceeded, resourceInUse, resourceNotFound.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     public func updateTimeToLive(
             input: DynamoDBModel.UpdateTimeToLiveInput) async throws -> DynamoDBModel.UpdateTimeToLiveOutput {
         return try await executeWithOutput(
