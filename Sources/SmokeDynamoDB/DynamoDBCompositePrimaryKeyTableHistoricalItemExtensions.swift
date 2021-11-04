@@ -165,19 +165,17 @@ public extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
-#if compiler(>=5.5) && canImport(_Concurrency)
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      * Historical items exist across multiple rows. This method provides an interface to record all
      * rows in a single call.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func insertItemWithHistoricalRow<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                historicalItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         try await insertItem(primaryItem)
         try await insertItem(historicalItem)
     }
 
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func updateItemWithHistoricalRow<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                historicalItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
@@ -197,7 +195,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
      * Clobbering a historical item requires knowledge of existing rows to accurately record
      * historical data.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func clobberItemWithHistoricalRow<AttributesType, ItemType>(
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
@@ -221,7 +218,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
         - primaryItemProvider: Function to provide the updated item or throw if the current item can't be updated.
         - historicalItemProvider: Function to provide the historical item for the primary item.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func conditionallyUpdateItemWithHistoricalRow<AttributesType, ItemType>(
             compositePrimaryKey: CompositePrimaryKey<AttributesType>,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>,
@@ -236,7 +232,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
     
     // Explicitly specify an overload with sync updatedPayloadProvider
     // to avoid the compiler matching a call site with such a provider with the EventLoopFuture-returning overload.
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func conditionallyUpdateItemWithHistoricalRow<AttributesType, ItemType>(
             compositePrimaryKey: CompositePrimaryKey<AttributesType>,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) throws -> TypedDatabaseItem<AttributesType, ItemType>,
@@ -249,7 +244,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
             withRetries: retries)
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     private func conditionallyUpdateItemWithHistoricalRowInternal<AttributesType, ItemType>(
             compositePrimaryKey: CompositePrimaryKey<AttributesType>,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>,

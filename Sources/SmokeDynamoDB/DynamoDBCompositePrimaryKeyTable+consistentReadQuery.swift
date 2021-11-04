@@ -78,8 +78,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                 consistentRead: true)
     }
     
-#if compiler(>=5.5) && canImport(_Concurrency)
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?) async throws
     -> [ReturnedType] {
@@ -87,7 +86,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                sortKeyCondition: sortKeyCondition).get()
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
@@ -99,7 +97,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                exclusiveStartKey: exclusiveStartKey).get()
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
@@ -113,7 +110,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                exclusiveStartKey: exclusiveStartKey).get()
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
@@ -121,7 +117,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                           sortKeyCondition: sortKeyCondition).get()
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?,
                                                     limit: Int?,

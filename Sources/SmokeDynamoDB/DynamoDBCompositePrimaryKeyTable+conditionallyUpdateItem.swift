@@ -88,7 +88,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
-#if compiler(>=5.5) && canImport(_Concurrency)
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      Method to conditionally update an item at the specified key for a number of retries.
      This method is useful for database rows that may be updated simultaneously by different clients
@@ -103,7 +103,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
          withRetries: the number of times to attempt to retry the update before failing.
          updatedPayloadProvider: the provider that will return updated payloads.
      */
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
             forKey key: CompositePrimaryKey<AttributesType>,
             withRetries retries: Int = 10,
@@ -116,7 +115,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
     
     // Explicitly specify an overload with sync updatedPayloadProvider
     // to avoid the compiler matching a call site with such a provider with the EventLoopFuture-returning overload.
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
             forKey key: CompositePrimaryKey<AttributesType>,
             withRetries retries: Int = 10,
@@ -127,7 +125,6 @@ public extension DynamoDBCompositePrimaryKeyTable {
             updatedPayloadProvider: updatedPayloadProvider)
     }
     
-    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
     private func conditionallyUpdateItemInternal<AttributesType, ItemType: Codable>(
             forKey key: CompositePrimaryKey<AttributesType>,
             withRetries retries: Int = 10,

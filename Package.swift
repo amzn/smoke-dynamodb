@@ -26,8 +26,8 @@ let package = Package(
             targets: ["SmokeDynamoDB"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.38.40"),
-        .package(url: "https://github.com/amzn/smoke-http.git", from: "2.0.0"),
+        .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.41.17"),
+        .package(url: "https://github.com/amzn/smoke-http.git", from: "2.10.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0"..<"3.0.0"),
     ],
