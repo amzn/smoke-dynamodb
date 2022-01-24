@@ -89,11 +89,27 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
-     will handle being called multiple times.
+     will handle being called multiple times. Will block until shutdown is complete.
      */
-    public func close() throws {
-        try dynamodb.close()
+    public func syncShutdown() throws {
+        try self.dynamodb.syncShutdown()
     }
+
+    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
+    @available(*, deprecated, renamed: "syncShutdown")
+    public func close() throws {
+        try self.dynamodb.close()
+    }
+
+    /**
+     Gracefully shuts down the client behind this table. This function is idempotent and
+     will handle being called multiple times. Will return when shutdown is complete.
+     */
+    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
+    public func shutdown() async throws {
+        try await self.dynamodb.shutdown()
+    }
+    #endif
 
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
         -> DynamoDBModel.PutItemInput {
