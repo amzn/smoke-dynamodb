@@ -67,8 +67,4 @@ class DynamoDBEncoderDecoderTests: XCTestCase {
         XCTAssertEqual("partitionKey", output.compositePrimaryKey.partitionKey)
         XCTAssertEqual("sortKey", output.compositePrimaryKey.sortKey)
     }
-    
-    static var allTests = [
-        ("testEncoderDecoder", testEncoderDecoder),
-    ]
 }

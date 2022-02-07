@@ -216,11 +216,4 @@ class SmokeDynamoDBTests: XCTestCase {
         
         XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
     }
-
-    static var allTests = [
-        ("testTypedDatabaseItem", testTypedDatabaseItem),
-        ("testPolymorphicDatabaseItemList", testPolymorphicDatabaseItemList),
-        ("testPolymorphicDatabaseItemListUnknownType", testPolymorphicDatabaseItemListUnknownType),
-        ("testPolymorphicDatabaseItemListWithIndex", testPolymorphicDatabaseItemListWithIndex),
-    ]
 }
