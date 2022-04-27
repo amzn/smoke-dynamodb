@@ -68,6 +68,27 @@ class SmokeDynamoDBTests: XCTestCase {
         
         XCTAssertEqual(decodeAttributeValue.M!.count, jsonAttributeValue.M!.count)
     }
+    
+    func testEncodeTypedItemWithTimeToLive() {
+        let inputData = serializedTypeADatabaseItemWithTimeToLive.data(using: .utf8)!
+        
+        guard let jsonAttributeValue = assertNoThrow(
+            try jsonDecoder.decode(DynamoDBModel.AttributeValue.self, from: inputData)) else {
+            return
+        }
+        
+        guard let databaseItem: StandardTypedDatabaseItem<TypeA> = assertNoThrow(
+            try dynamodbDecoder.decode(jsonAttributeValue)) else {
+            return
+        }
+        
+        guard let decodeAttributeValue = assertNoThrow(
+            try dynamodbEncoder.encode(databaseItem)) else {
+            return
+        }
+        
+        XCTAssertEqual(decodeAttributeValue.M!.count, jsonAttributeValue.M!.count)
+    }
 
     func testTypedDatabaseItem() {
         let inputData = serializedTypeADatabaseItem.data(using: .utf8)!
@@ -85,11 +106,40 @@ class SmokeDynamoDBTests: XCTestCase {
         XCTAssertEqual(databaseItem.rowValue.firstly, "aaa")
         XCTAssertEqual(databaseItem.rowValue.secondly, "bbb")
         XCTAssertEqual(databaseItem.rowStatus.rowVersion, 5)
+        XCTAssertNil(databaseItem.timeToLive)
         
         // create an updated item from the decoded one
         let newItem = TypeA(firstly: "hello", secondly: "world!!")
         let updatedItem = databaseItem.createUpdatedItem(withValue: newItem)
         XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
+    }
+    
+    func testTypedDatabaseItemWithTimeToLive() {
+        let inputData = serializedTypeADatabaseItemWithTimeToLive.data(using: .utf8)!
+        
+        guard let attributeValue = assertNoThrow(
+            try jsonDecoder.decode(DynamoDBModel.AttributeValue.self, from: inputData)) else {
+            return
+        }
+        
+        guard let databaseItem: StandardTypedDatabaseItem<TypeA> = assertNoThrow(
+            try dynamodbDecoder.decode(attributeValue)) else {
+            return
+        }
+        
+        XCTAssertEqual(databaseItem.rowValue.firstly, "aaa")
+        XCTAssertEqual(databaseItem.rowValue.secondly, "bbb")
+        XCTAssertEqual(databaseItem.rowStatus.rowVersion, 5)
+        XCTAssertEqual(databaseItem.timeToLive?.timeToLiveTimestamp, 123456789)
+        
+        // create an updated item from the decoded one
+        let newItem = TypeA(firstly: "hello", secondly: "world!!")
+        let updatedItem = databaseItem.createUpdatedItem(withValue: newItem,
+                                                         andTimeToLive: StandardTimeToLive(timeToLiveTimestamp: 234567890))
+        XCTAssertEqual(updatedItem.rowValue.firstly, "hello")
+        XCTAssertEqual(updatedItem.rowValue.secondly, "world!!")
+        XCTAssertEqual(updatedItem.rowStatus.rowVersion, 6)
+        XCTAssertEqual(updatedItem.timeToLive?.timeToLiveTimestamp, 234567890)
     }
   
     func testPolymorphicDatabaseItemList() {
@@ -218,7 +268,10 @@ class SmokeDynamoDBTests: XCTestCase {
     }
 
     static var allTests = [
+        ("testEncodeTypedItem", testEncodeTypedItem),
+        ("testEncodeTypedItemWithTimeToLive", testEncodeTypedItemWithTimeToLive),
         ("testTypedDatabaseItem", testTypedDatabaseItem),
+        ("testTypedDatabaseItemWithTimeToLive", testTypedDatabaseItemWithTimeToLive),
         ("testPolymorphicDatabaseItemList", testPolymorphicDatabaseItemList),
         ("testPolymorphicDatabaseItemListUnknownType", testPolymorphicDatabaseItemListUnknownType),
         ("testPolymorphicDatabaseItemListWithIndex", testPolymorphicDatabaseItemListWithIndex),
