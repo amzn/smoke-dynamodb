@@ -88,6 +88,22 @@ let serializedTypeADatabaseItem = """
     }
     """
 
+let serializedTypeADatabaseItemWithTimeToLive = """
+    {
+        "M" : {
+            "PK" : { "S": "partitionKey" },
+            "SK" : { "S": "sortKey" },
+            "CreateDate" : { "S" : "2018-01-06T23:36:20.355Z" },
+            "RowVersion" : { "N": "5" },
+            "LastUpdatedDate" : { "S" : "2018-01-06T23:36:20.355Z" },
+            "RowType": { "S": "TypeA" },
+            "firstly" : { "S": "aaa" },
+            "secondly": { "S": "bbb" },
+            "ExpireDate": { "N": "123456789" }
+        }
+    }
+    """
+
 let serializedPolymorphicDatabaseItemList = """
     [
         {

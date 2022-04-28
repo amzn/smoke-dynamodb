@@ -22,7 +22,9 @@ import XCTest
 import NIO
 
 private let ORIGINAL_PAYLOAD = "Payload"
+private let ORIGINAL_TIME_TO_LIVE: Int64 = 123456789
 private let UPDATED_PAYLOAD = "Updated"
+private let UPDATED_TIME_TO_LIVE: Int64 = 234567890
 
 class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
     var eventLoopGroup: EventLoopGroup?
@@ -56,9 +58,33 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         XCTAssertEqual(1, databaseItem.rowStatus.rowVersion)
         XCTAssertEqual(1, databaseItem.rowValue.itemVersion)
         XCTAssertEqual(ORIGINAL_PAYLOAD, databaseItem.rowValue.rowValue)
+        XCTAssertNil(databaseItem.timeToLive)
         XCTAssertEqual(2, updatedItem.rowStatus.rowVersion)
         XCTAssertEqual(2, updatedItem.rowValue.itemVersion)
         XCTAssertEqual(UPDATED_PAYLOAD, updatedItem.rowValue.rowValue)
+        XCTAssertNil(updatedItem.timeToLive)
+    }
+    
+    func testCreateUpdatedRowWithItemVersionWithTimeToLive() throws {
+        let compositeKey = StandardCompositePrimaryKey(partitionKey: "partitionKey",
+                                                       sortKey: "sortKey")
+        let rowWithItemVersion = RowWithItemVersion.newItem(withValue: "Payload")
+        let databaseItem = TypedDatabaseItem.newItem(withKey: compositeKey,
+                                                     andValue: rowWithItemVersion,
+                                                     andTimeToLive: StandardTimeToLive(timeToLiveTimestamp: 123456789))
+        
+        let updatedItem = try databaseItem.createUpdatedRowWithItemVersion(withValue: "Updated",
+                                                                           conditionalStatusVersion: nil,
+                                                                           andTimeToLive: StandardTimeToLive(timeToLiveTimestamp: 234567890))
+        
+        XCTAssertEqual(1, databaseItem.rowStatus.rowVersion)
+        XCTAssertEqual(1, databaseItem.rowValue.itemVersion)
+        XCTAssertEqual(ORIGINAL_PAYLOAD, databaseItem.rowValue.rowValue)
+        XCTAssertEqual(ORIGINAL_TIME_TO_LIVE, databaseItem.timeToLive?.timeToLiveTimestamp)
+        XCTAssertEqual(2, updatedItem.rowStatus.rowVersion)
+        XCTAssertEqual(2, updatedItem.rowValue.itemVersion)
+        XCTAssertEqual(UPDATED_PAYLOAD, updatedItem.rowValue.rowValue)
+        XCTAssertEqual(UPDATED_TIME_TO_LIVE, updatedItem.timeToLive?.timeToLiveTimestamp)
     }
     
     func testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion() throws {
@@ -451,6 +477,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
     
     static var allTests = [
         ("testCreateUpdatedRowWithItemVersion", testCreateUpdatedRowWithItemVersion),
+        ("testCreateUpdatedRowWithItemVersionWithTimeToLive", testCreateUpdatedRowWithItemVersionWithTimeToLive),
         ("testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion",
          testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion),
         ("testCreateUpdatedRowWithItemVersionWithIncorrectConditionalVersion",
