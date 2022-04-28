@@ -530,11 +530,78 @@ item1.rowValue.rowValue // payload2
 
 This provides a localized synchronization mechanism for updating mutable rows in a database table where the lock is tracked as the rowVersion of the primary item. This allows versioned mutable rows to updated safely and updates to different primary items do not contend for a table-wide lock.
 
+## Time To Live (TTL)
+
+DynamoDB Time To Live feature is supported by adding a per-item timestamp attribute to the item. Shortly after the date and time of the specified timestamp, DynamoDB deletes the item from your table. For more details and instructions to enable TTL on your table, check [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html).
+
+### Insertion
+
+An item with TTL can be inserted into the DynamoDB table using the following-
+
+```swift
+struct PayloadType: Codable, Equatable {
+    let firstly: String
+    let secondly: String
+}
+
+let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                      sortKey: "sortId")
+let payload = PayloadType(firstly: "firstly", secondly: "secondly")
+let timeToLive = StandardTimeToLive(timeToLiveTimestamp: 123456789)
+let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload, andTimeToLive: timeToLive)
+        
+try table.insertItem(databaseItem).wait()
+```
+The `insertItem` operation will attempt to create the following row in the DynamoDB table-
+* **PK**: "partitionId" (table partition key)
+* **SK**: "sortId" (table sort key)
+* **CreateDate**: <the current date>
+* **RowType**: "PayloadType"
+* **RowVersion**: 1
+* **LastUpdatedDate**: <the current date>
+* **firstly**: "firstly"
+* **secondly**: "secondly"
+* **ExpireDate**: 123456789
+
+By default, this operation will fail if an item with the same partition key and sort key already exists.
+
+**Note:**
+
+The `StandardCompositePrimaryKey` will place the partition key in the attribute called *PK* and the sort key in an attribute called *SK*. Custom partition and sort key attribute names can be used by dropping down to the underlying `CompositePrimaryKey` type and the `PrimaryKeyAttributes` protocol.
+
+The `StandardTimeToLive` will place the TTL timestamp in the attribute called *ExpireDate*. Custom TTL timestamp attribute name can be used by dropping down to the underlying `TimeToLive` type and `TimeToLiveAttributes` protocol.
+
+### Update
+
+An item with TTL can be updated in the DynamoDB table using the following-
+
+```swift
+let updatedPayload = PayloadType(firstly: "firstlyX2", secondly: "secondlyX2")
+let updatedTimeToLive = StandardTimeToLive(timeToLiveTimestamp: 234567890)
+let updatedDatabaseItem = retrievedItem.createUpdatedItem(withValue: updatedPayload, andTimeToLive: updatedTimeToLive)
+try table.updateItem(newItem: updatedDatabaseItem, existingItem: retrievedItem).wait()
+```
+
+The `updateItem` (or `updateItem`) operation will attempt to insert the following row in the DynamoDB table-
+* **PK**: "partitionId" (table partition key)
+* **SK**: "sortId" (table sort key)
+* **CreateDate**: <the original date when the row was created>
+* **RowType**: "PayloadType"
+* **RowVersion**: 2
+* **LastUpdatedDate**: <the current date>
+* **firstly**: "firstlyX2"
+* **secondly**: "secondlyX2"
+* **ExpireDate**: 234567890
+
+By default, this operation will fail if an item with the same partition key and sort key doesn't exist in the table and if the existing row doesn't have the same version number as the `existingItem` submitted in the operation. The `DynamoDBCompositePrimaryKeyTable` protocol also provides the `clobberItem` operation which will overwrite a row in the database regardless of the existing row.
+
 # Entities
 
 The main entities provided by this package are
 * *CompositePrimaryKey*: a struct that stores the partition and sort values for a composite primary key.
-* *TypedDatabaseItem*: a struct that manages decoding and encoding rows of a particular type from polymorphic database tables.
+* *TimeToLive*: a struct that stores TTL timestamp for a database item.
+* *TypedDatabaseItemWithTimeToLive*: a struct that manages decoding and encoding rows of a particular type along with any TTL settings from polymorphic database tables.
+* *TypedDatabaseItem*: a typealias that points to `TypedDatabaseItemWithTimeToLive` with default `StandardTimeToLiveAttributes` generic type for backwards compatibility.
 * *PolymorphicDatabaseItem*: a struct that manages decoding rows that are one out of a number of types from polymorphic database tables.
 * *DynamoDBCompositePrimaryKeyTable*: a protocol for interacting with a DynamoDB database table.
 * *`InMemoryDynamoDBCompositePrimaryKeyTable`*: a struct conforming to the `DynamoDBCompositePrimaryKeyTable` protocol that interacts with a local in-memory table.
@@ -549,15 +616,23 @@ let key = StandardCompositePrimaryKey(partitionKey: "partitionKeyValue",
                                       sortKey: "sortKeyValue")
 ```
 
-## TypedDatabaseItem
+## TimeToLive
 
-The TypedDatabaseItem struct manages a number of attributes in the database table to enable decoding and encoding rows to and from the correct type. In addition it also manages other conveniences such as versioning. The attributes this struct will add to a database row are-
+The TimeToLive struct defines the TTL timestamp value for a row in the database. It is also used to serialize and deserialize this value. For convenience, this package provides a typealias called `StandardTimeToLive` that uses the TTL timestamp with an attribute name of *ExpireDate*. This struct can be instantiated as shown-
+
+```swift
+let timeToLive = StandardTimeToLive(timeToLiveTimestamp: 123456789)
+```
+
+## TypedDatabaseItemWithTimeToLive
+
+The TypedDatabaseItemWithTimeToLive struct manages a number of attributes in the database table to enable decoding and encoding rows to and from the correct type. In addition it also manages other conveniences such as versioning. The attributes this struct will add to a database row are-
 * *CreateDate*: The timestamp when the row was created.
 * *RowType*: Specifies the schema used by the other attributes of this row.
 * *RowVersion*: A version number for the values currently in this row. Used to enable optimistic locking.
 * *LastUpdatedDate*: The timestamp when the row was last updated.
 
-Similar to CompositePrimaryKey, this package provides a typealias called `StandardTypedDatabaseItem` that expects the standard partition and sort key attribute names.
+Similar to CompositePrimaryKey, this package provides a typealias called `StandardTypedDatabaseItem` that expects the standard partition, sort key, and TTL attribute names.
 
 This struct can be instantiated as shown-
 
@@ -565,7 +640,13 @@ This struct can be instantiated as shown-
 let newDatabaseItem = StandardTypedDatabaseItem.newItem(withKey: compositePrimaryKey, andValue: rowValueType)
 ```
 
-Here *compositePrimaryKey* must be of type `CompositePrimaryKey` and *rowValueType* must conform to the [Codable protocol](https://developer.apple.com/documentation/foundation/archives_and_serialization/encoding_and_decoding_custom_types). By default, performing a **PutItem** operation with this item on a table where this row already exists will fail.
+or with TTL-
+
+```swift
+let newDatabaseItem = StandardTypedDatabaseItem.newItem(withKey: compositePrimaryKey, andValue: rowValueType, andTimeToLive: timeToLive)
+```
+
+Here *compositePrimaryKey* must be of type `CompositePrimaryKey`, *rowValueType* must conform to the [Codable protocol](https://developer.apple.com/documentation/foundation/archives_and_serialization/encoding_and_decoding_custom_types), and *timeToLive* must be of type `TimeToLive`. By default, performing a **PutItem** operation with this item on a table where this row already exists will fail.
 
 The *createUpdatedItem* function on this struct can be used to create an updated version of this row-
 
@@ -573,7 +654,13 @@ The *createUpdatedItem* function on this struct can be used to create an updated
 let updatedDatabaseItem = newDatabaseItem.createUpdatedItem(withValue: updatedValue)
 ```
 
-This function will create a new instance of TypedDatabaseItem with the same key and updated LastUpdatedDate and RowVersion values. By default, performing a **PutItem** operation with this item on a table where this row already exists and the RowVersion isn't equal to the value of the original row will fail.
+or with TTL-
+
+```swift
+let updatedDatabaseItem = newDatabaseItem.createUpdatedItem(withValue: updatedValue, andTimeToLive: updatedTimeToLive)
+```
+
+This function will create a new instance of TypedDatabaseItemWithTimeToLive with the same key and updated LastUpdatedDate and RowVersion values. By default, performing a **PutItem** operation with this item on a table where this row already exists and the RowVersion isn't equal to the value of the original row will fail.
 
 ## DynamoDBCompositePrimaryKeyTable
 
@@ -593,7 +680,7 @@ Internally `AWSDynamoDBCompositePrimaryKeyTable` uses a custom Decoder and Encod
 
 ## PrimaryKeyAttributes
 
-`CompositePrimaryKey`, `TypedDatabaseItem` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `PrimaryKeyAttributes` protocol. This protocol can be used to use custom attribute names for the partition and sort keys.
+`CompositePrimaryKey`, `TypedDatabaseItemWithTimeToLive` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `PrimaryKeyAttributes` protocol. This protocol can be used to use custom attribute names for the partition and sort keys.
 
 ```swift
 public struct MyPrimaryKeyAttributes: PrimaryKeyAttributes {
@@ -602,6 +689,18 @@ public struct MyPrimaryKeyAttributes: PrimaryKeyAttributes {
     }
     public static var sortKeyAttributeName: String {
         return "MySortKeyAttributeName"
+    }
+}
+```
+
+## TimeToLiveAttributes
+
+`TimeToLive`, `TypedDatabaseItemWithTimeToLive` and `PolymorphicDatabaseItem` are all generic to a type conforming to the `TimeToLiveAttributes` protocol. This protocol can be used to use custom attribute names for the TTL timestamp.
+
+```swift
+public struct MyTimeToLiveAttributes: TimeToLiveAttributes {
+    public static var timeToLiveAttributeName: String {
+        return "MyTimeToLiveAttributeName"
     }
 }
 ```
