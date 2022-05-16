@@ -42,7 +42,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         return TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
     }
     
-    func getUpdatedPayloadProviderAsync(on eventLoop: EventLoop) -> ((TestTypeA) -> EventLoopFuture<TestTypeA>) {
+    func getUpdatedPayloadProviderWithEventLoopFuture(on eventLoop: EventLoop) -> ((TestTypeA) -> EventLoopFuture<TestTypeA>) {
         func provider(item: TestTypeA) -> EventLoopFuture<TestTypeA> {
             return eventLoop.makeSucceededFuture(TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
         }
@@ -59,7 +59,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             andValue: TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
     }
     
-    func getUpdatedItemProviderAsync(on eventLoop: EventLoop) -> ((TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem>) {
+    func getUpdatedItemProviderWithEventLoopFuture(on eventLoop: EventLoop) -> ((TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem>) {
         func provider(item: TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem> {
             let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                                   sortKey: "sortId")
@@ -138,7 +138,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait())
         
         let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
@@ -164,7 +164,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedItemProvider = getUpdatedItemProviderAsync(on: self.eventLoop)
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait())
         
         let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
@@ -249,7 +249,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait())
         
         let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
@@ -278,7 +278,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedItemProvider = getUpdatedItemProviderAsync(on: self.eventLoop)
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait())
         
         let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
@@ -381,7 +381,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait()
             
@@ -419,7 +419,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedItemProvider = getUpdatedItemProviderAsync(on: self.eventLoop)
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait()
             
@@ -695,7 +695,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait()
             
@@ -717,7 +717,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
         
-        let asyncUpdatedItemProvider = getUpdatedItemProviderAsync(on: self.eventLoop)
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait()
             
