@@ -30,7 +30,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         eventLoop = newEventLoopGroup.next()
         eventLoopGroup = newEventLoopGroup
     }
-
+    
     override func tearDown() {
         super.tearDown()
         
@@ -42,11 +42,31 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         return TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2")
     }
     
-    func getUpdatedPayloadProviderAsync(on eventLoop: EventLoop) -> ((TestTypeA) -> EventLoopFuture<TestTypeA>) {
+    func getUpdatedPayloadProviderWithEventLoopFuture(on eventLoop: EventLoop) -> ((TestTypeA) -> EventLoopFuture<TestTypeA>) {
         func provider(item: TestTypeA) -> EventLoopFuture<TestTypeA> {
-            let promise = eventLoop.makePromise(of: TestTypeA.self)
-            promise.succeed(TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
-            return promise.futureResult
+            return eventLoop.makeSucceededFuture(TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+        }
+        
+        return provider
+    }
+    
+    typealias TestTypeADatabaseItem = StandardTypedDatabaseItem<TestTypeA>
+    func updatedItemProvider(item: TestTypeADatabaseItem) -> TestTypeADatabaseItem {
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        return TestTypeADatabaseItem.newItem(
+            withKey: key,
+            andValue: TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+    }
+    
+    func getUpdatedItemProviderWithEventLoopFuture(on eventLoop: EventLoop) -> ((TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem>) {
+        func provider(item: TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem> {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                  sortKey: "sortId")
+            let item = TestTypeADatabaseItem.newItem(
+                withKey: key,
+                andValue: TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+            return eventLoop.makeSucceededFuture(item)
         }
         
         return provider
@@ -62,7 +82,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
@@ -70,7 +90,32 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait())
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondlyX2", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithItemProvider() {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemProvider).wait())
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
@@ -87,16 +132,42 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait())
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondlyX2", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithAsyncItemProvider() {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
+        XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait())
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
@@ -106,8 +177,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithAcceptableConcurrency() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -116,7 +187,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
@@ -124,7 +195,35 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait())
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondlyX2", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemProvider).wait())
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
@@ -134,8 +233,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 5,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -144,16 +243,45 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait())
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondlyX2", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 5,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
+        XCTAssertNoThrow(try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait())
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual("firstlyX2", secondRetrievedItem.rowValue.firstly)
@@ -163,8 +291,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithUnacceptableConcurrency() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 100,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -173,7 +301,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
@@ -189,7 +317,44 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        // Check the item hasn't been updated
+        XCTAssertEqual("firstly", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemProvider).wait()
+            
+            XCTFail("Expected concurrency error not thrown.")
+        } catch SmokeDynamoDBError.concurrencyError {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         // Check the item hasn't been updated
@@ -200,8 +365,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 100,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -210,13 +375,13 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
         XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait()
             
@@ -227,7 +392,45 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        // Check the item hasn't been updated
+        XCTAssertEqual("firstly", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait()
+            
+            XCTFail("Expected concurrency error not thrown.")
+        } catch SmokeDynamoDBError.concurrencyError {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         // Check the item hasn't been updated
@@ -242,8 +445,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithFailingUpdate() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 100,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -252,7 +455,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
@@ -280,7 +483,60 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        // Check the item hasn't been updated
+        XCTAssertEqual("firstly", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithFailingUpdateWithItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        var passCount = 0
+        
+        func failingUpdatedItemProvider(item: TestTypeADatabaseItem) throws -> TestTypeADatabaseItem {
+            if passCount < 5 {
+                passCount += 1
+                let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                      sortKey: "sortId")
+                return TestTypeADatabaseItem.newItem(
+                    withKey: key,
+                    andValue: TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+            } else {
+                // fail before the retry limit with a custom error
+                throw TestError.everythingIsWrong
+            }
+        }
+        
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: failingUpdatedItemProvider).wait()
+            
+            XCTFail("Expected everythingIsWrong error not thrown.")
+        } catch TestError.everythingIsWrong {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         // Check the item hasn't been updated
@@ -291,8 +547,8 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
     func testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider() {
         let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
         let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
-                                                     simulateConcurrencyModifications: 100,
-                                                     simulateOnInsertItem: false)
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
         
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
@@ -301,7 +557,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
         
-        let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
         XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
@@ -310,16 +566,13 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         var passCount = 0
         
         func failingUpdatedPayloadProvider(item: TestTypeA) -> EventLoopFuture<TestTypeA> {
-            let promise = eventLoop.makePromise(of: TestTypeA.self)
             if passCount < 5 {
                 passCount += 1
-                promise.succeed(TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+                return eventLoop.makeSucceededFuture(TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
             } else {
                 // fail before the retry limit with a custom error
-                promise.fail(TestError.everythingIsWrong)
+                return eventLoop.makeFailedFuture(TestError.everythingIsWrong)
             }
-            
-            return promise.futureResult
         }
         
         do {
@@ -332,7 +585,61 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA> = try! table.getItem(forKey: key).wait()!
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
+        // Check the item hasn't been updated
+        XCTAssertEqual("firstly", secondRetrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly", secondRetrievedItem.rowValue.secondly)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncItemProvider() {
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable, eventLoop: eventLoop,
+                                                                        simulateConcurrencyModifications: 100,
+                                                                        simulateOnInsertItem: false)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        let payload = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
+        
+        XCTAssertNoThrow(try table.insertItem(databaseItem).wait())
+        
+        let retrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
+        
+        XCTAssertEqual(databaseItem.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual(databaseItem.rowValue.firstly, retrievedItem.rowValue.firstly)
+        XCTAssertEqual(databaseItem.rowValue.secondly, retrievedItem.rowValue.secondly)
+        
+        var passCount = 0
+        
+        func failingUpdatedItemProvider(item: TestTypeADatabaseItem) -> EventLoopFuture<TestTypeADatabaseItem> {
+            if passCount < 5 {
+                passCount += 1
+                let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                                      sortKey: "sortId")
+                let item = TestTypeADatabaseItem.newItem(
+                    withKey: key,
+                    andValue: TestTypeA(firstly: "firstlyX2", secondly: "secondlyX2"))
+                return eventLoop.makeSucceededFuture(item)
+            } else {
+                // fail before the retry limit with a custom error
+                return eventLoop.makeFailedFuture(TestError.everythingIsWrong)
+            }
+        }
+        
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: failingUpdatedItemProvider).wait()
+            
+            XCTFail("Expected everythingIsWrong error not thrown.")
+        } catch TestError.everythingIsWrong {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem = try! table.getItem(forKey: key).wait()!
         
         XCTAssertEqual("sortId", secondRetrievedItem.compositePrimaryKey.sortKey)
         // Check the item hasn't been updated
@@ -356,7 +663,28 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA>? = try! table.getItem(forKey: key).wait()
+        let secondRetrievedItem: TestTypeADatabaseItem? = try! table.getItem(forKey: key).wait()
+        
+        XCTAssertNil(secondRetrievedItem)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithUnknownItemWithItemProvider() {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemProvider).wait()
+            
+            XCTFail("Expected concurrency error not thrown.")
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem? = try! table.getItem(forKey: key).wait()
         
         XCTAssertNil(secondRetrievedItem)
     }
@@ -367,7 +695,7 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
                                               sortKey: "sortId")
         
-        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderAsync(on: self.eventLoop)
+        let asyncUpdatedPayloadProvider = getUpdatedPayloadProviderWithEventLoopFuture(on: self.eventLoop)
         do {
             try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: asyncUpdatedPayloadProvider).wait()
             
@@ -378,25 +706,65 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
             XCTFail("Unexpected error thrown: \(error).")
         }
         
-        let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeA>? = try! table.getItem(forKey: key).wait()
+        let secondRetrievedItem: TestTypeADatabaseItem? = try! table.getItem(forKey: key).wait()
+        
+        XCTAssertNil(secondRetrievedItem)
+    }
+    
+    func testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncItemProvider() {
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+        
+        let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
+                                              sortKey: "sortId")
+        
+        let asyncUpdatedItemProvider = getUpdatedItemProviderWithEventLoopFuture(on: self.eventLoop)
+        do {
+            try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: asyncUpdatedItemProvider).wait()
+            
+            XCTFail("Expected concurrency error not thrown.")
+        } catch SmokeDynamoDBError.conditionalCheckFailed {
+            // expected error thrown
+        } catch {
+            XCTFail("Unexpected error thrown: \(error).")
+        }
+        
+        let secondRetrievedItem: TestTypeADatabaseItem? = try! table.getItem(forKey: key).wait()
         
         XCTAssertNil(secondRetrievedItem)
     }
     
     static var allTests = [
         ("testUpdateItemConditionallyAtKey", testUpdateItemConditionallyAtKey),
+        ("testUpdateItemConditionallyAtKeyWithItemProvider", testUpdateItemConditionallyAtKeyWithItemProvider),
         ("testUpdateItemConditionallyAtKeyWithAsyncProvider", testUpdateItemConditionallyAtKeyWithAsyncProvider),
+        ("testUpdateItemConditionallyAtKeyWithAsyncItemProvider", testUpdateItemConditionallyAtKeyWithAsyncItemProvider),
         ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrency", testUpdateItemConditionallyAtKeyWithAcceptableConcurrency),
+        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithItemProvider",
+         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithItemProvider),
         ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider",
-            testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider),
+         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider),
+        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncItemProvider",
+         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncItemProvider),
         ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrency", testUpdateItemConditionallyAtKeyWithUnacceptableConcurrency),
+        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithItemProvider",
+         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithItemProvider),
         ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider",
-            testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider),
+         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider),
+        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncItemProvider",
+         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncItemProvider),
         ("testUpdateItemConditionallyAtKeyWithFailingUpdate", testUpdateItemConditionallyAtKeyWithFailingUpdate),
+        ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithItemProvider",
+         testUpdateItemConditionallyAtKeyWithFailingUpdateWithItemProvider),
         ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider",
-            testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider),
+         testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider),
+        ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncItemProvider",
+         testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncItemProvider),
         ("testUpdateItemConditionallyAtKeyWithUnknownItem", testUpdateItemConditionallyAtKeyWithUnknownItem),
+        ("testUpdateItemConditionallyAtKeyWithUnknownItemWithItemProvider",
+         testUpdateItemConditionallyAtKeyWithUnknownItemWithItemProvider),
         ("testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncProvider",
-            testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncProvider),
+         testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncProvider),
+        ("testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncItemProvider",
+         testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncItemProvider),
     ]
 }

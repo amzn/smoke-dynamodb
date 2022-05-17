@@ -222,10 +222,16 @@ By default, this operation will fail if an item with the same partition key and 
 
 ## Conditionally Update
 
-The `conditionallyUpdateItem` operation will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can throw an exception to indicate that the current row is unable to be updated.
+The `conditionallyUpdateItem` operation will attempt to update the primary item, repeatedly calling the `updatedPayloadProvider` to retrieve an updated version of the current row value until the  `update` operation succeeds. The `updatedPayloadProvider` can throw an exception to indicate that the current row value is unable to be updated.
 
 ```swift
 try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait()
+```
+
+The `conditionallyUpdateItem` operation could also be provided with `updatedItemProvider`. It will attempt to update the primary item, repeatedly calling the `updatedItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `updatedItemProvider` can throw an exception to indicate that the current row is unable to be updated.
+
+```swift
+try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemProvider).wait()
 ```
 
 ## Delete
