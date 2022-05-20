@@ -20,55 +20,44 @@ import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
 import Logging
-import NIO
+import CollectionConcurrencyKit
 
 // BatchExecuteStatement has a maximum of 25 statements
 private let maximumUpdatesPerExecuteStatement = 25
 
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
-    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Void> {
+    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
         // if there are no items, there is nothing to update
         guard entries.count > 0 else {
-            let promise = self.eventLoop.makePromise(of: Void.self)
-            promise.succeed(())
-            return promise.futureResult
+            return
         }
         
-        let statements: [BatchStatementRequest]
-        do {
-            statements = try entries.map { entry -> BatchStatementRequest in
-                let statement: String
-                switch entry {
-                case .update(new: let new, existing: let existing):
-                    statement = try getUpdateExpression(tableName: self.targetTableName,
-                                                        newItem: new,
-                                                        existingItem: existing)
-                case .insert(new: let new):
-                    statement = try getInsertExpression(tableName: self.targetTableName,
-                                                        newItem: new)
-                case .deleteAtKey(key: let key):
-                    statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                        existingKey: key)
-                case .deleteItem(existing: let existing):
-                    statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                        existingItem: existing)
-                }
-                
-                return BatchStatementRequest(consistentRead: true, statement: statement)
+        let statements: [BatchStatementRequest] = try entries.map { entry -> BatchStatementRequest in
+            let statement: String
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                statement = try getUpdateExpression(tableName: self.targetTableName,
+                                                    newItem: new,
+                                                    existingItem: existing)
+            case .insert(new: let new):
+                statement = try getInsertExpression(tableName: self.targetTableName,
+                                                    newItem: new)
+            case .deleteAtKey(key: let key):
+                statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingKey: key)
+            case .deleteItem(existing: let existing):
+                statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingItem: existing)
             }
-        } catch {
-            let promise = self.eventLoop.makePromise(of: Void.self)
-            promise.fail(error)
-            return promise.futureResult
+            
+            return BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
         
-        return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { response in
-            try self.throwOnBatchExecuteStatementErrors(response: response)
-        }
+        let response = try await dynamodb.batchExecuteStatement(input: executeInput)
+        try throwOnBatchExecuteStatementErrors(response: response)
     }
     
     func throwOnBatchExecuteStatementErrors(response: DynamoDBModel.BatchExecuteStatementOutput) throws {
@@ -105,15 +94,12 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
     }
     
-    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Void> {
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
-        let futures = chunkedEntries.map { chunk -> EventLoopFuture<Void> in
-            return writeChunkedItems(chunk)
+        try await chunkedEntries.concurrentForEach { chunk in
+            try await self.writeChunkedItems(chunk)
         }
-        
-        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
 }

@@ -23,7 +23,6 @@ import SmokeAWSCore
 import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
-import NIO
 
 public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     internal let dynamodbGenerator: _AWSDynamoDBClientGenerator
@@ -108,26 +107,24 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     public func with<NewTraceContextType: InvocationTraceContext>(
             logger: Logging.Logger,
             internalRequestId: String = "none",
-            traceContext: NewTraceContextType,
-            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+            traceContext: NewTraceContextType)
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: traceContext,
-            eventLoop: eventLoop)
+            traceContext: traceContext)
 
         return with(reporting: reporting)
     }
 
     public func with(
             logger: Logging.Logger,
-            internalRequestId: String = "none",
-            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+            internalRequestId: String = "none")
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: AWSClientInvocationTraceContext(),
-            eventLoop: eventLoop)
+            traceContext: AWSClientInvocationTraceContext())
 
         return with(reporting: reporting)
     }

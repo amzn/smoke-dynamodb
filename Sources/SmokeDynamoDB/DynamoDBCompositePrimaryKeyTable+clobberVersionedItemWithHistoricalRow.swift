@@ -16,7 +16,6 @@
 //
 
 import Foundation
-import NIO
 
 public extension DynamoDBCompositePrimaryKeyTable {
     /**
@@ -41,7 +40,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         andHistoricalKey historicalKey: String,
         item: ItemType,
         primaryKeyType: AttributesType.Type,
-        generateSortKey: @escaping (Int) -> String) -> EventLoopFuture<Void> {
+        generateSortKey: @escaping (Int) -> String) async throws {
             func primaryItemProvider(_ existingItem: TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>>?)
                 -> TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>> {
                     if let existingItem = existingItem {
@@ -68,40 +67,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     return TypedDatabaseItem.newItem(withKey: key, andValue: primaryItem.rowValue)
             }
         
-            return clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
-                                                historicalItemProvider: historicalItemProvider)
+            return try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                                          historicalItemProvider: historicalItemProvider)
     }
-    
-#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
-    /**
-     * This operation provide a mechanism for managing mutable database rows
-     * and storing all previous versions of that row in a historical partition.
-     * This operation store the primary item under a "version zero" sort key
-     * with a payload that replicates the current version of the row. This
-     * historical partition contains rows for each version, including the
-     * current version under a sort key for that version.
-     
-     - Parameters:
-        - partitionKey: the partition key to use for the primary (v0) item
-        - historicalKey: the partition key to use for the historical items
-        - item: the payload for the new version of the primary item row
-        - AttributesType: the row identity type
-        - generateSortKey: generator to provide a sort key for a provided
-                           version number.
-     - completion: completion handler providing an error that was thrown or nil
-     */
-    func clobberVersionedItemWithHistoricalRow<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(
-        forPrimaryKey partitionKey: String,
-        andHistoricalKey historicalKey: String,
-        item: ItemType,
-        primaryKeyType: AttributesType.Type,
-        generateSortKey: @escaping (Int) -> String) async throws {
-            try await clobberVersionedItemWithHistoricalRow(
-                forPrimaryKey: partitionKey,
-                andHistoricalKey: historicalKey,
-                item: item,
-                primaryKeyType: primaryKeyType,
-                generateSortKey: generateSortKey).get()
-    }
-#endif
 }
