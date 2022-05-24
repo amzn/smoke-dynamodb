@@ -69,6 +69,11 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
         return try await storeWrapper.getItem(forKey: key)
     }
     
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError] {
+        return try await storeWrapper.monomorphicBulkWriteWithoutThrowing(entries)
+    }
+
     public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
         forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
     -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {

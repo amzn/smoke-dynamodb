@@ -221,4 +221,63 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let nowDeletedItem: DatabaseRowType? = try! await table.getItem(forKey: key)
         XCTAssertNil(nowDeletedItem)
     }
+    
+    func testSimulateConcurrencyWithMonomorphicBulkWriteWithoutThrowing() async throws {
+
+        typealias TestObject = TestTypeA
+        typealias TestObjectDatabaseItem = StandardTypedDatabaseItem<TestObject>
+        typealias TestObjectWriteEntry = StandardWriteEntry<TestObject>
+    
+        
+        let wrappedTable = InMemoryDynamoDBCompositePrimaryKeyTable()
+        let table = SimulateConcurrencyDynamoDBCompositePrimaryKeyTable(wrappedDynamoDBTable: wrappedTable,
+                                                     simulateConcurrencyModifications: 5)
+    
+        var entryList: [TestObjectWriteEntry] = []
+        var i = 0
+        while(i < 26) {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId\(i%25)", sortKey: "sortId\(i%25)")
+            let test = TestObject(firstly: "firstly", secondly: "secondly")
+            let testItem: TestObjectDatabaseItem = TestObjectDatabaseItem.newItem(withKey: key, andValue: test)
+            entryList.append(TestObjectWriteEntry.insert(new: testItem))
+            i += 1
+        }
+        do {
+            let result = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+            
+            XCTAssertEqual(result.count, 1)
+            if let _ = result[25] {
+                return
+            } else {
+                XCTFail("should return duplicated index = 25")
+            }
+
+            entryList = []
+            i = 0
+            while(i < 30) {
+                let key = StandardCompositePrimaryKey(partitionKey: "partitionId\(i)", sortKey: "sortId\(i)")
+                let test = TestObject(firstly: "firstly", secondly: "secondly")
+                let testItem: TestObjectDatabaseItem = TestObjectDatabaseItem.newItem(withKey: key, andValue: test)
+                entryList.append(TestObjectWriteEntry.insert(new: testItem))
+                i += 1
+            }
+
+            let result25 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+            XCTAssertEqual(result25.count, 25)
+
+            let result30 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+            XCTAssertEqual(result30.count, 30)
+        } catch {
+            XCTFail("monomorphicBulkWriteWithoutThrowing should not throw error")
+        }
+    }
+   
+    static var allTests = [
+        ("testSimulateConcurrencyOnInsert", testSimulateConcurrencyOnInsert),
+        ("testSimulateConcurrencyWithUpdate", testSimulateConcurrencyWithUpdate),
+        ("testSimulateWithNoConcurrency", testSimulateWithNoConcurrency),
+        ("testSimulateConcurrencyWithQuery", testSimulateConcurrencyWithQuery),
+        ("testSimulateClobberConcurrencyWithGet", testSimulateClobberConcurrencyWithGet),
+        ("testSimulateConcurrencyWithMonomorphicBulkWriteWithoutThrowing", testSimulateConcurrencyWithMonomorphicBulkWriteWithoutThrowing)
+    ]
 }

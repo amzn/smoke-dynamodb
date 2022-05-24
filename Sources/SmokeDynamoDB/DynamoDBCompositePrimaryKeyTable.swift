@@ -102,7 +102,13 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Provides the ability to bulk write database rows
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-
+    
+    /**
+     * Provides the ability to bulk write database rows without throwing
+     */
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError]
+    
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */

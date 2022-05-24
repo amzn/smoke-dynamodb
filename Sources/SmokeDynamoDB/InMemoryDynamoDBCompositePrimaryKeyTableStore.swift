@@ -115,6 +115,31 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
             }
         }
     }
+    
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) throws
+    -> [Int: BatchStatementError] {
+        var result: [Int: BatchStatementError] = [:]
+        entries.enumerated().forEach { (index, entry) in
+            do {
+                switch entry {
+                case .update(new: let new, existing: let existing):
+                    return try self.updateItem(newItem: new, existingItem: existing)
+                case .insert(new: let new):
+                    return try self.insertItem(new)
+                case .deleteAtKey(key: let key):
+                    return try deleteItem(forKey: key)
+                case .deleteItem(existing: let existing):
+                    return try deleteItem(existingItem: existing)
+                }
+            } catch SmokeDynamoDBError.conditionalCheckFailed {
+                // batch execution return duplicated items error instead of SmokeDynamoDBError
+                result[index] = BatchStatementError(code: .duplicateitem)
+            } catch {
+                result[index] = BatchStatementError(code: .internalservererror)
+            }
+        }
+        return result
+    }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {

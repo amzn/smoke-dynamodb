@@ -72,6 +72,11 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError] {
+        return try await self.primaryTable.monomorphicBulkWriteWithoutThrowing(entries)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {
         return try await self.primaryTable.getItem(forKey: key)

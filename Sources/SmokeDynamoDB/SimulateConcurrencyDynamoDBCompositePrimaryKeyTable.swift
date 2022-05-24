@@ -103,6 +103,11 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         }
     }
     
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError] {
+        return try await wrappedDynamoDBTable.monomorphicBulkWriteWithoutThrowing(entries)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {
         // simply delegate to the wrapped implementation
