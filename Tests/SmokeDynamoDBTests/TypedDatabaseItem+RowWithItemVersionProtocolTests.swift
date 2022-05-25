@@ -19,7 +19,6 @@ import Foundation
 
 import XCTest
 @testable import SmokeDynamoDB
-import NIO
 
 private let ORIGINAL_PAYLOAD = "Payload"
 private let ORIGINAL_TIME_TO_LIVE: Int64 = 123456789
@@ -27,24 +26,6 @@ private let UPDATED_PAYLOAD = "Updated"
 private let UPDATED_TIME_TO_LIVE: Int64 = 234567890
 
 class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
-    var eventLoopGroup: EventLoopGroup?
-    var eventLoop: EventLoop!
-    
-    override func setUp() {
-        super.setUp()
-        
-        let newEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        eventLoop = newEventLoopGroup.next()
-        eventLoopGroup = newEventLoopGroup
-    }
-
-    override func tearDown() {
-        super.tearDown()
-        
-        try? eventLoopGroup?.syncShutdownGracefully()
-        eventLoop = nil
-    }
-
 
     func testCreateUpdatedRowWithItemVersion() throws {
         let compositeKey = StandardCompositePrimaryKey(partitionKey: "partitionKey",
@@ -132,7 +113,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -152,7 +133,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -173,7 +154,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -193,7 +174,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -214,7 +195,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -234,7 +215,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -254,7 +235,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -282,7 +263,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -302,7 +283,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -322,7 +303,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -342,7 +323,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -362,7 +343,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
@@ -383,7 +364,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
@@ -406,7 +387,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
@@ -428,7 +409,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         let databaseItemB = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadB)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let expression = try table.getUpdateExpression(tableName: tableName,
                                                        newItem: databaseItemB,
@@ -448,7 +429,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                                  sortKey: "sortKey")
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let expression = try table.getDeleteExpression(tableName: tableName,
                                                        existingItem: databaseItemA)
@@ -466,7 +447,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                                  sortKey: "sortKey")
         let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
         
-        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable()
         
         let expression = try table.getDeleteExpression(tableName: tableName,
                                                        existingItem: databaseItemA)
@@ -474,30 +455,6 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
-    
-    static var allTests = [
-        ("testCreateUpdatedRowWithItemVersion", testCreateUpdatedRowWithItemVersion),
-        ("testCreateUpdatedRowWithItemVersionWithTimeToLive", testCreateUpdatedRowWithItemVersionWithTimeToLive),
-        ("testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion",
-         testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion),
-        ("testCreateUpdatedRowWithItemVersionWithIncorrectConditionalVersion",
-         testCreateUpdatedRowWithItemVersionWithIncorrectConditionalVersion),
-        ("testStringFieldDifference", testStringFieldDifference),
-        ("testNumberFieldDifference", testNumberFieldDifference),
-        ("testStructFieldDifference", testStructFieldDifference),
-        ("testListFieldDifference", testListFieldDifference),
-        ("testStringFieldAddition", testStringFieldAddition),
-        ("testNumberFieldAddition", testNumberFieldAddition),
-        ("testStructFieldAddition", testStructFieldAddition),
-        ("testListFieldAddition", testListFieldAddition),
-        ("testStringFieldRemoval", testStringFieldRemoval),
-        ("testNumberFieldRemoval", testNumberFieldRemoval),
-        ("testStructFieldRemoval", testStructFieldRemoval),
-        ("testListFieldRemoval", testListFieldRemoval),
-        ("testListFieldDifferenceExpression", testListFieldDifferenceExpression),
-        ("testListFieldAdditionExpression", testListFieldAdditionExpression),
-        ("testDeleteItemExpression", testDeleteItemExpression),
-    ]
 }
 
 extension Array where Element == AttributeDifference {

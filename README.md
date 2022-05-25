@@ -3,7 +3,7 @@
 <img src="https://github.com/amzn/smoke-dynamodb/actions/workflows/swift.yml/badge.svg?branch=main" alt="Build - Main Branch">
 </a>
 <a href="http://swift.org">
-<img src="https://img.shields.io/badge/swift-5.3|5.4|5.5-orange.svg?style=flat" alt="Swift 5.3, 5.4 and 5.5 Tested">
+<img src="https://img.shields.io/badge/swift-5.5|5.6-orange.svg?style=flat" alt="Swift 5.5 and 5.6 Tested">
 </a>
 <img src="https://img.shields.io/badge/ubuntu-18.04|20.04-yellow.svg?style=flat" alt="Ubuntu 18.04 and 20.04 Tested">
 <img src="https://img.shields.io/badge/CentOS-8-yellow.svg?style=flat" alt="CentOS 8 Tested">
@@ -171,7 +171,7 @@ let key = StandardCompositePrimaryKey(partitionKey: "partitionId",
 let payload = PayloadType(firstly: "firstly", secondly: "secondly")
 let databaseItem = StandardTypedDatabaseItem.newItem(withKey: key, andValue: payload)
         
-try table.insertItem(databaseItem).wait()
+try await table.insertItem(databaseItem)
 ```
 
 The `insertItem` operation will attempt to create the following row in the DynamoDB table-
@@ -193,7 +193,7 @@ By default, this operation will fail if an item with the same partition key and 
 An item can be retrieved from the DynamoDB table using the following-
 
 ```swift
-let retrievedItem: StandardTypedDatabaseItem<PayloadType>? = try table.getItem(forKey: key).wait()
+let retrievedItem: StandardTypedDatabaseItem<PayloadType>? = try await table.getItem(forKey: key)
 ```
 
 The `getItem` operation return an optional `TypedDatabaseItem` which will be nil if the item doesn't exist in the table. These operations will also fail if the *RowType* recorded in the database row doesn't match the type being requested.
@@ -205,7 +205,7 @@ An item can be updated in the DynamoDB table using the following-
 ```swift
 let updatedPayload = PayloadType(firstly: "firstlyX2", secondly: "secondlyX2")
 let updatedDatabaseItem = retrievedItem.createUpdatedItem(withValue: updatedPayload)
-try table.updateItem(newItem: updatedDatabaseItem, existingItem: retrievedItem).wait()
+try await table.updateItem(newItem: updatedDatabaseItem, existingItem: retrievedItem)
 ```
 
 The `updateItem` (or `updateItem`) operation will attempt to insert the following row in the DynamoDB table-
@@ -225,7 +225,7 @@ By default, this operation will fail if an item with the same partition key and 
 The `conditionallyUpdateItem` operation will attempt to update the primary item, repeatedly calling the `updatedPayloadProvider` to retrieve an updated version of the current row value until the  `update` operation succeeds. The `updatedPayloadProvider` can throw an exception to indicate that the current row value is unable to be updated.
 
 ```swift
-try table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider).wait()
+try await table.conditionallyUpdateItem(forKey: key, updatedPayloadProvider: updatedPayloadProvider)
 ```
 
 The `conditionallyUpdateItem` operation could also be provided with `updatedItemProvider`. It will attempt to update the primary item, repeatedly calling the `updatedItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `updatedItemProvider` can throw an exception to indicate that the current row is unable to be updated.
@@ -239,7 +239,7 @@ try table.conditionallyUpdateItem(forKey: key, updatedItemProvider: updatedItemP
 An item can be deleted in the DynamoDB table using the following-
 
 ```swift
-try table.deleteItem(forKey: key).wait()
+try await table.deleteItem(forKey: key)
 ```
 
 The `deleteItem` operation will succeed even if the specified row doesn't exist in the database table.
@@ -262,10 +262,10 @@ enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
 }
 
 let (queryItems, nextPageToken): ([TestPolymorphicOperationReturnType], String?) =
-    try table.query(forPartitionKey: partitionId,
-                    sortKeyCondition: nil,
-                    limit: 100,
-                    exclusiveStartKey: exclusiveStartKey).wait()
+    try await table.query(forPartitionKey: partitionId,
+                          sortKeyCondition: nil,
+                          limit: 100,
+                          exclusiveStartKey: exclusiveStartKey)
                                  
 for item in queryItems {                         
     switch item {
@@ -284,7 +284,7 @@ for item in queryItems {
 A similar operation utilises DynamoDB's BatchGetItem API, returning items in a dictionary keyed by the provided `CompositePrimaryKey` instance-
 
 ```swift
-let batch: [StandardCompositePrimaryKey: TestPolymorphicOperationReturnType] = try table.getItems(forKeys: [key1, key2]).wait()
+let batch: [StandardCompositePrimaryKey: TestPolymorphicOperationReturnType] = try await table.getItems(forKeys: [key1, key2])
 
 guard case .testTypeA(let retrievedDatabaseItem1) = batch[key1] else {
     ...
@@ -303,10 +303,10 @@ In addition to the `query` operation, there is a seperate set of operations that
 
 ```swift
 let (queryItems, nextPageToken): ([StandardTypedDatabaseItem<TestTypeA>], String?) =
-    try table.monomorphicQuery(forPartitionKey: "partitionId",
-                               sortKeyCondition: nil,
-                               limit: 100,
-                               exclusiveStartKey: exclusiveStartKey).wait()
+    try await table.monomorphicQuery(forPartitionKey: "partitionId",
+                                     sortKeyCondition: nil,
+                                     limit: 100,
+                                     exclusiveStartKey: exclusiveStartKey)
                                  
 for databaseItem in queryItems {                         
     ...
@@ -317,7 +317,7 @@ There is also an equivalent `monomorphicGetItems` DynamoDB's BatchGetItem API-
 
 ```swift
 let batch: [StandardCompositePrimaryKey: StandardTypedDatabaseItem<TestTypeA>]
-    = try table.monomorphicGetItems(forKeys: [key1, key2]).wait()
+    = try await table.monomorphicGetItems(forKeys: [key1, key2])
     
 guard let retrievedDatabaseItem1 = batch[key1] else {
     ...
@@ -362,10 +362,10 @@ enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
 }
 
 let (queryItems, nextPageToken): ([TestPolymorphicOperationReturnType], String?) =
-    try table.query(forPartitionKey: partitionId,
-                    sortKeyCondition: nil,
-                    limit: 100,
-                    exclusiveStartKey: exclusiveStartKey).wait()
+    try await table.query(forPartitionKey: partitionId,
+                          sortKeyCondition: nil,
+                          limit: 100,
+                          exclusiveStartKey: exclusiveStartKey)
                                  
 for item in queryItems {                         
     switch item {
@@ -380,10 +380,10 @@ and similarly for monomorphic queries-
 
 ```swift
 let (queryItems, nextPageToken): ([TypedDatabaseItem<GSI1PrimaryKeyAttributes, TestTypeA>], String?) =
-    try table.monomorphicQuery(forPartitionKey: "partitionId",
-                               sortKeyCondition: nil,
-                               limit: 100,
-                               exclusiveStartKey: exclusiveStartKey).wait()
+    try await table.monomorphicQuery(forPartitionKey: "partitionId",
+                                     sortKeyCondition: nil,
+                                     limit: 100,
+                                     exclusiveStartKey: exclusiveStartKey)
                                  
 for databaseItem in queryItems {                         
     ...
@@ -426,7 +426,7 @@ This package contains a number of convenience functions for storing versions of 
 The `insertItemWithHistoricalRow` operation provide a single call to insert both a primary and historical item-
 
 ```swift
-try table.insertItemWithHistoricalRow(primaryItem: databaseItem, historicalItem: historicalItem).wait()
+try await table.insertItemWithHistoricalRow(primaryItem: databaseItem, historicalItem: historicalItem)
 ```
 
 ### Update
@@ -434,9 +434,9 @@ try table.insertItemWithHistoricalRow(primaryItem: databaseItem, historicalItem:
 The `updateItemWithHistoricalRow` operation provide a single call to update a primary item and insert a historical item-
 
 ```swift
-try table.updateItemWithHistoricalRow(primaryItem: updatedItem, 
-                                      existingItem: databaseItem, 
-                                      historicalItem: historicalItem).wait()
+try await table.updateItemWithHistoricalRow(primaryItem: updatedItem, 
+                                            existingItem: databaseItem, 
+                                            historicalItem: historicalItem)
 ```
 
 ### Clobber
@@ -444,8 +444,8 @@ try table.updateItemWithHistoricalRow(primaryItem: updatedItem,
 The `clobberItemWithHistoricalRow` operation will attempt to insert or update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row (if it exists) until the appropriate `insert` or  `update` operation succeeds. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table. The primary item may not exist in the database table to begin with.
 
 ```swift
-try table.clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
-                                       historicalItemProvider: historicalItemProvider).wait()
+try await table.clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                             historicalItemProvider: historicalItemProvider)
 ```
 
 The `clobberItemWithHistoricalRow` operation is typically used when it is unknown if the primary item already exists in the database table and you want to either insert it or write a new version of that row (which may or may not be based on the existing item).
@@ -457,10 +457,10 @@ This operation can fail with a concurrency error if the `insert` or  `update` op
 The `conditionallyUpdateItemWithHistoricalRow` operation will attempt to update the primary item, repeatedly calling the `primaryItemProvider` to retrieve an updated version of the current row until the  `update` operation succeeds. The `primaryItemProvider` can thrown an exception to indicate that the current row is unable to be updated. The `historicalItemProvider` is called to provide the historical item based on the primary item that was inserted into the database table.
 
 ```swift
-try table.conditionallyUpdateItemWithHistoricalRow(
+try await table.conditionallyUpdateItemWithHistoricalRow(
     forPrimaryKey: dKey,
     primaryItemProvider: conditionalUpdatePrimaryItemProvider,
-    historicalItemProvider: conditionalUpdateHistoricalItemProvider).wait()
+    historicalItemProvider: conditionalUpdateHistoricalItemProvider)
 ```
 
 The `conditionallyUpdateItemWithHistoricalRow` operation is typically used when it is known that the primary item exists and you want to test if you can update it based on some attribute of its current version. A common scenario is adding a subordinate related item to the primary item where there is a limit of the number of related items. Here you would want to test the current version of the primary item to ensure the number of related items isn't exceeded.
@@ -484,51 +484,51 @@ func generateSortKey(withVersion version: Int) -> String {
     return [prefix, "sortId"].dynamodbKey
 }
     
-try table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
-                                                andHistoricalKey: historicalPartitionKey,
-                                                item: payload1,
-                                                primaryKeyType: StandardPrimaryKeyAttributes.self,
-                                                generateSortKey: generateSortKey).wait()
+try await table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
+                                                      andHistoricalKey: historicalPartitionKey,
+                                                      item: payload1,
+                                                      primaryKeyType: StandardPrimaryKeyAttributes.self,
+                                                      generateSortKey: generateSortKey)
                                                              
 // the v0 row, copy of version 1
 let key1 = StandardCompositePrimaryKey(partitionKey: partitionKey, sortKey: generateSortKey(withVersion: 0))
-let item1: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key1).wait()
+let item1: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try await table.getItem(forKey: key1)
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 // the v1 row, has version 1
 let key2 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 1))
-let item2: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key2).wait()
+let item2: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try await table.getItem(forKey: key2)
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 let payload2 = PayloadType(firstly: "thirdly", secondly: "fourthly")
         
-try table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
-                                                andHistoricalKey: historicalPartitionKey,
-                                                item: payload2,
-                                                primaryKeyType: StandardPrimaryKeyAttributes.self,
-                                                generateSortKey: generateSortKey).wait()
+try await table.clobberVersionedItemWithHistoricalRow(forPrimaryKey: partitionKey,
+                                                      andHistoricalKey: historicalPartitionKey,
+                                                      item: payload2,
+                                                      primaryKeyType: StandardPrimaryKeyAttributes.self,
+                                                      generateSortKey: generateSortKey)
         
 // the v0 row, copy of version 2
 let key3 = StandardCompositePrimaryKey(partitionKey: partitionKey, sortKey: generateSortKey(withVersion: 0))
-let item3: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key3).wait()
+let item3: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try await table.getItem(forKey: key3)
 item1.rowValue.itemVersion // 2
 item1.rowStatus.rowVersion // 2
 item1.rowValue.rowValue // payload2
         
 // the v1 row, still has version 1
 let key4 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 1))
-let item4: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key4).wait()
+let item4: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try await table.getItem(forKey: key4)
 item1.rowValue.itemVersion // 1
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload1
         
 // the v2 row, has version 2
 let key5 = StandardCompositePrimaryKey(partitionKey: historicalPartitionKey, sortKey: generateSortKey(withVersion: 2))
-let item5: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try table.getItem(forKey: key5).wait()
+let item5: StandardTypedDatabaseItem<RowWithItemVersion<PayloadType>> = try await table.getItem(forKey: key5)
 item1.rowValue.itemVersion // 2
 item1.rowStatus.rowVersion // 1
 item1.rowValue.rowValue // payload2

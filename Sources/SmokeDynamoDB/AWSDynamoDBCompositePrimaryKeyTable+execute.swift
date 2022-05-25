@@ -20,7 +20,7 @@ import SmokeAWSCore
 import DynamoDBModel
 import SmokeHTTPClient
 import Logging
-import NIO
+import CollectionConcurrencyKit
 
 // ExecuteStatement has a maximum of 50 of decomposed read operations per request
 private let maximumKeysPerExecuteStatement = 50
@@ -28,25 +28,21 @@ private let maximumKeysPerExecuteStatement = 50
 /// DynamoDBTable conformance execute function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
-            partitionKeys: [String],
-            attributesFilter: [String]?,
-            additionalWhereClause: String?,
-            nextToken: String?) -> EventLoopFuture<([ReturnedType], String?)> {
+        partitionKeys: [String],
+        attributesFilter: [String]?,
+        additionalWhereClause: String?, nextToken: String?) async throws
+    -> ([ReturnedType], String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
         guard partitionKeys.count > 0 else {
-            let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
-            promise.succeed(([], nil))
-            return promise.futureResult
+            return ([], nil)
         }
         
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // Caller of this function needs to handle pagination on their side.
         guard partitionKeys.count <= maximumKeysPerExecuteStatement else {
-            let promise = self.eventLoop.makePromise(of: ([ReturnedType], String?).self)
-            promise.fail(SmokeDynamoDBError.validationError(
-                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request."))
-            return promise.futureResult
+            throw SmokeDynamoDBError.validationError(
+                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request.")
         }
         
         let statement = getStatement(partitionKeys: partitionKeys,
@@ -55,7 +51,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                      additionalWhereClause: additionalWhereClause)
         let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
         
-        return dynamodb.executeStatement(input: executeInput).flatMapThrowing { executeOutput in
+        do {
+            let executeOutput = try await self.dynamodb.executeStatement(input: executeInput)
+            
             let nextToken = executeOutput.nextToken
             
             if let outputAttributeValues = executeOutput.items {
@@ -77,7 +75,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             } else {
                 return ([], nextToken)
             }
-        } .flatMapErrorThrowing { error in
+        } catch {
             if let typedError = error as? DynamoDBError {
                 throw typedError.asSmokeDynamoDBError()
             }
@@ -89,42 +87,37 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) -> EventLoopFuture<[ReturnedType]> {
+        additionalWhereClause: String?) async throws
+    -> [ReturnedType] {
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // This function handles pagination internally.
         let chunkedPartitionKeys = partitionKeys.chunked(by: maximumKeysPerExecuteStatement)
-        let futures = chunkedPartitionKeys.map { chunk -> EventLoopFuture<[ReturnedType]> in
-            return partialExecute(partitionKeys: chunk,
-                                  attributesFilter: attributesFilter,
-                                  additionalWhereClause: additionalWhereClause,
-                                  nextToken: nil)
+        let itemLists = try await chunkedPartitionKeys.concurrentMap { chunk -> [ReturnedType] in
+            return try await self.partialExecute(partitionKeys: chunk,
+                                                 attributesFilter: attributesFilter,
+                                                 additionalWhereClause: additionalWhereClause,
+                                                 nextToken: nil)
         }
         
-        return EventLoopFuture.whenAllSucceed(futures, on: self.eventLoop).map { itemLists in
-            itemLists.flatMap { $0 }
-        }
+        return itemLists.flatMap { $0 }
     }
     
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?,
-        nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
+        additionalWhereClause: String?, nextToken: String?) async throws
+    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
         guard partitionKeys.count > 0 else {
-            let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
-            promise.succeed(([], nil))
-            return promise.futureResult
+            return ([], nil)
         }
         
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // Caller of this function needs to handle pagination on their side.
         guard partitionKeys.count <= maximumKeysPerExecuteStatement else {
-            let promise = self.eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
-            promise.fail(SmokeDynamoDBError.validationError(
-                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request."))
-            return promise.futureResult
+            throw SmokeDynamoDBError.validationError(
+                            reason: "Execute API has a maximum limit of \(maximumKeysPerExecuteStatement) partition keys per request.")
         }
         
         let statement = getStatement(partitionKeys: partitionKeys,
@@ -133,7 +126,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                      additionalWhereClause: additionalWhereClause)
         let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
         
-        return dynamodb.executeStatement(input: executeInput).flatMapThrowing { executeOutput in
+        do {
+            let executeOutput = try await self.dynamodb.executeStatement(input: executeInput)
+            
             let nextToken = executeOutput.nextToken
             
             if let outputAttributeValues = executeOutput.items {
@@ -153,7 +148,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             } else {
                 return ([], nextToken)
             }
-        } .flatMapErrorThrowing { error in
+        } catch {
             if let typedError = error as? DynamoDBError {
                 throw typedError.asSmokeDynamoDBError()
             }
@@ -165,20 +160,19 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
+        additionalWhereClause: String?) async throws
+    -> [TypedDatabaseItem<AttributesType, ItemType>] {
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // This function handles pagination internally.
         let chunkedPartitionKeys = partitionKeys.chunked(by: maximumKeysPerExecuteStatement)
-        let futures = chunkedPartitionKeys.map { chunk -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> in
-            return monomorphicPartialExecute(partitionKeys: chunk,
-                                             attributesFilter: attributesFilter,
-                                             additionalWhereClause: additionalWhereClause,
-                                             nextToken: nil)
+        let itemLists = try await chunkedPartitionKeys.concurrentMap { chunk -> [TypedDatabaseItem<AttributesType, ItemType>] in
+            return try await self.monomorphicPartialExecute(partitionKeys: chunk,
+                                                            attributesFilter: attributesFilter,
+                                                            additionalWhereClause: additionalWhereClause,
+                                                            nextToken: nil)
         }
         
-        return EventLoopFuture.whenAllSucceed(futures, on: self.eventLoop).map { itemLists in
-            itemLists.flatMap { $0 }
-        }
+        return itemLists.flatMap { $0 }
     }
     
     // function to return a future with the results of an execute call and all future paginated calls
@@ -186,31 +180,27 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?) -> EventLoopFuture<[ReturnedType]> {
-        let executeFuture: EventLoopFuture<([ReturnedType], String?)> =
-            execute(partitionKeys: partitionKeys,
+            nextToken: String?) async throws
+    -> [ReturnedType] {
+        let paginatedItems: ([ReturnedType], String?) =
+            try await execute(partitionKeys: partitionKeys,
                     attributesFilter: attributesFilter,
                     additionalWhereClause: additionalWhereClause,
                     nextToken: nextToken)
         
-        return executeFuture.flatMap { paginatedItems in
-            // if there are more items
-            if let returnedNextToken = paginatedItems.1 {
-                // returns a future with all the results from all later paginated calls
-                return self.partialExecute(partitionKeys: partitionKeys,
-                                           attributesFilter: attributesFilter,
-                                           additionalWhereClause: additionalWhereClause,
-                                           nextToken: returnedNextToken)
-                    .map { partialResult in
-                        // return the results from 'this' call and all later paginated calls
-                        return paginatedItems.0 + partialResult
-                    }
-            } else {
-                // this is it, all results have been obtained
-                let promise = self.eventLoop.makePromise(of: [ReturnedType].self)
-                promise.succeed(paginatedItems.0)
-                return promise.futureResult
-            }
+        // if there are more items
+        if let returnedNextToken = paginatedItems.1 {
+            // returns a future with all the results from all later paginated calls
+            let partialResult: [ReturnedType] = try await self.partialExecute(partitionKeys: partitionKeys,
+                                                                              attributesFilter: attributesFilter,
+                                                                              additionalWhereClause: additionalWhereClause,
+                                                                              nextToken: returnedNextToken)
+                
+            // return the results from 'this' call and all later paginated calls
+            return paginatedItems.0 + partialResult
+        } else {
+            // this is it, all results have been obtained
+            return paginatedItems.0
         }
     }
     
@@ -218,31 +208,28 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?) -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
-        let executeFuture: EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> =
-            monomorphicExecute(partitionKeys: partitionKeys,
-                               attributesFilter: attributesFilter,
-                               additionalWhereClause: additionalWhereClause,
-                               nextToken: nextToken)
+            nextToken: String?) async throws
+    -> [TypedDatabaseItem<AttributesType, ItemType>] {
+        let paginatedItems: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
+            try await monomorphicExecute(partitionKeys: partitionKeys,
+                                         attributesFilter: attributesFilter,
+                                         additionalWhereClause: additionalWhereClause,
+                                         nextToken: nextToken)
         
-        return executeFuture.flatMap { paginatedItems in
-            // if there are more items
-            if let returnedNextToken = paginatedItems.1 {
-                // returns a future with all the results from all later paginated calls
-                return self.monomorphicPartialExecute(partitionKeys: partitionKeys,
-                                                      attributesFilter: attributesFilter,
-                                                      additionalWhereClause: additionalWhereClause,
-                                                      nextToken: returnedNextToken)
-                    .map { partialResult in
-                        // return the results from 'this' call and all later paginated calls
-                        return paginatedItems.0 + partialResult
-                    }
-            } else {
-                // this is it, all results have been obtained
-                let promise = self.eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
-                promise.succeed(paginatedItems.0)
-                return promise.futureResult
-            }
+        // if there are more items
+        if let returnedNextToken = paginatedItems.1 {
+            // returns a future with all the results from all later paginated calls
+            let partialResult: [TypedDatabaseItem<AttributesType, ItemType>] = try await self.monomorphicPartialExecute(
+                partitionKeys: partitionKeys,
+                attributesFilter: attributesFilter,
+                additionalWhereClause: additionalWhereClause,
+                nextToken: returnedNextToken)
+                
+            // return the results from 'this' call and all later paginated calls
+            return paginatedItems.0 + partialResult
+        } else {
+            // this is it, all results have been obtained
+            return paginatedItems.0
         }
     }
     
