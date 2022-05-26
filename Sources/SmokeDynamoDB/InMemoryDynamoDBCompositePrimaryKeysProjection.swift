@@ -19,62 +19,41 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
-import NIO
 
 public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
-    public var eventLoop: EventLoop
-
     internal let keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore
-    
-    public var keys: [Any] {
-        do {
-            return try keysWrapper.getKeys(eventLoop: self.eventLoop).wait()
-        } catch {
-            fatalError("Unable to retrieve InMemoryDynamoDBCompositePrimaryKeysProjection keys.")
-        }
-    }
 
-    public init(keys: [Any] = [], eventLoop: EventLoop) {
+    public init(keys: [Any] = []) {
         self.keysWrapper = InMemoryDynamoDBCompositePrimaryKeysProjectionStore(keys: keys)
-        self.eventLoop = eventLoop
     }
     
-    internal init(eventLoop: EventLoop,
-                  keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
-        self.eventLoop = eventLoop
+    internal init(keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
         self.keysWrapper = keysWrapper
-    }
-    
-    public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeysProjection {
-        return InMemoryDynamoDBCompositePrimaryKeysProjection(eventLoop: eventLoop,
-                                                              keysWrapper: self.keysWrapper)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                      sortKeyCondition: AttributeCondition?)
-    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
-        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition, eventLoop: self.eventLoop)
+                                      sortKeyCondition: AttributeCondition?) async throws
+    -> [CompositePrimaryKey<AttributesType>] {
+        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition)
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
-                                      exclusiveStartKey: String?)
-    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
-            where AttributesType: PrimaryKeyAttributes {
-        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                 limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
+                                      exclusiveStartKey: String?) async throws
+    -> ([CompositePrimaryKey<AttributesType>], String?) {
+        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                           limit: limit, exclusiveStartKey: exclusiveStartKey)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       scanIndexForward: Bool,
-                                      exclusiveStartKey: String?)
-    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
-    where AttributesType: PrimaryKeyAttributes {
-        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                 limit: limit, scanIndexForward: scanIndexForward,
-                                 exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
+                                      exclusiveStartKey: String?) async throws
+    -> ([CompositePrimaryKey<AttributesType>], String?) {
+        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                           limit: limit, scanIndexForward: scanIndexForward,
+                                           exclusiveStartKey: exclusiveStartKey)
     }
 }
