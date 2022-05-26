@@ -166,6 +166,52 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
+    
+    
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
+        _ entries: [WriteEntry<AttributesType, ItemType>],
+        eventLoop: EventLoop) async throws -> [Int: BatchStatementError] {
+            var errors: [Int: BatchStatementError] = [:]
+            
+            let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Void> in
+                switch entry {
+                case .update(new: let new, existing: let existing):
+                    return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
+                        .flatMapError { err in
+                            errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                            let promise = eventLoop.makePromise(of: Void.self)
+                            promise.succeed(())
+                            return promise.futureResult
+                        }
+                case .insert(new: let new):
+                    return insertItem(new, eventLoop: eventLoop).flatMapError { err in
+                        errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                        let promise = eventLoop.makePromise(of: Void.self)
+                        promise.succeed(())
+                        return promise.futureResult
+                    }
+                case .deleteAtKey(key: let key):
+                    return deleteItem(forKey: key, eventLoop: eventLoop).flatMapError { err in
+                        errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                        let promise = eventLoop.makePromise(of: Void.self)
+                        promise.succeed(())
+                        return promise.futureResult
+                        
+                    }
+                case .deleteItem(existing: let existing):
+                    return deleteItem(existingItem: existing, eventLoop: eventLoop)
+                        .flatMapError { err in
+                            errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                            let promise = eventLoop.makePromise(of: Void.self)
+                            promise.succeed(())
+                            return promise.futureResult
+                        }
+                }
+            }
+        
+            try await EventLoopFuture.andAllComplete(futures, on: eventLoop).get()
+            return errors
+        }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
                                            eventLoop: EventLoop)

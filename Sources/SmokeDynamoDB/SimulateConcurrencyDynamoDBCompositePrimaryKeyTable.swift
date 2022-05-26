@@ -26,6 +26,10 @@ import NIO
  a specified number of requests.
  */
 public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        return try await self.wrappedDynamoDBTable.monomorphicBulkWriteWithoutThrowing(entries)
+    }
+    
     public var eventLoop: EventLoop
     
     let wrappedDynamoDBTable: DynamoDBCompositePrimaryKeyTable

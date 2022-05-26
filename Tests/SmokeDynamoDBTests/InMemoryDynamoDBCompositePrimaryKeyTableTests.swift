@@ -464,20 +464,63 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         XCTAssertEqual(payload2, retrievedDatabaseItem2.rowValue)
     }
   
-    static var allTests = [
-        ("testInsertAndUpdate", testInsertAndUpdate),
-        ("testDoubleInsert", testDoubleInsert),
-        ("testUpdateWithoutInsert", testUpdateWithoutInsert),
-        ("testUpdateWithoutInsert", testUpdateWithoutInsert),
-        ("testPaginatedQuery", testPaginatedQuery),
-        ("testReversedPaginatedQuery", testReversedPaginatedQuery),
-        ("testQuery", testQuery),
-        ("testMonomorphicQuery", testMonomorphicQuery),
-        ("testDeleteForKey", testDeleteForKey),
-        ("testDeleteForExistingItem", testDeleteForExistingItem),
-        ("testDeleteForExistingItemAfterUpdate", testDeleteForExistingItemAfterUpdate),
-        ("testDeleteForExistingItemAfterRecreation", testDeleteForExistingItemAfterRecreation),
-        ("testGetItems", testGetItems),
-        ("testMonomorphicGetItems", testMonomorphicGetItems),
-    ]
+    func testMonomorphicBulkWriteWithoutThrowing() async throws {
+        typealias TestObject = TestTypeA
+        typealias TestObjectDatabaseItem = StandardTypedDatabaseItem<TestObject>
+        typealias TestObjectWriteEntry = StandardWriteEntry<TestObject>
+
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+
+        var entryList: [TestObjectWriteEntry] = []
+        var index = 0
+        while index < 26 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId\(index%25)", sortKey: "sortId\(index%25)")
+            let test = TestObject(firstly: "firstly", secondly: "secondly")
+            let testItem: TestObjectDatabaseItem = TestObjectDatabaseItem.newItem(withKey: key, andValue: test)
+            entryList.append(TestObjectWriteEntry.insert(new: testItem))
+            index += 1
+        }
+
+        let result1 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        XCTAssertEqual(result1.count, 1)
+        if result1[25] != nil {
+            return
+        } else {
+            XCTFail("should return duplicated index = 25")
+        }
+
+        entryList = []
+        index = 0
+        while index < 30 {
+            let key = StandardCompositePrimaryKey(partitionKey: "partitionId\(index)", sortKey: "sortId\(index)")
+            let test = TestObject(firstly: "firstly", secondly: "secondly")
+            let testItem: TestObjectDatabaseItem = TestObjectDatabaseItem.newItem(withKey: key, andValue: test)
+            entryList.append(TestObjectWriteEntry.insert(new: testItem))
+            index += 1
+        }
+
+        let result25 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        XCTAssertEqual(result25.count, 25)
+
+        let result30 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        XCTAssertEqual(result30.count, 30)
+    }
+
+        static var allTests = [
+            ("testInsertAndUpdate", testInsertAndUpdate),
+            ("testDoubleInsert", testDoubleInsert),
+            ("testUpdateWithoutInsert", testUpdateWithoutInsert),
+            ("testUpdateWithoutInsert", testUpdateWithoutInsert),
+            ("testPaginatedQuery", testPaginatedQuery),
+            ("testReversedPaginatedQuery", testReversedPaginatedQuery),
+            ("testQuery", testQuery),
+            ("testMonomorphicQuery", testMonomorphicQuery),
+            ("testDeleteForKey", testDeleteForKey),
+            ("testDeleteForExistingItem", testDeleteForExistingItem),
+            ("testDeleteForExistingItemAfterUpdate", testDeleteForExistingItemAfterUpdate),
+            ("testDeleteForExistingItemAfterRecreation", testDeleteForExistingItemAfterRecreation),
+            ("testGetItems", testGetItems),
+            ("testMonomorphicGetItems", testMonomorphicGetItems),
+            ("testMonomorphicBulkWriteWithoutThrowing", testMonomorphicBulkWriteWithoutThrowing)
+        ]
 }

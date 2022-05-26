@@ -26,6 +26,10 @@ public enum GSIError: Error {
 }
 
 public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: DynamoDBCompositePrimaryKeyGSILogic>: DynamoDBCompositePrimaryKeyTable {
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        return try await self.primaryTable.monomorphicBulkWriteWithoutThrowing(entries)
+    }
+    
     public var eventLoop: EventLoop
     
     public let primaryTable: InMemoryDynamoDBCompositePrimaryKeyTable
