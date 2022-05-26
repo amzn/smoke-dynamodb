@@ -27,8 +27,44 @@ public enum GSIError: Error {
 
 public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: DynamoDBCompositePrimaryKeyGSILogic>: DynamoDBCompositePrimaryKeyTable {
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        return try await self.primaryTable.monomorphicBulkWriteWithoutThrowing(entries)
+        var errors: [Int: BatchStatementError] = [:]
+        let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Void> in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                return updateItem(newItem: new, existingItem: existing).flatMapError { err in
+                    errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                    let promise = eventLoop.makePromise(of: Void.self)
+                    promise.succeed(())
+                    return promise.futureResult
+                }
+            case .insert(new: let new):
+                return insertItem(new).flatMapError { err in
+                    errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                    let promise = eventLoop.makePromise(of: Void.self)
+                    promise.succeed(())
+                    return promise.futureResult
+                }
+            case .deleteAtKey(key: let key):
+                return deleteItem(forKey: key).flatMapError { err in
+                    errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                    let promise = eventLoop.makePromise(of: Void.self)
+                    promise.succeed(())
+                    return promise.futureResult
+                }
+            case .deleteItem(existing: let existing):
+                return deleteItem(existingItem: existing).flatMapError { err in
+                    errors[index] = BatchStatementError(code: .duplicateitem, message: nil)
+                    let promise = eventLoop.makePromise(of: Void.self)
+                    promise.succeed(())
+                    return promise.futureResult
+                }
+            }
+        }
+        
+        try await EventLoopFuture.andAllComplete(futures, on: self.eventLoop).get()
+        return errors
     }
+    
     
     public var eventLoop: EventLoop
     
