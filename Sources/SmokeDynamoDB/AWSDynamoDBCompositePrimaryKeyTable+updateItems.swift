@@ -21,12 +21,36 @@ import DynamoDBModel
 import SmokeHTTPClient
 import Logging
 import NIO
-
+import CollectionConcurrencyKit
 // BatchExecuteStatement has a maximum of 25 statements
 private let maximumUpdatesPerExecuteStatement = 25
 
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
+    
+    private func entryToBatchStatementRequest<AttributesType, ItemType>(
+        _ entry: WriteEntry<AttributesType, ItemType>) throws -> BatchStatementRequest {
+        
+        let statement: String
+        switch entry {
+        case .update(new: let new, existing: let existing):
+            statement = try getUpdateExpression(tableName: self.targetTableName,
+                                                newItem: new,
+                                                existingItem: existing)
+        case .insert(new: let new):
+            statement = try getInsertExpression(tableName: self.targetTableName,
+                                                newItem: new)
+        case .deleteAtKey(key: let key):
+            statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                existingKey: key)
+        case .deleteItem(existing: let existing):
+            statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                existingItem: existing)
+        }
+        
+        return BatchStatementRequest(consistentRead: true, statement: statement)
+    }
+
     private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         // if there are no items, there is nothing to update
@@ -87,7 +111,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     messageElements.append(message)
                 }
                 
-                
                 if !messageElements.isEmpty {
                     let message = messageElements.joined(separator: ":")
                     var updatedErrorCount = errorMap[message] ?? 0
@@ -115,5 +138,49 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+    }
+    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError] {
+        // if there are no items, there is nothing to update
+        
+        guard entries.count > 0 else {
+            self.logger.info("\(entries) with count = 0")
+            return [:]
+        }
+        
+        let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
+
+        let executeInput = BatchExecuteStatementInput(statements: statements)
+        
+        let result =  try await dynamodb.batchExecuteStatement(input: executeInput)
+
+        guard let responses = result.responses else {
+            self.logger.warning("BatchExecuteStatementOutput: \(result) does not contain responses")
+            return [:]
+        }
+        
+        var failedList: [Int: BatchStatementError] = [:]
+
+        for (index, response) in responses.enumerated() {
+            if let error = response.error {
+                failedList[index] = error
+            }
+        }
+
+        return failedList
+    }
+
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> [Int: BatchStatementError] {
+        // BatchExecuteStatement has a maximum of 25 statements
+        // This function handles pagination internally.
+        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        var result: [Int: BatchStatementError] = [:]
+        try await chunkedEntries.enumerated().concurrentForEach { (index, chunk) in
+            try await self.writeChunkedItemsWithoutThrowing(chunk).forEach { (key, val) in
+                result[index * maximumUpdatesPerExecuteStatement + key] = val
+            }
+        }  
+        return result
     }
 }
