@@ -155,7 +155,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let result =  try await dynamodb.batchExecuteStatement(input: executeInput)
 
         guard let responses = result.responses else {
-            self.logger.info("BatchExecuteStatementOutput: \(result) does not contain responses")
+            self.logger.warning("BatchExecuteStatementOutput: \(result) does not contain responses")
             return [:]
         }
         
