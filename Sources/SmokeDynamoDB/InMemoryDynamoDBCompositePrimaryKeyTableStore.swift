@@ -167,7 +167,6 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
     
-    
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
         _ entries: [WriteEntry<AttributesType, ItemType>],
         eventLoop: EventLoop) async throws -> [Int: BatchStatementError] {
