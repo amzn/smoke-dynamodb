@@ -85,7 +85,6 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         return errors
     }
     
-    
     public var eventLoop: EventLoop
     
     public let primaryTable: InMemoryDynamoDBCompositePrimaryKeyTable
