@@ -38,10 +38,6 @@ public typealias ExecuteItemFilterType = (String, String, String, PolymorphicOpe
     -> Bool
 
 public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
-    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        return try await storeWrapper.monomorphicBulkWriteWithoutThrowing(entries, eventLoop: eventLoop)
-    }
-    
 
     public let eventLoop: EventLoop
     internal let storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore
@@ -89,6 +85,10 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
         return storeWrapper.monomorphicBulkWrite(entries, eventLoop: self.eventLoop)
     }
 
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
+        return try await storeWrapper.monomorphicBulkWriteWithoutThrowing(entries, eventLoop: eventLoop)
+    }
+    
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
     -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         return storeWrapper.getItem(forKey: key, eventLoop: self.eventLoop)

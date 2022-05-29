@@ -176,51 +176,42 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 switch entry {
                 case .update(new: let new, existing: let existing):
                     return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
-                        .flatMap { _ -> EventLoopFuture<Int?> in
-                            let promise = eventLoop.makePromise(of: Int?.self)
-                            promise.succeed(nil)
-                            return promise.futureResult
+                        .map { _ -> Int? in
+                            return nil
                         }.flatMapError{ error -> EventLoopFuture<Int?> in
                             let promise = eventLoop.makePromise(of: Int?.self)
                             promise.succeed(index)
                             return promise.futureResult
                         }
                 case .insert(new: let new):
-                    return insertItem(new, eventLoop: eventLoop).flatMap { _ -> EventLoopFuture<Int?> in
-                        let promise = eventLoop.makePromise(of: Int?.self)
-                        promise.succeed(nil)
-                        return promise.futureResult
+                    return insertItem(new, eventLoop: eventLoop).map { _ -> Int? in
+                        return nil
                     }.flatMapError{ error -> EventLoopFuture<Int?> in
                         let promise = eventLoop.makePromise(of: Int?.self)
                         promise.succeed(index)
                         return promise.futureResult
                     }
                 case .deleteAtKey(key: let key):
-                    return deleteItem(forKey: key, eventLoop: eventLoop).flatMap { _ -> EventLoopFuture<Int?> in
-                        let promise = eventLoop.makePromise(of: Int?.self)
-                        promise.succeed(nil)
-                        return promise.futureResult
+                    return deleteItem(forKey: key, eventLoop: eventLoop).map { _ -> Int? in
+                        return nil
                     }.flatMapError{ error -> EventLoopFuture<Int?> in
                         let promise = eventLoop.makePromise(of: Int?.self)
                         promise.succeed(index)
                         return promise.futureResult
                     }
                 case .deleteItem(existing: let existing):
-                    return deleteItem(existingItem: existing, eventLoop: eventLoop).flatMap { _ -> EventLoopFuture<Int?> in
-                        let promise = eventLoop.makePromise(of: Int?.self)
-                        promise.succeed(nil)
-                        return promise.futureResult
+                    return deleteItem(existingItem: existing, eventLoop: eventLoop).map { _ -> Int? in
+                        return nil
                     }.flatMapError{ error -> EventLoopFuture<Int?> in
                         let promise = eventLoop.makePromise(of: Int?.self)
                         promise.succeed(index)
                         return promise.futureResult
                     }
-                
                 }
             }
-        
-            let results = try await EventLoopFuture.whenAllComplete(futures, on: eventLoop).get()
             
+            let results = try await EventLoopFuture.whenAllComplete(futures, on: eventLoop).get()
+
             for result in results {
                 if let index = try result.get() {
                     errors[index] = BatchStatementError(code: .duplicateitem, message: "")
