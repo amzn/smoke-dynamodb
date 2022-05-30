@@ -34,7 +34,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let statements: [BatchStatementRequest] = try keys.map { existingKey -> BatchStatementRequest in
             let statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                    existingKey: existingKey)
+                                                    existingKey: existingKey,
+                                                    escapeSingleQuote: escapeSingleQuoteInPartiQL)
                 
             return BatchStatementRequest(consistentRead: true, statement: statement)
         }
@@ -53,7 +54,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let statements: [BatchStatementRequest] = try existingItems.map { existingItem -> BatchStatementRequest in
             let statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                    existingItem: existingItem)
+                                                    existingItem: existingItem,
+                                                    escapeSingleQuote: self.escapeSingleQuoteInPartiQL)
                 
             return BatchStatementRequest(consistentRead: true, statement: statement)
         }

@@ -26,6 +26,7 @@ import AsyncHTTPClient
 public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
     internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
+    internal let escapeSingleQuoteInPartiQL: Bool
     internal let logger: Logger
 
     public init(accessKeyId: String, secretAccessKey: String,
@@ -36,7 +37,8 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -51,6 +53,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
@@ -63,7 +66,8 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         self.logger = reporting.logger
         self.dynamodb = _AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                            awsRegion: region, reporting: reporting,
@@ -74,15 +78,18 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
     
     internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
                   targetTableName: String,
+                  escapeSingleQuoteInPartiQL: Bool,
                   logger: Logger) {
         self.dynamodb = dynamodb
         self.targetTableName = targetTableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
         self.logger = logger
     }
 

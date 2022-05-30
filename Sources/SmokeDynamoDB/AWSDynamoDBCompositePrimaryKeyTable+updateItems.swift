@@ -27,7 +27,8 @@ private let maximumUpdatesPerExecuteStatement = 25
 
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
-    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                             escapeSingleQuote: Bool) async throws {
         // if there are no items, there is nothing to update
         guard entries.count > 0 else {
             return
@@ -39,21 +40,25 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             case .update(new: let new, existing: let existing):
                 statement = try getUpdateExpression(tableName: self.targetTableName,
                                                     newItem: new,
-                                                    existingItem: existing)
+                                                    existingItem: existing,
+                                                    escapeSingleQuote: escapeSingleQuote)
             case .insert(new: let new):
                 statement = try getInsertExpression(tableName: self.targetTableName,
-                                                    newItem: new)
+                                                    newItem: new,
+                                                    escapeSingleQuote: escapeSingleQuote)
             case .deleteAtKey(key: let key):
                 statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                    existingKey: key)
+                                                    existingKey: key,
+                                                    escapeSingleQuote: escapeSingleQuote)
             case .deleteItem(existing: let existing):
                 statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                    existingItem: existing)
+                                                    existingItem: existing,
+                                                    escapeSingleQuote: escapeSingleQuote)
             }
             
             return BatchStatementRequest(consistentRead: true, statement: statement)
         }
-        
+
         let executeInput = BatchExecuteStatementInput(statements: statements)
         
         let response = try await dynamodb.batchExecuteStatement(input: executeInput)
@@ -99,7 +104,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
         try await chunkedEntries.concurrentForEach { chunk in
-            try await self.writeChunkedItems(chunk)
+            try await self.writeChunkedItems(chunk, escapeSingleQuote: self.escapeSingleQuoteInPartiQL)
         }
     }
 }

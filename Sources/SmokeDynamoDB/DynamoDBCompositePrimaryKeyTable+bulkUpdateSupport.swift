@@ -55,9 +55,11 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     func getUpdateExpression<AttributesType, ItemType>(tableName: String,
                                                        newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                       existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> String {
+                                                       existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                       escapeSingleQuote: Bool) throws -> String {
         let attributeDifferences = try diffItems(newItem: newItem,
-                                                 existingItem: existingItem)
+                                                 existingItem: existingItem,
+                                                 escapeSingleQuote: escapeSingleQuote)
         
         // according to https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html
         let elements = attributeDifferences.map { attributeDifference -> String in
@@ -72,35 +74,39 @@ extension DynamoDBCompositePrimaryKeyTable {
         }
         
         let combinedElements = elements.joined(separator: " ")
-        
+
         return "UPDATE \"\(tableName)\" \(combinedElements) "
-            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(newItem.compositePrimaryKey.partitionKey)' "
-            + "AND \(AttributesType.sortKeyAttributeName)='\(newItem.compositePrimaryKey.sortKey)' "
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(newItem.compositePrimaryKey.partitionKey, escapeSingleQuote))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(newItem.compositePrimaryKey.sortKey, escapeSingleQuote))' "
             + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
     func getInsertExpression<AttributesType, ItemType>(tableName: String,
-                                                       newItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> String {
+                                                       newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                       escapeSingleQuote: Bool) throws -> String {
         let newAttributes = try getAttributes(forItem: newItem)
-        let flattenedAttribute = try getFlattenedMapAttribute(attribute: newAttributes)
+        let flattenedAttribute = try getFlattenedMapAttribute(attribute: newAttributes,
+                                                              escapeSingleQuote: escapeSingleQuote)
         
         // according to https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html
         return "INSERT INTO \"\(tableName)\" value \(flattenedAttribute)"
     }
     
     func getDeleteExpression<ItemType: DatabaseItem>(tableName: String,
-                                                     existingItem: ItemType) throws -> String {
+                                                     existingItem: ItemType,
+                                                     escapeSingleQuote: Bool) throws -> String {
         return "DELETE FROM \"\(tableName)\" "
-            + "WHERE \(ItemType.AttributesType.partitionKeyAttributeName)='\(existingItem.compositePrimaryKey.partitionKey)' "
-            + "AND \(ItemType.AttributesType.sortKeyAttributeName)='\(existingItem.compositePrimaryKey.sortKey)' "
+            + "WHERE \(ItemType.AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.partitionKey, escapeSingleQuote))' "
+            + "AND \(ItemType.AttributesType.sortKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.sortKey, escapeSingleQuote))' "
             + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
     func getDeleteExpression<AttributesType>(tableName: String,
-                                             existingKey: CompositePrimaryKey<AttributesType>) throws -> String {
+                                             existingKey: CompositePrimaryKey<AttributesType>,
+                                             escapeSingleQuote: Bool) throws -> String {
         return "DELETE FROM \"\(tableName)\" "
-            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(existingKey.partitionKey)' "
-            + "AND \(AttributesType.sortKeyAttributeName)='\(existingKey.sortKey)'"
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingKey.partitionKey, escapeSingleQuote))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(existingKey.sortKey, escapeSingleQuote))'"
     }
     
     /*
@@ -109,16 +115,21 @@ extension DynamoDBCompositePrimaryKeyTable {
      */
     func diffItems<AttributesType, ItemType>(
                 newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> [AttributeDifference] {
+                existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                escapeSingleQuote: Bool) throws -> [AttributeDifference] {
         let newAttributes = try getAttributes(forItem: newItem)
         let existingAttributes = try getAttributes(forItem: existingItem)
         
-        return try diffMapAttribute(path: nil, newAttribute: newAttributes, existingAttribute: existingAttributes)
+        return try diffMapAttribute(path: nil,
+                                    newAttribute: newAttributes,
+                                    existingAttribute: existingAttributes,
+                                    escapeSingleQuote: escapeSingleQuote)
     }
     
     private func diffAttribute(path: String,
                                newAttribute: DynamoDBModel.AttributeValue,
-                               existingAttribute: DynamoDBModel.AttributeValue) throws -> [AttributeDifference] {
+                               existingAttribute: DynamoDBModel.AttributeValue,
+                               escapeSingleQuote: Bool) throws -> [AttributeDifference] {
         if newAttribute.B != nil || existingAttribute.B != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary types.")
         } else if let newTypedAttribute = newAttribute.BOOL, let existingTypedAttribute = existingAttribute.BOOL {
@@ -128,9 +139,15 @@ extension DynamoDBCompositePrimaryKeyTable {
         } else if newAttribute.BS != nil || existingAttribute.BS != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary Set types.")
         } else if let newTypedAttribute = newAttribute.L, let existingTypedAttribute = existingAttribute.L {
-            return try diffListAttribute(path: path, newAttribute: newTypedAttribute, existingAttribute: existingTypedAttribute)
+            return try diffListAttribute(path: path,
+                                         newAttribute: newTypedAttribute,
+                                         existingAttribute: existingTypedAttribute,
+                                         escapeSingleQuote: escapeSingleQuote)
         } else if let newTypedAttribute = newAttribute.M, let existingTypedAttribute = existingAttribute.M {
-            return try diffMapAttribute(path: path, newAttribute: newTypedAttribute, existingAttribute: existingTypedAttribute)
+            return try diffMapAttribute(path: path,
+                                        newAttribute: newTypedAttribute,
+                                        existingAttribute: existingTypedAttribute,
+                                        escapeSingleQuote: escapeSingleQuote)
         } else if let newTypedAttribute = newAttribute.N, let existingTypedAttribute = existingAttribute.N {
             if newTypedAttribute != existingTypedAttribute {
                 return [.update(path: path, value: String(newTypedAttribute))]
@@ -142,13 +159,15 @@ extension DynamoDBCompositePrimaryKeyTable {
             return []
         } else if let newTypedAttribute = newAttribute.S, let existingTypedAttribute = existingAttribute.S {
             if newTypedAttribute != existingTypedAttribute {
-                return [.update(path: path, value: "'\(newTypedAttribute)'")]
+                return [.update(path: path, value: "'\(sanitizeString(newTypedAttribute, escapeSingleQuote))'")]
             }
         } else if newAttribute.SS != nil || existingAttribute.SS  != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
         } else {
             // new value is a different type and could be replaced
-            return try updateAttribute(newPath: path, attribute: newAttribute)
+            return try updateAttribute(newPath: path,
+                                       attribute: newAttribute,
+                                       escapeSingleQuote: escapeSingleQuote)
         }
         
         // no change
@@ -157,7 +176,8 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     private func diffListAttribute(path: String,
                                    newAttribute: [DynamoDBModel.AttributeValue],
-                                   existingAttribute: [DynamoDBModel.AttributeValue]) throws -> [AttributeDifference] {
+                                   existingAttribute: [DynamoDBModel.AttributeValue],
+                                   escapeSingleQuote: Bool) throws -> [AttributeDifference] {
         let maxIndex = max(newAttribute.count, existingAttribute.count)
         var haveAppendedAdditionalValues = false
         
@@ -166,12 +186,16 @@ extension DynamoDBCompositePrimaryKeyTable {
             
             // if both new and existing attributes are present
             if index < newAttribute.count && index < existingAttribute.count {
-                return try diffAttribute(path: newPath, newAttribute: newAttribute[index], existingAttribute: existingAttribute[index])
+                return try diffAttribute(path: newPath,
+                                         newAttribute: newAttribute[index],
+                                         existingAttribute: existingAttribute[index],
+                                         escapeSingleQuote: escapeSingleQuote)
             } else if index < existingAttribute.count {
                 return [.remove(path: newPath)]
             } else if index < newAttribute.count {
                 let additionalAttributes = Array(newAttribute[index...])
-                let newValue = try getFlattenedListAttribute(attribute: additionalAttributes)
+                let newValue = try getFlattenedListAttribute(attribute: additionalAttributes,
+                                                             escapeSingleQuote: escapeSingleQuote)
                 
                 if !haveAppendedAdditionalValues {
                     haveAppendedAdditionalValues = true
@@ -189,7 +213,8 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     private func diffMapAttribute(path: String?,
                                   newAttribute: [String: DynamoDBModel.AttributeValue],
-                                  existingAttribute: [String: DynamoDBModel.AttributeValue]) throws -> [AttributeDifference] {
+                                  existingAttribute: [String: DynamoDBModel.AttributeValue],
+                                  escapeSingleQuote: Bool) throws -> [AttributeDifference] {
         var combinedMap: [String: (new: DynamoDBModel.AttributeValue?, existing: DynamoDBModel.AttributeValue?)] = [:]
         
         newAttribute.forEach { (key, attribute) in
@@ -209,11 +234,16 @@ extension DynamoDBCompositePrimaryKeyTable {
             
             // if both new and existing attributes are present
             if let new = attribute.new, let existing = attribute.existing {
-                return try diffAttribute(path: newPath, newAttribute: new, existingAttribute: existing)
+                return try diffAttribute(path: newPath,
+                                         newAttribute: new,
+                                         existingAttribute: existing,
+                                         escapeSingleQuote: escapeSingleQuote)
             } else if attribute.existing != nil {
                 return [.remove(path: newPath)]
             } else if let new = attribute.new {
-                return try updateAttribute(newPath: newPath, attribute: new)
+                return try updateAttribute(newPath: newPath,
+                                           attribute: new,
+                                           escapeSingleQuote: escapeSingleQuote)
             } else {
                 return []
             }
@@ -228,15 +258,18 @@ extension DynamoDBCompositePrimaryKeyTable {
         }
     }
     
-    private func updateAttribute(newPath: String, attribute: DynamoDBModel.AttributeValue) throws -> [AttributeDifference] {
-        if let newValue = try getFlattenedAttribute(attribute: attribute) {
+    private func updateAttribute(newPath: String,
+                                 attribute: DynamoDBModel.AttributeValue,
+                                 escapeSingleQuote: Bool) throws -> [AttributeDifference] {
+        if let newValue = try getFlattenedAttribute(attribute: attribute, escapeSingleQuote: escapeSingleQuote) {
             return [.update(path: newPath, value: newValue)]
         } else {
             return [.remove(path: newPath)]
         }
     }
     
-    func getFlattenedAttribute(attribute: DynamoDBModel.AttributeValue) throws -> String? {
+    func getFlattenedAttribute(attribute: DynamoDBModel.AttributeValue,
+                               escapeSingleQuote: Bool) throws -> String? {
         if attribute.B != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary types.")
         } else if let typedAttribute = attribute.BOOL {
@@ -244,9 +277,9 @@ extension DynamoDBCompositePrimaryKeyTable {
         } else if attribute.BS != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle Binary Set types.")
         } else if let typedAttribute = attribute.L {
-            return try getFlattenedListAttribute(attribute: typedAttribute)
+            return try getFlattenedListAttribute(attribute: typedAttribute, escapeSingleQuote: escapeSingleQuote)
         } else if let typedAttribute = attribute.M {
-            return try getFlattenedMapAttribute(attribute: typedAttribute)
+            return try getFlattenedMapAttribute(attribute: typedAttribute, escapeSingleQuote: escapeSingleQuote)
         } else if let typedAttribute = attribute.N {
             return String(typedAttribute)
         } else if attribute.NS != nil {
@@ -254,7 +287,7 @@ extension DynamoDBCompositePrimaryKeyTable {
         } else if attribute.NULL != nil {
             return nil
         } else if let typedAttribute = attribute.S {
-            return "'\(typedAttribute)'"
+            return "'\(sanitizeString(typedAttribute, escapeSingleQuote))'"
         } else if attribute.SS != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
         }
@@ -262,18 +295,22 @@ extension DynamoDBCompositePrimaryKeyTable {
         return nil
     }
     
-    private func getFlattenedListAttribute(attribute: [DynamoDBModel.AttributeValue]) throws -> String {
+    private func getFlattenedListAttribute(attribute: [DynamoDBModel.AttributeValue],
+                                           escapeSingleQuote: Bool) throws -> String {
         let elements: [String] = try attribute.compactMap { nestedAttribute in
-            return try getFlattenedAttribute(attribute: nestedAttribute)
+            return try getFlattenedAttribute(attribute: nestedAttribute,
+                                             escapeSingleQuote: escapeSingleQuote)
         }
         
         let joinedElements = elements.joined(separator: ", ")
         return "[\(joinedElements)]"
     }
     
-    private func getFlattenedMapAttribute(attribute: [String: DynamoDBModel.AttributeValue]) throws -> String {
+    private func getFlattenedMapAttribute(attribute: [String: DynamoDBModel.AttributeValue],
+                                          escapeSingleQuote: Bool) throws -> String {
         let elements: [String] = try attribute.compactMap { (key, nestedAttribute) in
-            guard let flattenedNestedAttribute = try getFlattenedAttribute(attribute: nestedAttribute) else {
+            guard let flattenedNestedAttribute = try getFlattenedAttribute(attribute: nestedAttribute,
+                                                                           escapeSingleQuote: escapeSingleQuote) else {
                 return nil
             }
             
@@ -282,5 +319,13 @@ extension DynamoDBCompositePrimaryKeyTable {
         
         let joinedElements = elements.joined(separator: ", ")
         return "{\(joinedElements)}"
+    }
+
+    private func sanitizeString(_ string: String, _ escapeSingleQuote: Bool) -> String {
+        if escapeSingleQuote {
+            return string.replacingOccurrences(of: "'", with: "''")
+        } else {
+            return string
+        }
     }
 }
