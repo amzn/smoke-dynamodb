@@ -139,48 +139,69 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
-    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError] {
+    
+    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<[Int: BatchStatementError]> {
         // if there are no items, there is nothing to update
         
         guard entries.count > 0 else {
             self.logger.info("\(entries) with count = 0")
-            return [:]
+            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
+            promise.succeed([:])
+            return promise.futureResult
         }
         
-        let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
-
-        let executeInput = BatchExecuteStatementInput(statements: statements)
-        
-        let result =  try await dynamodb.batchExecuteStatement(input: executeInput)
-
-        guard let responses = result.responses else {
-            self.logger.warning("BatchExecuteStatementOutput: \(result) does not contain responses")
-            return [:]
-        }
-        
-        var failedList: [Int: BatchStatementError] = [:]
-
-        for (index, response) in responses.enumerated() {
-            if let error = response.error {
-                failedList[index] = error
+        do {
+            let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
+            let executeInput = BatchExecuteStatementInput(statements: statements)
+            return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { result -> [Int: BatchStatementError] in
+                guard let responses = result.responses else {
+                    self.logger.warning("BatchExecuteStatementOutput: \(result) does not contain responses")
+                    return [:]
+                }
+                var failedList: [Int: BatchStatementError] = [:]
+                for (index, response) in responses.enumerated() {
+                    if let error = response.error {
+                        failedList[index] = error
+                    }
+                }
+                return failedList
             }
+        } catch {
+            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
+            promise.fail(error)
+            return promise.futureResult
         }
-
-        return failedList
     }
 
-    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError] {
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<[Int: BatchStatementError]> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
-        var result: [Int: BatchStatementError] = [:]
-        try await chunkedEntries.enumerated().concurrentForEach { (index, chunk) in
-            try await self.writeChunkedItemsWithoutThrowing(chunk).forEach { (key, val) in
-                result[index * maximumUpdatesPerExecuteStatement + key] = val
-            }
+
+        let futures = chunkedEntries.enumerated().map { (index, chunk) in
+            return self.writeChunkedItemsWithoutThrowing(chunk)
         }  
-        return result
+        
+        do {
+            var failedList: [Int: BatchStatementError] = [:]
+            let results = try EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).wait()
+            try results.enumerated().forEach { (index, result) in
+                let dict = try result.get()
+                dict.forEach { (key, val) in
+                    failedList[index * maximumUpdatesPerExecuteStatement + key] = val
+                }
+            }
+            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
+            promise.succeed(failedList)
+            return promise.futureResult
+        } catch {
+            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
+            promise.fail(error)
+            return promise.futureResult
+        }
+        
+    
     }
 }

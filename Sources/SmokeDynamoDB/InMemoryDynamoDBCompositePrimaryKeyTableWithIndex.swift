@@ -84,8 +84,8 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
     
-    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws -> [Int : BatchStatementError] where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        var errors: [Int: BatchStatementError] = [:]
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<[Int : BatchStatementError]> {
         let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Int?> in
             switch entry {
             case .update(new: let new, existing: let existing):
@@ -123,15 +123,22 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
             }
         }
         
-        let results = try await EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).get()
-        
-        for result in results {
-            if let index = try result.get() {
-                errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+        do {
+            let results = try EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).wait()
+            var errors: [Int: BatchStatementError] = [:]
+            for result in results {
+                if let index = try result.get() {
+                    errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+                }
             }
+            let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
+            promise.succeed(errors)
+            return promise.futureResult
+        } catch {
+            let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
+            promise.fail(error)
+            return promise.futureResult
         }
-
-        return errors
     }
     
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)

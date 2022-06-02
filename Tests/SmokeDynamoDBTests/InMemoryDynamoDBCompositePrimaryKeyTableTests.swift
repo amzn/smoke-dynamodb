@@ -481,7 +481,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             index += 1
         }
 
-        let result1 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        let result1 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
         XCTAssertEqual(result1.count, 1)
         if result1[25] != nil {
             return
@@ -499,10 +499,10 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             index += 1
         }
 
-        let result25 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        let result25 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
         XCTAssertEqual(result25.count, 25)
 
-        let result30 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
+        let result30 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
         XCTAssertEqual(result30.count, 30)
     }
 

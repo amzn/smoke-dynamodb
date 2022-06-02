@@ -169,8 +169,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
         _ entries: [WriteEntry<AttributesType, ItemType>],
-        eventLoop: EventLoop) async throws -> [Int: BatchStatementError] {
-            var errors: [Int: BatchStatementError] = [:]
+        eventLoop: EventLoop) -> EventLoopFuture<[Int: BatchStatementError]> {
             
             let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Int?> in
                 switch entry {
@@ -210,15 +209,22 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 }
             }
             
-            let results = try await EventLoopFuture.whenAllComplete(futures, on: eventLoop).get()
-
-            for result in results {
-                if let index = try result.get() {
-                    errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+            do {
+                let results = try EventLoopFuture.whenAllComplete(futures, on: eventLoop).wait()
+                var errors: [Int: BatchStatementError] = [:]
+                for result in results {
+                    if let index = try result.get() {
+                        errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+                    }
                 }
+                let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
+                promise.succeed(errors)
+                return promise.futureResult
+            } catch {
+                let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
+                promise.fail(error)
+                return promise.futureResult
             }
-
-            return errors
         }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
