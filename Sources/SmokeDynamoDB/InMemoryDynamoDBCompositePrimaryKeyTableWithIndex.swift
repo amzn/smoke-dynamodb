@@ -85,7 +85,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
     }
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<[Int : BatchStatementError]> {
+    -> EventLoopFuture<[Int: BatchStatementError]> {
         let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Int?> in
             switch entry {
             case .update(new: let new, existing: let existing):
@@ -123,22 +123,16 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
             }
         }
         
-        do {
-            let results = try EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).wait()
-            var errors: [Int: BatchStatementError] = [:]
-            for result in results {
-                if let index = try result.get() {
-                    errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+        return EventLoopFuture.whenAllComplete(futures, on: eventLoop)
+            .flatMapThrowing { results -> [Int: BatchStatementError] in
+                var errors: [Int: BatchStatementError] = [:]
+                for result in results {
+                    if let index = try result.get() {
+                        errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+                    }
                 }
+                return errors
             }
-            let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
-            promise.succeed(errors)
-            return promise.futureResult
-        } catch {
-            let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
-            promise.fail(error)
-            return promise.futureResult
-        }
     }
     
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)

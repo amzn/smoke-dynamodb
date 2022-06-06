@@ -209,22 +209,16 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 }
             }
             
-            do {
-                let results = try EventLoopFuture.whenAllComplete(futures, on: eventLoop).wait()
-                var errors: [Int: BatchStatementError] = [:]
-                for result in results {
-                    if let index = try result.get() {
-                        errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+            return EventLoopFuture.whenAllComplete(futures, on: eventLoop)
+                .flatMapThrowing { results -> [Int: BatchStatementError] in
+                    var errors: [Int: BatchStatementError] = [:]
+                    for result in results {
+                        if let index = try result.get() {
+                            errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+                        }
                     }
+                    return errors
                 }
-                let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
-                promise.succeed(errors)
-                return promise.futureResult
-            } catch {
-                let promise = eventLoop.makePromise(of: [Int : BatchStatementError].self)
-                promise.fail(error)
-                return promise.futureResult
-            }
         }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,

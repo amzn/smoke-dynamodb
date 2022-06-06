@@ -183,25 +183,17 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let futures = chunkedEntries.enumerated().map { (index, chunk) in
             return self.writeChunkedItemsWithoutThrowing(chunk)
         }  
-        
-        do {
-            var failedList: [Int: BatchStatementError] = [:]
-            let results = try EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).wait()
-            try results.enumerated().forEach { (index, result) in
-                let dict = try result.get()
-                dict.forEach { (key, val) in
-                    failedList[index * maximumUpdatesPerExecuteStatement + key] = val
+
+        return EventLoopFuture.whenAllComplete(futures, on: self.eventLoop)
+            .flatMapThrowing { results in
+                var failedList: [Int: BatchStatementError] = [:]
+                try results.enumerated().forEach { (index, result) in
+                    let dict = try result.get()
+                    dict.forEach { (key, val) in
+                        failedList[index * maximumUpdatesPerExecuteStatement + key] = val
+                    }
                 }
+                return failedList
             }
-            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
-            promise.succeed(failedList)
-            return promise.futureResult
-        } catch {
-            let promise = self.eventLoop.makePromise(of: [Int: BatchStatementError].self)
-            promise.fail(error)
-            return promise.futureResult
-        }
-        
-    
     }
 }
