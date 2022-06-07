@@ -106,7 +106,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
     
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<[Int: BatchStatementError]>
+    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
@@ -290,7 +290,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
 
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError]
+    -> Set<BatchStatementErrorCodeEnum>
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
@@ -470,7 +470,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         return try await monomorphicBulkWrite(entries).get()
     }
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError]{
+    -> Set<BatchStatementErrorCodeEnum>{
         return try await monomorphicBulkWriteWithoutThrowing(entries).get()
     }
 

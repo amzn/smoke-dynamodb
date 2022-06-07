@@ -483,27 +483,11 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
 
         let result1 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
         XCTAssertEqual(result1.count, 1)
-        if result1[25] != nil {
+        if result1.contains(BatchStatementErrorCodeEnum.duplicateitem) {
             return
         } else {
-            XCTFail("should return duplicated index = 25")
+            XCTFail("should contain duplicateitem error")
         }
-
-        entryList = []
-        index = 0
-        while index < 30 {
-            let key = StandardCompositePrimaryKey(partitionKey: "partitionId\(index)", sortKey: "sortId\(index)")
-            let test = TestObject(firstly: "firstly", secondly: "secondly")
-            let testItem: TestObjectDatabaseItem = TestObjectDatabaseItem.newItem(withKey: key, andValue: test)
-            entryList.append(TestObjectWriteEntry.insert(new: testItem))
-            index += 1
-        }
-
-        let result25 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
-        XCTAssertEqual(result25.count, 25)
-
-        let result30 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
-        XCTAssertEqual(result30.count, 30)
     }
 
         static var allTests = [

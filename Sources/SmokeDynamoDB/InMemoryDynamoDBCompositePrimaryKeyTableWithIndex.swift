@@ -85,50 +85,54 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
     }
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<[Int: BatchStatementError]> {
-        let futures = entries.enumerated().map { (index, entry) -> EventLoopFuture<Int?> in
+    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
+        let futures = entries.map { entry -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
             switch entry {
             case .update(new: let new, existing: let existing):
-                return updateItem(newItem: new, existingItem: existing).map { _ -> Int? in
-                    return nil
-                }.flatMapError{ error -> EventLoopFuture<Int?> in
-                    let promise = eventLoop.makePromise(of: Int?.self)
-                    promise.succeed(index)
-                    return promise.futureResult
-                }
+                return updateItem(newItem: new, existingItem: existing)
+                    .map { () -> BatchStatementErrorCodeEnum? in
+                        return nil
+                    }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
+                        let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
+                        promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
+                        return promise.futureResult
+                    }
             case .insert(new: let new):
-                return insertItem(new).map { _ -> Int? in
-                    return nil
-                }.flatMapError{ error -> EventLoopFuture<Int?> in
-                    let promise = eventLoop.makePromise(of: Int?.self)
-                    promise.succeed(index)
-                    return promise.futureResult
-                }
+                return insertItem(new)
+                    .map { () -> BatchStatementErrorCodeEnum? in
+                        return nil
+                    }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
+                        let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
+                        promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
+                        return promise.futureResult
+                    }
             case .deleteAtKey(key: let key):
-                return deleteItem(forKey: key).map { _ -> Int? in
-                    return nil
-                }.flatMapError{ error -> EventLoopFuture<Int?> in
-                    let promise = eventLoop.makePromise(of: Int?.self)
-                    promise.succeed(index)
-                    return promise.futureResult
-                }
+                return deleteItem(forKey: key)
+                    .map { () -> BatchStatementErrorCodeEnum? in
+                        return nil
+                    }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
+                        let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
+                        promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
+                        return promise.futureResult
+                    }
             case .deleteItem(existing: let existing):
-                return deleteItem(existingItem: existing).map { _ -> Int? in
-                    return nil
-                }.flatMapError{ error -> EventLoopFuture<Int?> in
-                    let promise = eventLoop.makePromise(of: Int?.self)
-                    promise.succeed(index)
-                    return promise.futureResult
-                }
+                return deleteItem(existingItem: existing)
+                    .map { () -> BatchStatementErrorCodeEnum? in
+                        return nil
+                    }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
+                        let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
+                        promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
+                        return promise.futureResult
+                    }
             }
         }
         
         return EventLoopFuture.whenAllComplete(futures, on: eventLoop)
-            .flatMapThrowing { results -> [Int: BatchStatementError] in
-                var errors: [Int: BatchStatementError] = [:]
-                for result in results {
-                    if let index = try result.get() {
-                        errors[index] = BatchStatementError(code: .duplicateitem, message: "")
+            .flatMapThrowing { results in
+                var errors: Set<BatchStatementErrorCodeEnum> = Set()
+                try results.forEach { result in
+                    if let error = try result.get() {
+                        errors.insert(error)
                     }
                 }
                 return errors
