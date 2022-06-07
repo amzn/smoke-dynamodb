@@ -139,48 +139,55 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
-    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError] {
+    
+    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         // if there are no items, there is nothing to update
         
         guard entries.count > 0 else {
             self.logger.info("\(entries) with count = 0")
-            return [:]
+            let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
+            promise.succeed(Set())
+            return promise.futureResult
         }
         
-        let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
-
-        let executeInput = BatchExecuteStatementInput(statements: statements)
-        
-        let result =  try await dynamodb.batchExecuteStatement(input: executeInput)
-
-        guard let responses = result.responses else {
-            self.logger.warning("BatchExecuteStatementOutput: \(result) does not contain responses")
-            return [:]
-        }
-        
-        var failedList: [Int: BatchStatementError] = [:]
-
-        for (index, response) in responses.enumerated() {
-            if let error = response.error {
-                failedList[index] = error
+        do {
+            let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
+            let executeInput = BatchExecuteStatementInput(statements: statements)
+            return dynamodb.batchExecuteStatement(input: executeInput).map { result -> Set<BatchStatementErrorCodeEnum> in
+                var errorSet: Set<BatchStatementErrorCodeEnum> = Set()
+                result.responses?.forEach { response in
+                    if let error = response.error, let code = error.code {
+                        errorSet.insert(code)
+                    }
+                }
+                return errorSet
             }
+        } catch {
+            let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
+            promise.fail(error)
+            return promise.futureResult
         }
-
-        return failedList
     }
 
-    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> [Int: BatchStatementError] {
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
-        var result: [Int: BatchStatementError] = [:]
-        try await chunkedEntries.enumerated().concurrentForEach { (index, chunk) in
-            try await self.writeChunkedItemsWithoutThrowing(chunk).forEach { (key, val) in
-                result[index * maximumUpdatesPerExecuteStatement + key] = val
-            }
+
+        let futures = chunkedEntries.map { chunk in
+            return self.writeChunkedItemsWithoutThrowing(chunk)
         }  
-        return result
+
+        return EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).flatMapThrowing { results in
+            var errors: Set<BatchStatementErrorCodeEnum> = Set()
+            try results.forEach { result in
+                let error = try result.get()
+                errors = errors.union(error)
+            }
+            
+            return errors
+        }
     }
 }
