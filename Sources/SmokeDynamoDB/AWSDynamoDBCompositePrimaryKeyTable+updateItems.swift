@@ -157,10 +157,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return dynamodb.batchExecuteStatement(input: executeInput).map { result -> Set<BatchStatementErrorCodeEnum> in
                 var errorSet: Set<BatchStatementErrorCodeEnum> = Set()
                 result.responses?.forEach { response in
-                    if let error = response.error {
-                        if let code = error.code {
-                            errorSet.insert(code)
-                        }
+                    if let error = response.error, let code = error.code {
+                        errorSet.insert(code)
                     }
                 }
                 return errorSet
