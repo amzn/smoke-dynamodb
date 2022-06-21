@@ -21,6 +21,8 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+private let maxStatementLength = 8192
+
 public enum GSIError: Error {
     case unknownIndex(name: String)
 }
@@ -43,6 +45,14 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         self.gsiLogic = gsiLogic
         self.primaryTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop, executeItemFilter: executeItemFilter)
         self.gsiDataStore = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop, executeItemFilter: executeItemFilter)
+    }
+    
+    public func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
+        let entryString = "\(entry)"
+        if entryString.count > maxStatementLength {
+            throw SmokeDynamoDBError.statementLengthExceeded(
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(entryString.count)")
+        }
     }
     
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>)

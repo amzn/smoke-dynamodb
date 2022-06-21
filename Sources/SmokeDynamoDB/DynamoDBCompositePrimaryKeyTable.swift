@@ -38,6 +38,7 @@ public enum SmokeDynamoDBError: Error {
     case batchAPIExceededRetries(retryCount: Int)
     case validationError(reason: String)
     case batchErrorsReturned(errorCount: Int, messageMap: [String: Int])
+    case statementLengthExceeded(reason: String)
 }
 
 public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
@@ -262,6 +263,11 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
+
+    /**
+    * This is a helper function to validate WriteEntry
+    */
+    func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws 
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     

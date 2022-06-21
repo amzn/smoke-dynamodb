@@ -20,6 +20,8 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+private let maxStatementLength = 8192
+
 /**
  Implementation of the DynamoDBTable protocol that simulates concurrent access
  to a database by incrementing a row's version every time it is added for
@@ -51,6 +53,14 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         self.previousConcurrencyModifications = 0
         self.simulateOnInsertItem = simulateOnInsertItem
         self.simulateOnUpdateItem = simulateOnUpdateItem
+    }
+    
+    public func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
+        let entryString = "\(entry)"
+        if entryString.count > maxStatementLength {
+            throw SmokeDynamoDBError.statementLengthExceeded(
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(entryString.count)")
+        }
     }
     
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {

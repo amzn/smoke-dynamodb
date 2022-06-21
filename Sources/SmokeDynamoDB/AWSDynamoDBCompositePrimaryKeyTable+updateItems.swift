@@ -24,12 +24,23 @@ import NIO
 import CollectionConcurrencyKit
 // BatchExecuteStatement has a maximum of 25 statements
 private let maximumUpdatesPerExecuteStatement = 25
+private let maxStatementLength = 8192
 
 /// DynamoDBTable conformance updateItems function
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     
-    private func entryToBatchStatementRequest<AttributesType, ItemType>(
-        _ entry: WriteEntry<AttributesType, ItemType>) throws -> BatchStatementRequest {
+    func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
+        
+        let statement: String = try entryToStatement(entry)
+        
+        if statement.count > maxStatementLength {
+            throw SmokeDynamoDBError.statementLengthExceeded(
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(statement.count)")
+        }
+    }
+    
+    private func entryToStatement<AttributesType, ItemType>(
+        _ entry: WriteEntry<AttributesType, ItemType>) throws -> String {
         
         let statement: String
         switch entry {
@@ -47,6 +58,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             statement = try getDeleteExpression(tableName: self.targetTableName,
                                                 existingItem: existing)
         }
+        
+        return statement
+    }
+
+    private func entryToBatchStatementRequest<AttributesType, ItemType>(
+        _ entry: WriteEntry<AttributesType, ItemType>) throws -> BatchStatementRequest {
+        
+        let statement: String = try entryToStatement(entry)
         
         return BatchStatementRequest(consistentRead: true, statement: statement)
     }
