@@ -35,11 +35,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         if statement.count > maxStatementLength {
             throw SmokeDynamoDBError.statementLengthExceeded(
-                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength)")
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(statement.count)")
         }
     }
     
-    func entryToStatement<AttributesType, ItemType>(
+    private func entryToStatement<AttributesType, ItemType>(
         _ entry: WriteEntry<AttributesType, ItemType>) throws -> String {
         
         let statement: String

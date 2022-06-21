@@ -21,7 +21,7 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
-private let maxStatementLength = 1200
+private let maxStatementLength = 8192
 
 public enum GSIError: Error {
     case unknownIndex(name: String)
@@ -51,7 +51,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         let entryString = "\(entry)"
         if entryString.count > maxStatementLength {
             throw SmokeDynamoDBError.statementLengthExceeded(
-                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength)")
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(entryString.count)")
         }
     }
     

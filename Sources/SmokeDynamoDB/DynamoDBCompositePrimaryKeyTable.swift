@@ -265,7 +265,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         additionalWhereClause: String?, nextToken: String?) -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)>
 
     /**
-    * This is a helper function to convert WriteEntry to Statement
+    * This is a helper function to validate WriteEntry
     */
     func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws 
     
