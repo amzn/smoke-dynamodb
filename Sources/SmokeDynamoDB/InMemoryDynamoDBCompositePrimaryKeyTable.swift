@@ -21,6 +21,8 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+private let maxStatementLength = 1200
+
 public protocol PolymorphicOperationReturnTypeConvertable {
     var createDate: Foundation.Date { get }
     var rowStatus: RowStatus { get }
@@ -65,6 +67,14 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeyTable {
         return InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop,
                                                         storeWrapper: self.storeWrapper)
+    }
+
+    public func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
+        let entryString = "\(entry)"
+        if entryString.count > maxStatementLength {
+            throw SmokeDynamoDBError.statementLengthExceeded(
+                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength)")
+        }
     }
 
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
