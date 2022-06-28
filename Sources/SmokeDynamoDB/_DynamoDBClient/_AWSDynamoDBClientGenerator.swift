@@ -31,21 +31,12 @@ import NIOHTTP1
 import AsyncHTTPClient
 import Logging
 
-private extension SmokeHTTPClient.HTTPClientError {
-    func isRetriable() -> Bool {
-        if let typedError = self.cause as? DynamoDBError, let isRetriable = typedError.isRetriable() {
-            return isRetriable
-        } else {
-            return self.isRetriableAccordingToCategory
-        }
-    }
-}
-
 /**
  AWS Client Generator for the DynamoDB service.
  */
 struct _AWSDynamoDBClientGenerator {
     let httpClient: HTTPOperationsClient
+    let ownsHttpClients: Bool
     let awsRegion: AWSRegion
     let service: String
     let target: String?
@@ -80,6 +71,7 @@ struct _AWSDynamoDBClientGenerator {
             clientDelegate: clientDelegate,
             connectionTimeoutSeconds: connectionTimeoutSeconds,
             eventLoopProvider: .shared(self.eventLoopGroup))
+        self.ownsHttpClients = true
         self.awsRegion = awsRegion
         self.service = service
         self.target = target
@@ -94,13 +86,17 @@ struct _AWSDynamoDBClientGenerator {
      will handle being called multiple times. Will block until shutdown is complete.
      */
     public func syncShutdown() throws {
-        try self.httpClient.syncShutdown()
+        if self.ownsHttpClients {
+            try self.httpClient.syncShutdown()
+        }
     }
 
     // renamed `syncShutdown` to make it clearer this version of shutdown will block.
     @available(*, deprecated, renamed: "syncShutdown")
     public func close() throws {
-        try self.httpClient.close()
+        if self.ownsHttpClients {
+            try self.httpClient.close()
+        }
     }
 
     /**
@@ -109,7 +105,9 @@ struct _AWSDynamoDBClientGenerator {
      */
     #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
-        try await self.httpClient.shutdown()
+        if self.ownsHttpClients {
+            try await self.httpClient.shutdown()
+        }
     }
     #endif
     
