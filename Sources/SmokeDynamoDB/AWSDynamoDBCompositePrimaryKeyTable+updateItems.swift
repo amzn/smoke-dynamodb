@@ -21,7 +21,6 @@ import DynamoDBModel
 import SmokeHTTPClient
 import Logging
 import NIO
-import CollectionConcurrencyKit
 // BatchExecuteStatement has a maximum of 25 statements
 private let maximumUpdatesPerExecuteStatement = 25
 private let maxStatementLength = 8192

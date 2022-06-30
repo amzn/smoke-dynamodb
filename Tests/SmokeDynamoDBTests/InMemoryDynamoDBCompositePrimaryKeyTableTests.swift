@@ -464,7 +464,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         XCTAssertEqual(payload2, retrievedDatabaseItem2.rowValue)
     }
   
-    func testMonomorphicBulkWriteWithoutThrowing() async throws {
+    func testMonomorphicBulkWriteWithoutThrowing() throws {
         typealias TestObject = TestTypeA
         typealias TestObjectDatabaseItem = StandardTypedDatabaseItem<TestObject>
         typealias TestObjectWriteEntry = StandardWriteEntry<TestObject>
