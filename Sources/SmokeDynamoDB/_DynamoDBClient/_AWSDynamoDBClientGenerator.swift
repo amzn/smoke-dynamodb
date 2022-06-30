@@ -36,7 +36,6 @@ import Logging
  */
 struct _AWSDynamoDBClientGenerator {
     let httpClient: HTTPOperationsClient
-    let ownsHttpClients: Bool
     let awsRegion: AWSRegion
     let service: String
     let target: String?
@@ -71,7 +70,6 @@ struct _AWSDynamoDBClientGenerator {
             clientDelegate: clientDelegate,
             connectionTimeoutSeconds: connectionTimeoutSeconds,
             eventLoopProvider: .shared(self.eventLoopGroup))
-        self.ownsHttpClients = true
         self.awsRegion = awsRegion
         self.service = service
         self.target = target
@@ -86,17 +84,13 @@ struct _AWSDynamoDBClientGenerator {
      will handle being called multiple times. Will block until shutdown is complete.
      */
     public func syncShutdown() throws {
-        if self.ownsHttpClients {
-            try self.httpClient.syncShutdown()
-        }
+        try self.httpClient.syncShutdown()
     }
 
     // renamed `syncShutdown` to make it clearer this version of shutdown will block.
     @available(*, deprecated, renamed: "syncShutdown")
     public func close() throws {
-        if self.ownsHttpClients {
-            try self.httpClient.close()
-        }
+        try self.httpClient.close()
     }
 
     /**
@@ -105,9 +99,7 @@ struct _AWSDynamoDBClientGenerator {
      */
     #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
-        if self.ownsHttpClients {
-            try await self.httpClient.shutdown()
-        }
+        try await self.httpClient.shutdown()
     }
     #endif
     
