@@ -93,7 +93,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.logger.info("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
-    public init(operationsClient: AWSGenericDynamoDBTableOperationsClient<InvocationReportingType>,
+    // This initialiser is generic with respect to the reporting type from the operations client
+    // As we are using the providing reporting instance and not creating a reporting instance from
+    // the operations client, this generic type can be ignored.
+    public init<OperationsClientInvocationReportingType: HTTPClientCoreInvocationReporting>(
+                operationsClient: AWSGenericDynamoDBTableOperationsClient<OperationsClientInvocationReportingType>,
                 reporting: InvocationReportingType) {
         self.logger = reporting.logger
         self.dynamodb = operationsClient.config.createAWSClient(reporting: reporting,
@@ -104,14 +108,14 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.logger.info("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
-    public init<NewTraceContextType: InvocationTraceContext>(
-                config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>>,
+    public init<TraceContextType: InvocationTraceContext>(
+                config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
                 tableName: String,
                 logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
                 internalRequestId: String = "none",
                 eventLoop: EventLoop? = nil,
                 httpClient: HTTPOperationsClient? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<NewTraceContextType> {
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.logger = logger
         self.dynamodb = config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
                                                eventLoopOverride: eventLoop, httpClientOverride: httpClient)
@@ -121,12 +125,12 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.logger.info("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
-    public init<NewTraceContextType: InvocationTraceContext>(
-                operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>>,
+    public init<TraceContextType: InvocationTraceContext>(
+                operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
                 logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
                 internalRequestId: String = "none",
                 eventLoop: EventLoop? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<NewTraceContextType> {
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.logger = logger
         self.dynamodb = operationsClient.config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
                                                                 eventLoopOverride: eventLoop, httpClientOverride: operationsClient.httpClient)

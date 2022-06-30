@@ -29,7 +29,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
     public let tableName: String
     public let httpClient: HTTPOperationsClient
     
-    public init<NewTraceContextType: InvocationTraceContext>(
+    public init<TraceContextType: InvocationTraceContext>(
         tableName: String,
         credentialsProvider: CredentialsProvider,
         awsRegion: AWSRegion,
@@ -39,14 +39,14 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         service: String = "dynamodb",
         contentType: String = "application/x-amz-json-1.0",
         target: String? = "DynamoDB_20120810",
-        traceContext: NewTraceContextType,
+        traceContext: TraceContextType,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<NewTraceContextType> {
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.config = AWSGenericDynamoDBClientConfiguration(
             credentialsProvider: credentialsProvider,
             awsRegion: awsRegion,
