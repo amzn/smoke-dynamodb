@@ -73,7 +73,7 @@ This package enables operations to be performed on a DynamoDB table using a type
 For basic use cases, you can initialise a table with the tableName, credentialsProvider and awsRegion.
 
 ```swift 
-let table = AWSDynamoDBCompositePrimaryKeyTable(tableName: String,
+let table = AWSDynamoDBCompositePrimaryKeyTable(tableName: tableName,
                 credentialsProvider: credentialsProvider,
                 awsRegion: awsRegion)
                 
@@ -82,9 +82,9 @@ let table = AWSDynamoDBCompositePrimaryKeyTable(tableName: String,
 try await table.shutdown()
 ```
 
-The initialisers of this class can also accept optional parameters such as the Logger, EventLoop and InternalRequestId to use. 
+The initialisers of this class can also accept optional parameters such as the `Logger`, `EventLoop` and InternalRequestId to use. 
 
-Passing the EventLoop is useful for applications that also use SwiftNIO as a server and want to maintain handle downstream 
+Passing the `EventLoop` is useful for applications that also use SwiftNIO as a server and want to handle downstream 
 service calls on the same `EventLoop` as the incoming request to the server. 
 
 To share client configuration or the underlying http client between instances (such as in a request-based service where you might
