@@ -95,8 +95,7 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
          ownsHttpClient: Bool,
          retryConfiguration: HTTPClientRetryConfiguration,
          reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>,
-         retryOnErrorProvider: @escaping (SmokeHTTPClient.HTTPClientError) -> Bool)
-    {
+         retryOnErrorProvider: @escaping (SmokeHTTPClient.HTTPClientError) -> Bool) {
         self.httpClient = httpClient
         self.ownsHttpClients = ownsHttpClient
         self.eventLoopGroup = httpClient.eventLoopGroup

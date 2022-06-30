@@ -86,7 +86,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 httpClient: HTTPOperationsClient? = nil) {
         self.logger = reporting.logger
         self.dynamodb = config.createAWSClient(reporting: reporting,
-                                               httpClient: httpClient)
+                                               httpClientOverride: httpClient)
         self.targetTableName = tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
@@ -97,7 +97,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 reporting: InvocationReportingType) {
         self.logger = reporting.logger
         self.dynamodb = operationsClient.config.createAWSClient(reporting: reporting,
-                                                                httpClient: operationsClient.httpClient)
+                                                                httpClientOverride: operationsClient.httpClient)
         self.targetTableName = operationsClient.tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName

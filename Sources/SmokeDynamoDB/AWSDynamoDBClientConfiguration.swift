@@ -47,15 +47,18 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
     public let timeoutConfiguration: HTTPClient.Configuration.Timeout
     public let connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool?
     public let awsRegion: AWSRegion
+    public let service: String
+    public let target: String?
     public let retryConfiguration: HTTPClientRetryConfiguration
     public let eventLoopGroup: EventLoopGroup
+    public let traceContext: InvocationReportingType.TraceContextType
     public let reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
     
     internal let clientDelegate: JSONAWSHttpClientDelegate<DynamoDBError>
     internal let reportingProvider: (Logger, String, EventLoop?) -> InvocationReportingType
     internal let credentialsProvider: CredentialsProvider
     
-    public init<NewTraceContextType: InvocationTraceContext>(
+    public init<TraceContextType: InvocationTraceContext>(
         credentialsProvider: CredentialsProvider,
         awsRegion: AWSRegion,
         endpointHostName endpointHostNameOptional: String? = nil,
@@ -64,25 +67,28 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         service: String = "dynamodb",
         contentType: String = "application/x-amz-json-1.0",
         target: String? = "DynamoDB_20120810",
-        traceContext: NewTraceContextType,
+        traceContext: TraceContextType,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<NewTraceContextType> {
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         let useTLS = requiresTLS ?? AWSHTTPClientDelegate.requiresTLS(forEndpointPort: endpointPort)
         
         self.credentialsProvider = credentialsProvider
         self.endpointHostName = endpointHostNameOptional ?? "dynamodb.\(awsRegion.rawValue).amazonaws.com"
         self.endpointPort = endpointPort
+        self.service = service
         self.contentType = contentType
+        self.target = target
         self.clientDelegate = JSONAWSHttpClientDelegate<DynamoDBError>(requiresTLS: useTLS)
         self.connectionPoolConfiguration = connectionPoolConfiguration
         self.awsRegion = awsRegion
         self.retryConfiguration = retryConfiguration
         self.eventLoopGroup = AWSClientHelper.getEventLoop(eventLoopGroupProvider: eventLoopProvider)
+        self.traceContext = traceContext
         self.timeoutConfiguration = timeoutConfiguration
         self.reportingConfiguration = reportingConfiguration
                 
@@ -133,7 +139,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
                                                        tableName: tableName)
     }
     
-    internal func createClient() -> HTTPOperationsClient {
+    internal func createHTTPOperationsClient() -> HTTPOperationsClient {
         return HTTPOperationsClient(
             endpointHostName: self.endpointHostName,
             endpointPort: self.endpointPort,
@@ -154,13 +160,15 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
             httpClient = httpClientOverride
             ownsHttpClient = false
         } else {
-            httpClient = createClient()
+            httpClient = createHTTPOperationsClient()
             ownsHttpClient = true
         }
         
         return _AWSDynamoDBClient(credentialsProvider: self.credentialsProvider,
                                   awsRegion: self.awsRegion,
                                   reporting: self.reportingProvider(logger, internalRequestId, eventLoopOverride),
+                                  service: self.service,
+                                  target: self.target,
                                   httpClient: httpClient,
                                   ownsHttpClient: ownsHttpClient,
                                   retryConfiguration: self.retryConfiguration,
@@ -170,23 +178,23 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
     
     internal func createAWSClient<OverrideInvocationReportingType: HTTPClientCoreInvocationReporting>(
         reporting: OverrideInvocationReportingType,
-        httpClient: HTTPOperationsClient?)
+        httpClientOverride: HTTPOperationsClient?)
     -> _AWSDynamoDBClient<OverrideInvocationReportingType> {
 
-        let theHttpClient: HTTPOperationsClient
+        let httpClient: HTTPOperationsClient
         let ownsHttpClient: Bool
-        if let httpClient = httpClient {
-            theHttpClient = httpClient
+        if let httpClientOverride = httpClientOverride {
+            httpClient = httpClientOverride
             ownsHttpClient = false
         } else {
-            theHttpClient = createClient()
+            httpClient = createHTTPOperationsClient()
             ownsHttpClient = true
         }
         
         return _AWSDynamoDBClient(credentialsProvider: self.credentialsProvider,
                                   awsRegion: self.awsRegion,
                                   reporting: reporting,
-                                  httpClient: theHttpClient,
+                                  httpClient: httpClient,
                                   ownsHttpClient: ownsHttpClient,
                                   retryConfiguration: self.retryConfiguration,
                                   reportingConfiguration: self.reportingConfiguration,

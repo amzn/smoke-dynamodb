@@ -82,7 +82,7 @@ let table = AWSDynamoDBCompositePrimaryKeyTable(tableName: tableName,
 try await table.shutdown()
 ```
 
-The initialisers of this class can also accept optional parameters such as the `Logger`, `EventLoop` and InternalRequestId to use. 
+The initialisers of this class can also accept optional parameters such as the `Logger`, `EventLoop` and `InternalRequestId` to use. 
 
 Passing the `EventLoop` is useful for applications that also use SwiftNIO as a server and want to handle downstream 
 service calls on the same `EventLoop` as the incoming request to the server. 

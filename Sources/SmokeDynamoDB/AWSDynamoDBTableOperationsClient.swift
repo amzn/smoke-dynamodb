@@ -62,7 +62,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
             eventLoopProvider: eventLoopProvider,
             reportingConfiguration: reportingConfiguration,
             connectionPoolConfiguration: connectionPoolConfiguration)
-        self.httpClient = self.config.createClient()
+        self.httpClient = self.config.createHTTPOperationsClient()
         self.tableName = tableName
     }
     
@@ -104,7 +104,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
                   tableName: String) {
         self.config = config
         self.tableName = tableName
-        self.httpClient = self.config.createClient()
+        self.httpClient = self.config.createHTTPOperationsClient()
     }
     
     /**
