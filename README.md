@@ -3,7 +3,7 @@
 <img src="https://github.com/amzn/smoke-dynamodb/actions/workflows/swift.yml/badge.svg?branch=main" alt="Build - Main Branch">
 </a>
 <a href="http://swift.org">
-<img src="https://img.shields.io/badge/swift-5.3|5.4|5.5-orange.svg?style=flat" alt="Swift 5.3, 5.4 and 5.5 Tested">
+<img src="https://img.shields.io/badge/swift-5.4|5.5|5.6-orange.svg?style=flat" alt="Swift 5.4, 5.5 and 5.6 Tested">
 </a>
 <img src="https://img.shields.io/badge/ubuntu-18.04|20.04-yellow.svg?style=flat" alt="Ubuntu 18.04 and 20.04 Tested">
 <img src="https://img.shields.io/badge/CentOS-8-yellow.svg?style=flat" alt="CentOS 8 Tested">
@@ -70,44 +70,76 @@ For consistency in naming across the library, SmokeDynamoDB will case DynamoDB t
 
 This package enables operations to be performed on a DynamoDB table using a type that conforms to the `DynamoDBCompositePrimaryKeyTable` protocol. In a production scenario, operations can be performed using `AWSDynamoDBCompositePrimaryKeyTable`.
 
-Typically for request-based applications such as microservices, a `AWSDynamoDBCompositePrimaryKeyTableGenerator` is created per application at application start-
-
-```swift
-let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
-    credentialsProvider: credentialsProvider, region: region,
-    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName)
-```
-
-And a `AWSDynamoDBCompositePrimaryKeyTable` is created from this generator for each request-
+For basic use cases, you can initialise a table with the tableName, credentialsProvider and awsRegion.
 
 ```swift 
-let table = generator.with(logger: logger)
+let table = AWSDynamoDBCompositePrimaryKeyTable(tableName: tableName,
+                credentialsProvider: credentialsProvider,
+                awsRegion: awsRegion)
+                
+...
+                
+try await table.shutdown()
 ```
 
-SmokeDynamoDB uses SwiftNIO for its networking and by default a new SwiftNIO `EventLoopGroup` will be created for a table to perform that networking. Optionally, you can provide an existing `EventLoopGroup` when you create the generator-
+The initialisers of this class can also accept optional parameters such as the `Logger`, `EventLoop` and `InternalRequestId` to use. 
+
+Passing the `EventLoop` is useful for applications that also use SwiftNIO as a server and want to handle downstream 
+service calls on the same `EventLoop` as the incoming request to the server. 
+
+To share client configuration or the underlying http client between instances (such as in a request-based service where you might
+want to create an instance per request) the `AWSDynamoDBClientConfiguration` and `AWSDynamoDBTableOperationsClient` types
+can also be used-
+
+One option is to create the configuration once (such at application startup)-
 
 ```swift
-let generator = AWSDynamoDBCompositePrimaryKeyTableGenerator(
-    credentialsProvider: credentialsProvider, region: region,
-    endpointHostName: dynamodbEndpointHostName, tableName: dynamodbTableName,
-    eventLoopProvider: .shared(existingEventLoopGroup)
+let config = AWSDynamoDBClientConfiguration(
+    credentialsProvider: credentialsProvider, region: region)
 ```
 
-Typically this existing `EventLoopGroup` will correspond to the group used by the rest of an application. For each particular table instance created from a generator, you can force affinity to a particular `EventLoop` within the provided `EventLoopGroup` by passing it when the table instance is being created-
+And then create the `AWSDynamoDBCompositePrimaryKeyTable` when required-
 
 ```swift 
-let table = generator.with(logger: logger,
-                           eventLoop: eventLoop)
+let table = AWSDynamoDBCompositePrimaryKeyTable(config: config,
+                tableName: tableName,
+                logger: theCurrentLogger,
+                internalRequestId: theCurrentRequestId,
+                eventLoop: theCurrentEventLoop)
+                
+...
+
+try await table.shutdown()
 ```
 
-This is useful for applications that also use SwiftNIO as a server and want to maintain handle downstream service calls on the same `EventLoop` as the incoming request to the server. 
+Alternatively, create the operations client once (such at application startup)-
 
-SmokeFramework (https://github.com/amzn/smoke-framework) based applications can automatically achieve this request-based `EventLoop` affinity by passing the reporting context into the `AWSDynamoDBCompositePrimaryKeyTableGenerator.with(reporting:)` function when creating the table-
+```swift
+let operationsClient = AWSDynamoDBTableOperationsClient(
+    tableName: tableName, credentialsProvider: credentialsProvider, region: region)
+    
+...
+
+try await operationsClient.shutdown()
+```
+
+And then create the `AWSDynamoDBCompositePrimaryKeyTable` when required-
+
+```swift 
+let table = AWSDynamoDBCompositePrimaryKeyTable(operationsClient: operationsClient,
+                logger: theCurrentLogger,
+                internalRequestId: theCurrentRequestId,
+                eventLoop: theCurrentEventLoop)
+```
+
+SmokeFramework (https://github.com/amzn/smoke-framework) based applications can automatically achieve request-based `EventLoop` affinity by passing 
+the reporting context when creating the table-
 
 ```swift
 public func getInvocationContext(invocationReporting: SmokeServerInvocationReporting<SmokeInvocationTraceContext>) -> MyContext {
     let awsClientInvocationReporting = invocationReporting.withInvocationTraceContext(traceContext: awsClientInvocationTraceContext)
-    let dynamodbTable = self.dynamodbTableGenerator.with(reporting: awsClientInvocationReporting)
+    let table = AWSDynamoDBCompositePrimaryKeyTable(operationsClient: operationsClient,
+        reporting: awsClientInvocationReporting)
     
     return MyContext(dynamodbTable: dynamodbTable)
 }
