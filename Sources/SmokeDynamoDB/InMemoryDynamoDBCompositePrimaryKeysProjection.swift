@@ -30,6 +30,12 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
     internal init(keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
         self.keysWrapper = keysWrapper
     }
+    
+    public var keys: [Any] {
+        get async {
+            return await self.keysWrapper.keys
+        }
+    }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?) async throws

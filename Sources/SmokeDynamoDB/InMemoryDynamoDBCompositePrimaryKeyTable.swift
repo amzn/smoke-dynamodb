@@ -46,6 +46,12 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     internal init(storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore) {
         self.storeWrapper = storeWrapper
     }
+    
+    public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] {
+        get async {
+            return await self.storeWrapper.store
+        }
+    }
 
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await storeWrapper.insertItem(item)
