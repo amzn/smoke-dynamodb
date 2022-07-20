@@ -163,7 +163,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         // if there are no items, there is nothing to update
         
         guard entries.count > 0 else {
-            self.logger.info("\(entries) with count = 0")
+            self.logger.trace("\(entries) with count = 0")
             let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
             promise.succeed(Set())
             return promise.futureResult

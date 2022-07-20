@@ -54,7 +54,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
     public init(credentialsProvider: CredentialsProvider,
@@ -77,7 +77,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
     
     public init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,
@@ -90,7 +90,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.targetTableName = tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.info("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     // This initialiser is generic with respect to the reporting type from the operations client
@@ -105,7 +105,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.targetTableName = operationsClient.tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.info("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     public init<TraceContextType: InvocationTraceContext>(
@@ -122,7 +122,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.targetTableName = tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.info("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     public init<TraceContextType: InvocationTraceContext>(
@@ -137,7 +137,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.targetTableName = operationsClient.tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.info("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     public init(tableName: String,
@@ -178,7 +178,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         self.targetTableName = tableName
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.info("AWSDynamoDBTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,

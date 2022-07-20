@@ -82,10 +82,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return promise.futureResult
         }
             
-        self.logger.debug("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
+        self.logger.trace("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
         return dynamodb.getItem(input: getItemInput).flatMapThrowing { attributeValue in
             if let item = attributeValue.item {
-                self.logger.debug("Value returned from DynamoDB.")
                 
                 do {
                     let decodedItem: TypedDatabaseItem<AttributesType, ItemType>? =
@@ -95,8 +94,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     throw error.asUnrecognizedSmokeDynamoDBError()
                 }
             } else {
-                self.logger.debug("No item returned from DynamoDB.")
-                
                 return nil
             }
         } .flatMapErrorThrowing { error in
@@ -119,7 +116,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return promise.futureResult
         }
         
-        self.logger.debug("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
+        self.logger.trace("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
         return dynamodb.deleteItem(input: deleteItemInput) .map { _ in
             // return Void on success
         }
@@ -139,7 +136,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let logMessage = "dynamodb.deleteItem with key: \(existingItem.compositePrimaryKey), "
             + " version \(existingItem.rowStatus.rowVersion) and table name \(targetTableName)"
         
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         return dynamodb.deleteItem(input: deleteItemInput) .map { _ in
             // return Void on success
         }
@@ -224,7 +221,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         return dynamodb.query(input: queryInput).flatMapThrowing { queryOutput in
             let lastEvaluatedKey: String?
@@ -245,17 +242,21 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             if let outputAttributeValues = queryOutput.items {
                 let items: [ReturnedType]
                 
+                self.logger.trace("Starting to construct \(outputAttributeValues.count) of type \(ReturnedType.self).")
+                
                 do {
-                    items = try outputAttributeValues.map { values in
+                    items = try outputAttributeValues.enumerated().map { (index, values) in
                         let attributeValue = DynamoDBModel.AttributeValue(M: values)
-                        
+                                                
                         let decodedItem: ReturnTypeDecodable<ReturnedType> = try DynamoDBDecoder().decode(attributeValue)
-                                                        
+                                                                                
                         return decodedItem.decodedValue
                     }
                 } catch {
                     throw error.asUnrecognizedSmokeDynamoDBError()
                 }
+                
+                self.logger.trace("Finished constructing \(outputAttributeValues.count) of type \(ReturnedType.self).")
                 
                 return (items, lastEvaluatedKey)
             } else {
@@ -273,7 +274,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     private func putItem<AttributesType>(forInput putItemInput: DynamoDBModel.PutItemInput,
                                          withKey compositePrimaryKey: CompositePrimaryKey<AttributesType>) -> EventLoopFuture<Void> {
         let logMessage = "dynamodb.putItem with item: \(putItemInput.item) and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         return self.dynamodb.putItem(input: putItemInput).map { _ in
             // return Void on success
@@ -362,7 +363,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         return dynamodb.query(input: queryInput).flatMapThrowing { queryOutput in
             let lastEvaluatedKey: String?
