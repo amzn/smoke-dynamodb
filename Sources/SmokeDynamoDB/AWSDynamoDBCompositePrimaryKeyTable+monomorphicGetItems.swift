@@ -112,7 +112,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     "Request retried for remaining items: \(remainingKeysCount). Remaining retries: \(currentRetriesRemaining). Retrying in \(retryInterval) ms.")
                 let deadline = DispatchTime.now() + .milliseconds(retryInterval)
                 retryQueue.asyncAfter(deadline: deadline) {
-                    logger.debug("Reattempting request due to remaining retries: \(currentRetriesRemaining)")
+                    logger.trace("Reattempting request due to remaining retries: \(currentRetriesRemaining)")
                     
                     let nextFuture = self.batchGetItem()
                     
