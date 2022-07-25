@@ -173,13 +173,18 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
             let executeInput = BatchExecuteStatementInput(statements: statements)
             return dynamodb.batchExecuteStatement(input: executeInput).map { result -> Set<BatchStatementErrorCodeEnum> in
-                var errorSet: Set<BatchStatementErrorCodeEnum> = Set()
+                var errorCodeSet: Set<BatchStatementErrorCodeEnum> = Set()
+                // TODO: Remove errorCodeSet and return errorSet instead
+                var errorSet: Set<BatchStatementError> = Set()
                 result.responses?.forEach { response in
                     if let error = response.error, let code = error.code {
-                        errorSet.insert(code)
+                        errorCodeSet.insert(code)
+                        errorSet.insert(error)
                     }
                 }
-                return errorSet
+
+                self.logger.error("Received BatchStatmentErrors from dynamodb are \(errorSet)")
+                return errorCodeSet
             }
         } catch {
             let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
@@ -207,5 +212,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             
             return errors
         }
+    }
+}
+
+extension BatchStatementError: Hashable {
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.code)
+        hasher.combine(self.message)
     }
 }
