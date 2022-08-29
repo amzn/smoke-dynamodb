@@ -120,7 +120,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     }
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>>
+    -> EventLoopFuture<Set<BatchStatementError>>
     where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
         return self.wrappedDynamoDBTable.monomorphicBulkWriteWithoutThrowing(entries)
     }
