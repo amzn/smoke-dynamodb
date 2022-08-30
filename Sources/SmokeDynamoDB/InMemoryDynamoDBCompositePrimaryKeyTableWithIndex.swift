@@ -93,8 +93,16 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
-    
-    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+
+    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>( 
+    _ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
+        return monomorphicBulkWriteWithoutThrowingBatchStatementError(entries).map { errors in
+            let codeErrors: Set<BatchStatementErrorCodeEnum> = Set(errors.compactMap { $0.code })
+            return codeErrors
+        }
+    }
+
+    public func monomorphicBulkWriteWithoutThrowingBatchStatementError<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementError>> {
         let batchStatementError = BatchStatementError(code: .duplicateitem, message: nil)
         let futures = entries.map { entry -> EventLoopFuture<BatchStatementError?> in

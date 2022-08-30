@@ -481,9 +481,18 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             index += 1
         }
 
-        let result1 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
+        let result1 = try table.monomorphicBulkWriteWithoutThrowingBatchStatementError(entryList).wait()
         XCTAssertEqual(result1.count, 1)
         if result1.contains(BatchStatementError(code: .duplicateitem, message: nil)) {
+            return
+        } else {
+            XCTFail("should contain duplicateitem error")
+        }
+
+
+        let result2 = try table.monomorphicBulkWriteWithoutThrowing(entryList).wait()
+        XCTAssertEqual(result1.count, 1)
+        if result2.contains(BatchStatementErrorCodeEnum.duplicateitem) {
             return
         } else {
             XCTFail("should contain duplicateitem error")
