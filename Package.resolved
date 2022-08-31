@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
           "branch": null,
-          "revision": "976f0a74c0b396497f4c1428f39ab5b14b47ceac",
-          "version": "2.44.61"
+          "revision": "f1195aca906fd28a799298144635502c32d9af27",
+          "version": "2.44.62"
         }
       },
       {
@@ -26,15 +26,6 @@
           "branch": null,
           "revision": "c14d4dee028a1aa0b316ec194ec15876f86fbcd9",
           "version": "2.14.0"
-        }
-      },
-      {
-        "package": "swift-atomics",
-        "repositoryURL": "https://github.com/apple/swift-atomics.git",
-        "state": {
-          "branch": null,
-          "revision": "919eb1d83e02121cdb434c7bfc1f0c66ef17febe",
-          "version": "1.0.2"
         }
       },
       {
