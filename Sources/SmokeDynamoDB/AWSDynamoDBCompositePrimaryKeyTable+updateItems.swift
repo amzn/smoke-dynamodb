@@ -183,7 +183,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     }
                 }
 
-                self.logger.error("Received BatchStatmentErrors from dynamodb are \(errorSet)")
+                // if there are errors
+                if !errorSet.isEmpty {
+                    self.logger.error("Received BatchStatmentErrors from dynamodb are \(errorSet)")
+                }
                 return errorCodeSet
             }
         } catch {
