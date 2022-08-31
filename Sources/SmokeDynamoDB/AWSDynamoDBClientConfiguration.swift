@@ -53,9 +53,10 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
     public let eventLoopGroup: EventLoopGroup
     public let traceContext: InvocationReportingType.TraceContextType
     public let reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
+    public let ignoreInvocationEventLoop: Bool
     
     internal let clientDelegate: JSONAWSHttpClientDelegate<DynamoDBError>
-    internal let reportingProvider: (Logger, String, EventLoop?) -> InvocationReportingType
+    internal let reportingProvider: (Logger, String, EventLoop?, OutwardsRequestAggregator?) -> InvocationReportingType
     internal let credentialsProvider: CredentialsProvider
     
     public init<TraceContextType: InvocationTraceContext>(
@@ -67,6 +68,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         service: String = "dynamodb",
         contentType: String = "application/x-amz-json-1.0",
         target: String? = "DynamoDB_20120810",
+        ignoreInvocationEventLoop: Bool = false,
         traceContext: TraceContextType,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
@@ -88,16 +90,18 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         self.awsRegion = awsRegion
         self.retryConfiguration = retryConfiguration
         self.eventLoopGroup = AWSClientHelper.getEventLoop(eventLoopGroupProvider: eventLoopProvider)
+        self.ignoreInvocationEventLoop = ignoreInvocationEventLoop
         self.traceContext = traceContext
         self.timeoutConfiguration = timeoutConfiguration
         self.reportingConfiguration = reportingConfiguration
                 
-        self.reportingProvider = { (logger, internalRequestId, eventLoop) in
+        self.reportingProvider = { (logger, internalRequestId, eventLoop, outwardsRequestAggregator) in
             return StandardHTTPClientCoreInvocationReporting(
                 logger: logger,
                 internalRequestId: internalRequestId,
                 traceContext: traceContext,
-                eventLoop: eventLoop)
+                eventLoop: eventLoop,
+                outwardsRequestAggregator: outwardsRequestAggregator)
         }
     }
     
@@ -110,6 +114,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         service: String = "dynamodb",
         contentType: String = "application/x-amz-json-1.0",
         target: String? = "DynamoDB_20120810",
+        ignoreInvocationEventLoop: Bool = false,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
@@ -125,6 +130,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
                   service: service,
                   contentType: contentType,
                   target: target,
+                  ignoreInvocationEventLoop: ignoreInvocationEventLoop,
                   traceContext: AWSClientInvocationTraceContext(),
                   timeoutConfiguration: timeoutConfiguration,
                   retryConfiguration: retryConfiguration,
@@ -151,7 +157,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
     }
     
     internal func createAWSClient(logger: Logger, internalRequestId: String,
-                                  eventLoopOverride: EventLoop?, httpClientOverride: HTTPOperationsClient?)
+                                  eventLoopOverride: EventLoop?, httpClientOverride: HTTPOperationsClient?,
+                                  outwardsRequestAggregator: OutwardsRequestAggregator?)
     -> _AWSDynamoDBClient<InvocationReportingType> {
 
         let httpClient: HTTPOperationsClient
@@ -166,7 +173,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         
         return _AWSDynamoDBClient(credentialsProvider: self.credentialsProvider,
                                   awsRegion: self.awsRegion,
-                                  reporting: self.reportingProvider(logger, internalRequestId, eventLoopOverride),
+                                  reporting: self.reportingProvider(logger, internalRequestId,
+                                                                    eventLoopOverride, outwardsRequestAggregator),
                                   service: self.service,
                                   target: self.target,
                                   httpClient: httpClient,
