@@ -111,7 +111,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return updateItem(newItem: new, existingItem: existing)
                     .map { () -> BatchStatementError? in
                         return nil
-                    }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                    }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                         let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                         promise.succeed(batchStatementError)
                         return promise.futureResult
@@ -120,7 +120,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return insertItem(new)
                     .map { () -> BatchStatementError? in
                         return nil
-                    }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                    }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                         let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                         promise.succeed(batchStatementError)
                         return promise.futureResult
@@ -129,7 +129,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return deleteItem(forKey: key)
                     .map { () -> BatchStatementError? in
                         return nil
-                    }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                    }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                         let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                         promise.succeed(batchStatementError)
                         return promise.futureResult
@@ -138,7 +138,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                 return deleteItem(existingItem: existing)
                     .map { () -> BatchStatementError? in
                         return nil
-                    }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                    }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                         let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                         promise.succeed(batchStatementError)
                         return promise.futureResult

@@ -186,7 +186,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
                         .map { () -> BatchStatementError? in
                             return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                        }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                             let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                             promise.succeed(batchStatementError)
                             return promise.futureResult
@@ -195,7 +195,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     return insertItem(new, eventLoop: eventLoop)
                         .map { () -> BatchStatementError? in
                             return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                        }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                             let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                             promise.succeed(batchStatementError)
                             return promise.futureResult
@@ -204,7 +204,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     return deleteItem(forKey: key, eventLoop: eventLoop)
                         .map { () -> BatchStatementError? in
                             return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                        }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                             let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                             promise.succeed(batchStatementError)
                             return promise.futureResult
@@ -213,7 +213,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     return deleteItem(existingItem: existing, eventLoop: eventLoop)
                         .map { () -> BatchStatementError? in
                             return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementError?> in
+                        }.flatMapError { _ -> EventLoopFuture<BatchStatementError?> in
                             let promise = eventLoop.makePromise(of: BatchStatementError?.self)
                             promise.succeed(batchStatementError)
                             return promise.futureResult
