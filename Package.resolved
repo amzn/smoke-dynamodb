@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/swift-server/async-http-client.git",
         "state": {
           "branch": null,
-          "revision": "794dc9d42720af97cedd395e8cd2add9173ffd9a",
-          "version": "1.11.1"
+          "revision": "2adca4b0038a7ef81ea0838c5feeda9439c52b64",
+          "version": "1.11.2"
         }
       },
       {
@@ -26,6 +26,15 @@
           "branch": null,
           "revision": "6e423be68a8415dc387ba9230ad2442c4fd3e5c1",
           "version": "2.13.2"
+        }
+      },
+      {
+        "package": "swift-atomics",
+        "repositoryURL": "https://github.com/apple/swift-atomics.git",
+        "state": {
+          "branch": null,
+          "revision": "919eb1d83e02121cdb434c7bfc1f0c66ef17febe",
+          "version": "1.0.2"
         }
       },
       {
