@@ -98,6 +98,10 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         return storeWrapper.monomorphicBulkWriteWithoutThrowing(entries, eventLoop: eventLoop)
     }
+
+    public func monomorphicBulkWriteWithoutThrowingBatchStatementError<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Set<BatchStatementError>> {
+        return storeWrapper.monomorphicBulkWriteWithoutThrowingBatchStatementError(entries, eventLoop: eventLoop)
+    }
     
     public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>)
     -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {

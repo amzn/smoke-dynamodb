@@ -106,8 +106,12 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
     
+    @available(*, deprecated, message: "Use monomorphicBulkWriteWithoutThrowingBatchStatementError API to return BatchStatementError")
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>>
+
+    func monomorphicBulkWriteWithoutThrowingBatchStatementError<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
+    -> EventLoopFuture<Set<BatchStatementError>>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
@@ -297,6 +301,9 @@ public protocol DynamoDBCompositePrimaryKeyTable {
 
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
     -> Set<BatchStatementErrorCodeEnum>
+
+    func monomorphicBulkWriteWithoutThrowingBatchStatementError<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> Set<BatchStatementError>
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
@@ -478,6 +485,11 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
     -> Set<BatchStatementErrorCodeEnum>{
         return try await monomorphicBulkWriteWithoutThrowing(entries).get()
+    }
+    
+    func monomorphicBulkWriteWithoutThrowingBatchStatementError<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> Set<BatchStatementError>{
+        return try await monomorphicBulkWriteWithoutThrowingBatchStatementError(entries).get()
     }
 
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
