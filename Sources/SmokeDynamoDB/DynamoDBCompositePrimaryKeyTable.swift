@@ -106,6 +106,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
     
+    @available(*, deprecated, message: "Use monomorphicBulkWriteWithoutThrowingBatchStatementError API to return BatchStatementError")
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>>
 

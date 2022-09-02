@@ -192,22 +192,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
 
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
-        // BatchExecuteStatement has a maximum of 25 statements
-        // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
-
-        let futures = chunkedEntries.map { chunk in
-            return self.writeChunkedItemsWithoutThrowing(chunk)
-        }  
-
-        return EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).flatMapThrowing { results in
-            var errors: Set<BatchStatementErrorCodeEnum> = Set()
-            try results.forEach { result in
-                let error = try result.get()
-                errors = errors.union(error.compactMap { $0.code })
-            }
-            
-            return errors
+        return monomorphicBulkWriteWithoutThrowingBatchStatementError(entries).map { errorSet in 
+            let codeErros: Set<BatchStatementErrorCodeEnum> = Set(errorSet.compactMap { $0.code })
+            return codeErros
         }
     }
 
