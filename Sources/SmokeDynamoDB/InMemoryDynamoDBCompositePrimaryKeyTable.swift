@@ -53,66 +53,75 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
         }
     }
 
-    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.insertItem(item)
     }
 
-    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                      tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.clobberItem(item)
     }
 
     public func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.updateItem(newItem: newItem, existingItem: existingItem)
     }
     
-    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                               tableOverrides: WritableTableOverrides?) async throws {
         try await storeWrapper.monomorphicBulkWrite(entries)
     }
 
-    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                                  tableOverrides: ReadableTableOverrides?) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {
         return try await storeWrapper.getItem(forKey: key)
     }
     
     public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
-        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {
         return try await storeWrapper.getItems(forKeys: keys)
     }
 
-    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws {
+    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                           tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.deleteItem(forKey: key)
     }
     
-    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws {
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                            tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.deleteItems(forKeys: keys)
     }
     
-    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws {
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
+                                                    tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.deleteItems(existingItems: existingItems)
     }
     
-    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws {
         return try await storeWrapper.deleteItem(existingItem: existingItem)
     }
 
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                                     sortKeyCondition: AttributeCondition?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
-        return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                            consistentRead: consistentRead)
+        return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                                     sortKeyCondition: AttributeCondition?,
                                                                     limit: Int?,
                                                                     exclusiveStartKey: String?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                            limit: limit, exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)
+                                            limit: limit, exclusiveStartKey: exclusiveStartKey)
     }
 
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -120,17 +129,18 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
                                                                     limit: Int?,
                                                                     scanIndexForward: Bool,
                                                                     exclusiveStartKey: String?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                             limit: limit, scanIndexForward: scanIndexForward,
-                                            exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)
+                                            exclusiveStartKey: exclusiveStartKey)
     }
     
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         return try await storeWrapper.execute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                               additionalWhereClause: additionalWhereClause)
@@ -139,7 +149,8 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.execute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                               additionalWhereClause: additionalWhereClause, nextToken: nextToken)
@@ -148,7 +159,8 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     public func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         return try await storeWrapper.monomorphicExecute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                                          additionalWhereClause: additionalWhereClause)
@@ -157,24 +169,25 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     public func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         return try await storeWrapper.monomorphicExecute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                                additionalWhereClause: additionalWhereClause, nextToken: nextToken)
     }
     
     public func monomorphicGetItems<AttributesType, ItemType>(
-        forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>] {
         return try await storeWrapper.monomorphicGetItems(forKeys: keys)
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                            sortKeyCondition: AttributeCondition?,
-                                                           consistentRead: Bool) async throws
+                                                           tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
-        return try await storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                                       consistentRead: consistentRead)
+        return try await storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition)
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
@@ -182,10 +195,10 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
                                                            limit: Int?,
                                                            scanIndexForward: Bool,
                                                            exclusiveStartKey: String?,
-                                                           consistentRead: Bool) async throws
+                                                           tableOverrides: ReadableTableOverrides?) async throws
        -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         return try await storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                                        limit: limit, scanIndexForward: scanIndexForward,
-                                                       exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)
+                                                       exclusiveStartKey: exclusiveStartKey)
     }
 }

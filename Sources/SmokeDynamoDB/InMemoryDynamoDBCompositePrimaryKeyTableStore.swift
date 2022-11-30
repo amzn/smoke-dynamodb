@@ -208,8 +208,7 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                             sortKeyCondition: AttributeCondition?,
-                                                             consistentRead: Bool) throws
+                                                             sortKeyCondition: AttributeCondition?) throws
     -> [ReturnedType] {
         var items: [ReturnedType] = []
 
@@ -286,28 +285,24 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
-                                                             exclusiveStartKey: String?,
-                                                             consistentRead: Bool) throws
+                                                             exclusiveStartKey: String?) throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try query(forPartitionKey: partitionKey,
                          sortKeyCondition: sortKeyCondition,
                          limit: limit,
                          scanIndexForward: true,
-                         exclusiveStartKey: exclusiveStartKey,
-                         consistentRead: consistentRead)
+                         exclusiveStartKey: exclusiveStartKey)
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              scanIndexForward: Bool,
-                                                             exclusiveStartKey: String?,
-                                                             consistentRead: Bool) throws
+                                                             exclusiveStartKey: String?) throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // get all the results
         let rawItems: [ReturnedType] = try query(forPartitionKey: partitionKey,
-                                                 sortKeyCondition: sortKeyCondition,
-                                                 consistentRead: consistentRead)
+                                                 sortKeyCondition: sortKeyCondition)
         
         let items: [ReturnedType]
         if !scanIndexForward {

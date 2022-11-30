@@ -27,16 +27,18 @@ public extension DynamoDBCompositePrimaryKeyTable {
      * rows in a single call.
      */
     func insertItemWithHistoricalRow<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                               historicalItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
-        try await insertItem(primaryItem)
-        try await insertItem(historicalItem)
+                                                               historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                               tableOverrides: WritableTableOverrides? = nil) async throws {
+        try await insertItem(primaryItem, tableOverrides: tableOverrides)
+        try await insertItem(historicalItem, tableOverrides: tableOverrides)
     }
 
     func updateItemWithHistoricalRow<AttributesType, ItemType>(primaryItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                                existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                               historicalItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
-        try await updateItem(newItem: primaryItem, existingItem: existingItem)
-        try await insertItem(historicalItem)
+                                                               historicalItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                               tableOverrides: WritableTableOverrides? = nil) async throws {
+        try await updateItem(newItem: primaryItem, existingItem: existingItem, tableOverrides: tableOverrides)
+        try await insertItem(historicalItem, tableOverrides: tableOverrides)
     }
     
     /**
@@ -52,6 +54,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
      * historical data.
      */
     func clobberItemWithHistoricalRow<AttributesType, ItemType>(
+            readableTableOverrides: ReadableTableOverrides? = nil,
+            writableTableOverrides: WritableTableOverrides? = nil,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) async throws {
@@ -64,16 +68,20 @@ public extension DynamoDBCompositePrimaryKeyTable {
             
         }
         
-        let existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: primaryItem.compositePrimaryKey)
+                let existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: primaryItem.compositePrimaryKey,
+                                                                                                           tableOverrides: readableTableOverrides)
             
         if let existingItem = existingItemOptional {
             let newItem: TypedDatabaseItem<AttributesType, ItemType> = primaryItemProvider(existingItem)
 
             do {
                 try await updateItemWithHistoricalRow(primaryItem: newItem, existingItem: existingItem,
-                                                      historicalItem: historicalItemProvider(newItem))
+                                                      historicalItem: historicalItemProvider(newItem),
+                                                      tableOverrides: writableTableOverrides)
             } catch {
-                try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                try await clobberItemWithHistoricalRow(readableTableOverrides: readableTableOverrides,
+                                                       writableTableOverrides: writableTableOverrides,
+                                                       primaryItemProvider: primaryItemProvider,
                                                        historicalItemProvider: historicalItemProvider,
                                                        withRetries: retries - 1)
                 return
@@ -81,9 +89,12 @@ public extension DynamoDBCompositePrimaryKeyTable {
         } else {
             do {
                 try await insertItemWithHistoricalRow(primaryItem: primaryItem,
-                                                      historicalItem: historicalItemProvider(primaryItem))
+                                                      historicalItem: historicalItemProvider(primaryItem),
+                                                      tableOverrides: writableTableOverrides)
             } catch {
-                try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                try await clobberItemWithHistoricalRow(readableTableOverrides: readableTableOverrides,
+                                                       writableTableOverrides: writableTableOverrides,
+                                                       primaryItemProvider: primaryItemProvider,
                                                        historicalItemProvider: historicalItemProvider,
                                                        withRetries: retries - 1)
                 return
@@ -107,11 +118,15 @@ public extension DynamoDBCompositePrimaryKeyTable {
      */
     func conditionallyUpdateItemWithHistoricalRow<AttributesType, ItemType>(
             compositePrimaryKey: CompositePrimaryKey<AttributesType>,
+            readableTableOverrides: ReadableTableOverrides? = nil,
+            writableTableOverrides: WritableTableOverrides? = nil,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) async throws -> TypedDatabaseItem<AttributesType, ItemType> {
         return try await conditionallyUpdateItemWithHistoricalRowInternal(
             compositePrimaryKey: compositePrimaryKey,
+            readableTableOverrides: readableTableOverrides,
+            writableTableOverrides: writableTableOverrides,
             primaryItemProvider: primaryItemProvider,
             historicalItemProvider: historicalItemProvider,
             withRetries: retries)
@@ -119,6 +134,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
     
     private func conditionallyUpdateItemWithHistoricalRowInternal<AttributesType, ItemType>(
             compositePrimaryKey: CompositePrimaryKey<AttributesType>,
+            readableTableOverrides: ReadableTableOverrides? = nil,
+            writableTableOverrides: WritableTableOverrides? = nil,
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) async throws -> TypedDatabaseItem<AttributesType, ItemType> {
@@ -128,7 +145,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                        message: "Unable to complete request to update versioned item in specified number of attempts")
         }
         
-        let existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: compositePrimaryKey)
+                let existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: compositePrimaryKey,
+                                                                                                           tableOverrides: readableTableOverrides)
         
         guard let existingItem = existingItemOptional else {
             throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: compositePrimaryKey.partitionKey,
@@ -142,10 +160,13 @@ public extension DynamoDBCompositePrimaryKeyTable {
         do {
             try await updateItemWithHistoricalRow(primaryItem: updatedItem,
                                                   existingItem: existingItem,
-                                                  historicalItem: historicalItem)
+                                                  historicalItem: historicalItem,
+                                                  tableOverrides: writableTableOverrides)
         } catch SmokeDynamoDBError.conditionalCheckFailed {
             // try again
             return try await conditionallyUpdateItemWithHistoricalRow(compositePrimaryKey: compositePrimaryKey,
+                                                                      readableTableOverrides: readableTableOverrides,
+                                                                      writableTableOverrides: writableTableOverrides,
                                                                       primaryItemProvider: primaryItemProvider,
                                                                       historicalItemProvider: historicalItemProvider, withRetries: retries - 1)
         }

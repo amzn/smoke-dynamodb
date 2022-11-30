@@ -75,6 +75,21 @@ public enum WriteEntry<AttributesType: PrimaryKeyAttributes, ItemType: Codable> 
     case deleteItem(existing: TypedDatabaseItem<AttributesType, ItemType>)
 }
 
+public struct ReadableTableOverrides {
+    let consistentRead: Bool?
+    
+    public init(consistentRead: Bool?) {
+        self.consistentRead = consistentRead
+    }
+}
+
+public struct WritableTableOverrides {
+    // if required in the future
+    
+    public init() {
+    }
+}
+
 public typealias StandardWriteEntry<ItemType: Codable> = WriteEntry<StandardPrimaryKeyAttributes, ItemType>
 
 public protocol DynamoDBCompositePrimaryKeyTable {
@@ -83,64 +98,74 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Insert item is a non-destructive API. If an item already exists with the specified key this
      * API should fail.
      */
-    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws
 
     /**
      * Clobber item is destructive API. Regardless of what is present in the database the provided
      * item will be inserted.
      */
-    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                               tableOverrides: WritableTableOverrides?) async throws
 
     /**
      * Update item requires having gotten an item from the database previously and will not update
      * if the item at the specified key is not the existing item provided.
      */
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws
     
     /**
      * Provides the ability to bulk write database rows
      */
-    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                        tableOverrides: WritableTableOverrides?) async throws
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.
      */
-    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                           tableOverrides: ReadableTableOverrides?) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>?
     
     /**
      * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
      */
     func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
-        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]
 
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response.
      */
-    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                    tableOverrides: WritableTableOverrides?) async throws
     
     /**
      * Removes an item from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response. This operation will not modify the table
      * if the item at the specified key is not the existing item provided.
      */
-    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws
     
     /**
      * Removes items from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response.
      */
-    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                     tableOverrides: WritableTableOverrides?) async throws
     
     /**
      * Removes items from the database table. Is an idempotent operation; running it multiple times
      * on the same item or attribute does not result in an error response. This operation will not modify the table
      * if the item at the specified key is not the existing item provided.
      */
-    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
+                                             tableOverrides: WritableTableOverrides?) async throws
 
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -150,7 +175,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType]
 
     /**
@@ -162,7 +187,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     /**
@@ -175,7 +200,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              limit: Int?,
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     /**
@@ -188,7 +213,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType]
     
     /**
@@ -201,7 +227,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     // MARK: Monomorphic batch and queries
@@ -210,7 +237,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Retrieves items from the database table as a dictionary mapped to the provided key. Missing entries from the provided map indicate that item doesn't exist.
      */
     func monomorphicGetItems<AttributesType, ItemType>(
-        forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]
     
     /**
@@ -221,7 +249,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?,
-                                                    consistentRead: Bool) async throws
+                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>]
     
     /**
@@ -234,7 +262,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                         limit: Int?,
                                                         scanIndexForward: Bool,
                                                         exclusiveStartKey: String?,
-                                                        consistentRead: Bool) async throws
+                                                        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?)
     
     /**
@@ -247,7 +275,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>]
     
     /**
@@ -260,6 +289,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?)
 }

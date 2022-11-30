@@ -40,6 +40,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
         andHistoricalKey historicalKey: String,
         item: ItemType,
         primaryKeyType: AttributesType.Type,
+        readableTableOverrides: ReadableTableOverrides? = nil,
+        writableTableOverrides: WritableTableOverrides? = nil,
         generateSortKey: @escaping (Int) -> String) async throws {
             func primaryItemProvider(_ existingItem: TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>>?)
                 -> TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>> {
@@ -67,7 +69,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     return TypedDatabaseItem.newItem(withKey: key, andValue: primaryItem.rowValue)
             }
         
-            return try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+            return try await clobberItemWithHistoricalRow(readableTableOverrides: readableTableOverrides,
+                                                          writableTableOverrides: writableTableOverrides,
+                                                          primaryItemProvider: primaryItemProvider,
                                                           historicalItemProvider: historicalItemProvider)
     }
 }

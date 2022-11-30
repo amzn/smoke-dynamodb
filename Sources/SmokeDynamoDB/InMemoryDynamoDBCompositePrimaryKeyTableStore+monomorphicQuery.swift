@@ -50,8 +50,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
     }
     
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
-                                                    sortKeyCondition: AttributeCondition?,
-                                                    consistentRead: Bool) throws
+                                                    sortKeyCondition: AttributeCondition?) throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         var items: [TypedDatabaseItem<AttributesType, ItemType>] = []
 
@@ -120,13 +119,11 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
                                                     sortKeyCondition: AttributeCondition?,
                                                     limit: Int?,
                                                     scanIndexForward: Bool,
-                                                    exclusiveStartKey: String?,
-                                                    consistentRead: Bool) throws
+                                                    exclusiveStartKey: String?) throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // get all the results
         let rawItems: [TypedDatabaseItem<AttributesType, ItemType>] = try monomorphicQuery(forPartitionKey: partitionKey,
-                                                                                           sortKeyCondition: sortKeyCondition,
-                                                                                           consistentRead: consistentRead)
+                                                                                           sortKeyCondition: sortKeyCondition)
         
         let items: [TypedDatabaseItem<AttributesType, ItemType>]
         if !scanIndexForward {

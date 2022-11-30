@@ -38,6 +38,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
         forKey key: CompositePrimaryKey<AttributesType>,
         withRetries retries: Int = 10,
+        readableTableOverrides: ReadableTableOverrides? = nil,
+        writableTableOverrides: WritableTableOverrides? = nil,
         updatedPayloadProvider: @escaping (ItemType) async throws -> ItemType) async throws {
             let updatedItemProvider: (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType> = { existingItem in
                 let updatedPayload = try await updatedPayloadProvider(existingItem.rowValue)
@@ -46,6 +48,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
             try await conditionallyUpdateItemInternal(
                 forKey: key,
                 withRetries: retries,
+                readableTableOverrides: readableTableOverrides,
+                writableTableOverrides: writableTableOverrides,
                 updatedItemProvider: updatedItemProvider)
         }
     
@@ -66,16 +70,22 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func conditionallyUpdateItem<AttributesType, ItemType: Codable>(
         forKey key: CompositePrimaryKey<AttributesType>,
         withRetries retries: Int = 10,
+        readableTableOverrides: ReadableTableOverrides? = nil,
+        writableTableOverrides: WritableTableOverrides? = nil,
         updatedItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws -> TypedDatabaseItem<AttributesType, ItemType>) async throws {
             try await conditionallyUpdateItemInternal(
                 forKey: key,
                 withRetries: retries,
+                readableTableOverrides: readableTableOverrides,
+                writableTableOverrides: writableTableOverrides,
                 updatedItemProvider: updatedItemProvider)
         }
     
     private func conditionallyUpdateItemInternal<AttributesType, ItemType: Codable>(
         forKey key: CompositePrimaryKey<AttributesType>,
         withRetries retries: Int = 10,
+        readableTableOverrides: ReadableTableOverrides? = nil,
+        writableTableOverrides: WritableTableOverrides? = nil,
         updatedItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) async throws
         -> TypedDatabaseItem<AttributesType, ItemType>) async throws {
             guard retries > 0 else {
@@ -84,7 +94,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                           message: "Unable to complete request to update versioned item in specified number of attempts")
             }
             
-            let databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: key)
+            let databaseItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: key,
+                                                                                                       tableOverrides: readableTableOverrides)
             
             guard let databaseItem = databaseItemOptional else {
                 throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
@@ -95,11 +106,14 @@ public extension DynamoDBCompositePrimaryKeyTable {
             let updatedDatabaseItem = try await updatedItemProvider(databaseItem)
             
             do {
-                try await self.updateItem(newItem: updatedDatabaseItem, existingItem: databaseItem)
+                try await self.updateItem(newItem: updatedDatabaseItem, existingItem: databaseItem,
+                                          tableOverrides: writableTableOverrides)
             } catch SmokeDynamoDBError.conditionalCheckFailed {
                 // try again
                 return try await self.conditionallyUpdateItem(forKey: key,
                                                               withRetries: retries - 1,
+                                                              readableTableOverrides: readableTableOverrides,
+                                                              writableTableOverrides: writableTableOverrides,
                                                               updatedItemProvider: updatedItemProvider)
             }
         }
