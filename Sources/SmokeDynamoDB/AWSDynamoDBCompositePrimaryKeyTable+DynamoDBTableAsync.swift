@@ -24,13 +24,15 @@ import Logging
 /// DynamoDBTable conformance async functions
 public extension AWSDynamoDBCompositePrimaryKeyTable {
     
-    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws {
         let putItemInput = try getInputForInsert(item)
         
         try await putItem(forInput: putItemInput, withKey: item.compositePrimaryKey)
     }
     
-    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                               tableOverrides: WritableTableOverrides?) async throws {
         let attributes = try getAttributes(forItem: item)
         
         let putItemInput = DynamoDBModel.PutItemInput(item: attributes,
@@ -40,15 +42,17 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws {
         let putItemInput = try getInputForUpdateItem(newItem: newItem, existingItem: existingItem)
                 
         try await putItem(forInput: putItemInput, withKey: newItem.compositePrimaryKey)
     }
     
-    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                           tableOverrides: ReadableTableOverrides?) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {
-        let getItemInput = try getInputForGetItem(forKey: key)
+        let getItemInput = try getInputForGetItem(forKey: key, tableOverrides: tableOverrides)
             
         self.logger.debug("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
         
@@ -79,14 +83,16 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
     }
     
-    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws {
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                    tableOverrides: WritableTableOverrides?) async throws {
         let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
         self.logger.debug("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
         _ = try await self.dynamodb.deleteItem(input: deleteItemInput)
     }
     
-    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              tableOverrides: WritableTableOverrides?) async throws {
         let deleteItemInput = try getInputForDeleteItem(existingItem: existingItem)
         
         let logMessage = "dynamodb.deleteItem with key: \(existingItem.compositePrimaryKey), "
@@ -98,12 +104,12 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         return try await partialQuery(forPartitionKey: partitionKey,
                                       sortKeyCondition: sortKeyCondition,
                                       exclusiveStartKey: nil,
-                                      consistentRead: consistentRead)
+                                      tableOverrides: tableOverrides)
     }
     
     // function to return a future with the results of a query call and all future paginated calls
@@ -111,14 +117,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             exclusiveStartKey: String?,
-            consistentRead: Bool) async throws -> [ReturnedType] {
+            tableOverrides: ReadableTableOverrides?) async throws -> [ReturnedType] {
         let paginatedItems: (items: [ReturnedType], lastEvaluatedKey: String?) =
             try await query(forPartitionKey: partitionKey,
                   sortKeyCondition: sortKeyCondition,
                   limit: nil,
                   scanIndexForward: true,
                   exclusiveStartKey: exclusiveStartKey,
-                  consistentRead: consistentRead)
+                  tableOverrides: tableOverrides)
         
         // if there are more items
         if let lastEvaluatedKey = paginatedItems.lastEvaluatedKey {
@@ -127,7 +133,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 forPartitionKey: partitionKey,
                 sortKeyCondition: sortKeyCondition,
                 exclusiveStartKey: lastEvaluatedKey,
-                consistentRead: consistentRead)
+                tableOverrides: tableOverrides)
                 
             // return the results from 'this' call and all later paginated calls
             return paginatedItems.items + partialResult
@@ -141,14 +147,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
                                scanIndexForward: true,
                                exclusiveStartKey: exclusiveStartKey,
-                               consistentRead: consistentRead)
+                               tableOverrides: tableOverrides)
     }
     
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -156,7 +162,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                              limit: Int?,
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?,
-                                                             consistentRead: Bool) async throws
+                                                             tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: ReturnedType.AttributesType.self,
@@ -234,12 +240,12 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?,
-                                                    consistentRead: Bool) async throws
+                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         return try await monomorphicPartialQuery(forPartitionKey: partitionKey,
                                                  sortKeyCondition: sortKeyCondition,
                                                  exclusiveStartKey: nil,
-                                                 consistentRead: consistentRead)
+                                                 tableOverrides: tableOverrides)
     }
     
     // function to return a future with the results of a query call and all future paginated calls
@@ -247,14 +253,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             forPartitionKey partitionKey: String,
             sortKeyCondition: AttributeCondition?,
             exclusiveStartKey: String?,
-            consistentRead: Bool) async throws -> [TypedDatabaseItem<AttributesType, ItemType>] {
+            tableOverrides: ReadableTableOverrides?) async throws -> [TypedDatabaseItem<AttributesType, ItemType>] {
         let paginatedItems: (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) =
             try await monomorphicQuery(forPartitionKey: partitionKey,
                                        sortKeyCondition: sortKeyCondition,
                                        limit: nil,
                                        scanIndexForward: true,
                                        exclusiveStartKey: nil,
-                                       consistentRead: consistentRead)
+                                       tableOverrides: tableOverrides)
         
         // if there are more items
         if let lastEvaluatedKey = paginatedItems.lastEvaluatedKey {
@@ -263,7 +269,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 forPartitionKey: partitionKey,
                 sortKeyCondition: sortKeyCondition,
                 exclusiveStartKey: lastEvaluatedKey,
-                consistentRead: consistentRead)
+                tableOverrides: tableOverrides)
                 
             // return the results from 'this' call and all later paginated calls
             return paginatedItems.items + partialResult
@@ -278,7 +284,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                         limit: Int?,
                                                         scanIndexForward: Bool,
                                                         exclusiveStartKey: String?,
-                                                        consistentRead: Bool) async throws
+                                                        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(
                 partitionKey: partitionKey, targetTableName: targetTableName,

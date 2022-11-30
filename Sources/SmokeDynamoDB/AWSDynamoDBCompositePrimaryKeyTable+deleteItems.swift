@@ -36,7 +36,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingKey: existingKey)
                 
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            // doesn't require read consistency as nothing is being returned
+            return BatchStatementRequest(consistentRead: false, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
@@ -55,6 +56,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingItem: existingItem)
                 
+            // doesn't require read consistency as nothing is being returned
             return BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
@@ -64,7 +66,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         try throwOnBatchExecuteStatementErrors(response: response)
     }
     
-    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws {
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                     tableOverrides: WritableTableOverrides?) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedKeys = keys.chunked(by: maximumUpdatesPerExecuteStatement)
@@ -73,7 +76,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
     }
     
-    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws {
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
+                                             tableOverrides: WritableTableOverrides?) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedItems = existingItems.chunked(by: maximumUpdatesPerExecuteStatement)

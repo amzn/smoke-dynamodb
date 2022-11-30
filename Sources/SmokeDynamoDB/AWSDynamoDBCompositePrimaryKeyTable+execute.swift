@@ -30,7 +30,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
@@ -49,7 +50,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                      attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: ReturnedType.AttributesType.partitionKeyAttributeName,
                                      additionalWhereClause: additionalWhereClause)
-        let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
+        let consistentRead = tableOverrides?.consistentRead ?? self.consistentRead
+        let executeInput = ExecuteStatementInput(consistentRead: consistentRead, nextToken: nextToken, statement: statement)
         
         do {
             let executeOutput = try await self.dynamodb.executeStatement(input: executeInput)
@@ -87,7 +89,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // This function handles pagination internally.
@@ -96,7 +99,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return try await self.partialExecute(partitionKeys: chunk,
                                                  attributesFilter: attributesFilter,
                                                  additionalWhereClause: additionalWhereClause,
-                                                 nextToken: nil)
+                                                 nextToken: nil,
+                                                 tableOverrides: tableOverrides)
         }
         
         return itemLists.flatMap { $0 }
@@ -105,7 +109,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
@@ -124,7 +129,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                      attributesFilter: attributesFilter,
                                      partitionKeyAttributeName: AttributesType.partitionKeyAttributeName,
                                      additionalWhereClause: additionalWhereClause)
-        let executeInput = ExecuteStatementInput(consistentRead: true, nextToken: nextToken, statement: statement)
+        let consistentRead = tableOverrides?.consistentRead ?? self.consistentRead
+        let executeInput = ExecuteStatementInput(consistentRead: consistentRead, nextToken: nextToken, statement: statement)
         
         do {
             let executeOutput = try await self.dynamodb.executeStatement(input: executeInput)
@@ -160,7 +166,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         // ExecuteStatement API has a maximum limit on the number of decomposed read operations per request.
         // This function handles pagination internally.
@@ -169,7 +176,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return try await self.monomorphicPartialExecute(partitionKeys: chunk,
                                                             attributesFilter: attributesFilter,
                                                             additionalWhereClause: additionalWhereClause,
-                                                            nextToken: nil)
+                                                            nextToken: nil,
+                                                            tableOverrides: tableOverrides)
         }
         
         return itemLists.flatMap { $0 }
@@ -180,13 +188,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?) async throws
+            nextToken: String?,
+            tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         let paginatedItems: (items: [ReturnedType], lastEvaluatedKey: String?) =
             try await execute(partitionKeys: partitionKeys,
                     attributesFilter: attributesFilter,
                     additionalWhereClause: additionalWhereClause,
-                    nextToken: nextToken)
+                    nextToken: nextToken,
+                    tableOverrides: tableOverrides)
         
         // if there are more items
         if let returnedNextToken = paginatedItems.lastEvaluatedKey {
@@ -194,7 +204,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let partialResult: [ReturnedType] = try await self.partialExecute(partitionKeys: partitionKeys,
                                                                               attributesFilter: attributesFilter,
                                                                               additionalWhereClause: additionalWhereClause,
-                                                                              nextToken: returnedNextToken)
+                                                                              nextToken: returnedNextToken,
+                                                                              tableOverrides: tableOverrides)
                 
             // return the results from 'this' call and all later paginated calls
             return paginatedItems.items + partialResult
@@ -208,13 +219,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?,
-            nextToken: String?) async throws
+            nextToken: String?,
+            tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         let paginatedItems: (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) =
             try await monomorphicExecute(partitionKeys: partitionKeys,
                                          attributesFilter: attributesFilter,
                                          additionalWhereClause: additionalWhereClause,
-                                         nextToken: nextToken)
+                                         nextToken: nextToken,
+                                         tableOverrides: tableOverrides)
         
         // if there are more items
         if let returnedNextToken = paginatedItems.lastEvaluatedKey {
@@ -223,7 +236,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 partitionKeys: partitionKeys,
                 attributesFilter: attributesFilter,
                 additionalWhereClause: additionalWhereClause,
-                nextToken: returnedNextToken)
+                nextToken: returnedNextToken,
+                tableOverrides: tableOverrides)
                 
             // return the results from 'this' call and all later paginated calls
             return paginatedItems.items + partialResult

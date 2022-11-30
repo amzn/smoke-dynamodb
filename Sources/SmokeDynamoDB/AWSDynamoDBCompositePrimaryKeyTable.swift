@@ -27,11 +27,13 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
     internal let logger: Logger
+    internal let consistentRead: Bool
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
@@ -51,6 +53,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
@@ -59,6 +62,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
@@ -74,15 +78,18 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
 
         self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
     
     internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
                   targetTableName: String,
+                  consistentRead: Bool = true,
                   logger: Logger) {
         self.dynamodb = dynamodb
         self.targetTableName = targetTableName
+        self.consistentRead = consistentRead
         self.logger = logger
     }
 
@@ -128,11 +135,13 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                           tableName: targetTableName)
     }
 
-    internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.GetItemInput {
+    internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                                     tableOverrides: ReadableTableOverrides?) throws -> DynamoDBModel.GetItemInput {
         let attributeValue = try DynamoDBEncoder().encode(key)
 
         if let keyAttributes = attributeValue.M {
-            return DynamoDBModel.GetItemInput(consistentRead: true,
+            let consistentRead = tableOverrides?.consistentRead ?? self.consistentRead
+            return DynamoDBModel.GetItemInput(consistentRead: consistentRead,
                                               key: keyAttributes,
                                               tableName: targetTableName)
         } else {
@@ -140,7 +149,8 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         }
     }
     
-    internal func getInputForBatchGetItem<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) throws
+    internal func getInputForBatchGetItem<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                                          tableOverrides: ReadableTableOverrides?) throws
     -> DynamoDBModel.BatchGetItemInput {
         let keys = try keys.map { key -> DynamoDBModel.Key in
             let attributeValue = try DynamoDBEncoder().encode(key)
@@ -152,7 +162,8 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
             }
         }
 
-        let keysAndAttributes = KeysAndAttributes(consistentRead: true,
+        let consistentRead = tableOverrides?.consistentRead ?? self.consistentRead
+        let keysAndAttributes = KeysAndAttributes(consistentRead: consistentRead,
                                                   keys: keys)
         
         return DynamoDBModel.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])

@@ -51,7 +51,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                     existingItem: existing)
             }
             
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            // doesn't require read consistency as nothing is being returned
+            return BatchStatementRequest(consistentRead: false, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
@@ -94,7 +95,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
     }
     
-    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                        tableOverrides: WritableTableOverrides?) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)

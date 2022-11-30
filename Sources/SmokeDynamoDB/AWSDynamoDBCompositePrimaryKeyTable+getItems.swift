@@ -112,12 +112,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
-        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {
         let chunkedList = keys.chunked(by: maximumKeysPerGetItemBatch)
         
         let maps = try await chunkedList.concurrentMap { chunk -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] in
-            let input = try self.getInputForBatchGetItem(forKeys: chunk)
+            let input = try self.getInputForBatchGetItem(forKeys: chunk, tableOverrides: tableOverrides)
             
             let retriable = GetItemsRetriable<ReturnedType>(
                 initialInput: input,

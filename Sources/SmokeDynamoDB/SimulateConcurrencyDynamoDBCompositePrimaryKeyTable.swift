@@ -50,112 +50,124 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         self.simulateOnUpdateItem = simulateOnUpdateItem
     }
     
-    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+    public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws {
         // if there are still modifications to be made and there is an existing row
         if simulateOnInsertItem && previousConcurrencyModifications < simulateConcurrencyModifications {
             // insert an item so the conditional check will fail
-            try await wrappedDynamoDBTable.insertItem(item)
+            try await wrappedDynamoDBTable.insertItem(item, tableOverrides: tableOverrides)
             
             self.previousConcurrencyModifications += 1
             
             // then delegate to the wrapped implementation
-            try await self.wrappedDynamoDBTable.insertItem(item)
+            try await self.wrappedDynamoDBTable.insertItem(item, tableOverrides: tableOverrides)
         }
         
         // otherwise just delegate to the wrapped implementation
-        try await wrappedDynamoDBTable.insertItem(item)
+        try await wrappedDynamoDBTable.insertItem(item, tableOverrides: tableOverrides)
     }
     
-    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
-        try await wrappedDynamoDBTable.clobberItem(item)
+    public func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                      tableOverrides: WritableTableOverrides?) async throws {
+        try await wrappedDynamoDBTable.clobberItem(item, tableOverrides: tableOverrides)
     }
     
     public func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
+                                                     existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws {
         
         // if there are still modifications to be made and there is an existing row
         if simulateOnUpdateItem && previousConcurrencyModifications < simulateConcurrencyModifications {
             try await wrappedDynamoDBTable.updateItem(newItem: existingItem.createUpdatedItem(withValue: existingItem.rowValue),
-                                                      existingItem: existingItem)
+                                                      existingItem: existingItem, tableOverrides: tableOverrides)
             
             self.previousConcurrencyModifications += 1
             
             // then delegate to the wrapped implementation
-            try await self.wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
+            try await self.wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem,
+                                                           tableOverrides: tableOverrides)
         }
         
         // otherwise just delegate to the wrapped implementation
-        try await wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
+        try await wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem,
+                                                  tableOverrides: tableOverrides)
     }
     
-    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
+                                                               tableOverrides: WritableTableOverrides?) async throws {
         try await entries.asyncForEach { entry in
             switch entry {
             case .update(new: let new, existing: let existing):
-                return try await updateItem(newItem: new, existingItem: existing)
+                return try await updateItem(newItem: new, existingItem: existing, tableOverrides: tableOverrides)
             case .insert(new: let new):
-                return try await insertItem(new)
+                return try await insertItem(new, tableOverrides: tableOverrides)
             case .deleteAtKey(key: let key):
-                return try await deleteItem(forKey: key)
+                return try await deleteItem(forKey: key, tableOverrides: tableOverrides)
             case .deleteItem(existing: let existing):
-                return try await deleteItem(existingItem: existing)
+                return try await deleteItem(existingItem: existing, tableOverrides: tableOverrides)
             }
         }
     }
     
-    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) async throws
+    public func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                                  tableOverrides: ReadableTableOverrides?) async throws
     -> TypedDatabaseItem<AttributesType, ItemType>? {
         // simply delegate to the wrapped implementation
-        return try await wrappedDynamoDBTable.getItem(forKey: key)
+        return try await wrappedDynamoDBTable.getItem(forKey: key, tableOverrides: tableOverrides)
     }
     
     public func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
-        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {
         // simply delegate to the wrapped implementation
-        return try await wrappedDynamoDBTable.getItems(forKeys: keys)
+        return try await wrappedDynamoDBTable.getItems(forKeys: keys, tableOverrides: tableOverrides)
     }
     
-    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws {
+    public func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                           tableOverrides: WritableTableOverrides?) async throws {
         // simply delegate to the wrapped implementation
-        return try await wrappedDynamoDBTable.deleteItem(forKey: key)
+        return try await wrappedDynamoDBTable.deleteItem(forKey: key, tableOverrides: tableOverrides)
     }
     
-    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
+    public func deleteItem<AttributesType, ItemType>(existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                     tableOverrides: WritableTableOverrides?) async throws
             where AttributesType : PrimaryKeyAttributes, ItemType : Decodable, ItemType : Encodable {
-        return try await wrappedDynamoDBTable.deleteItem(existingItem: existingItem)
+        return try await wrappedDynamoDBTable.deleteItem(existingItem: existingItem, tableOverrides: tableOverrides)
     }
     
-    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws {
-        return try await wrappedDynamoDBTable.deleteItems(forKeys: keys)
+    public func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
+                                            tableOverrides: WritableTableOverrides?) async throws {
+        return try await wrappedDynamoDBTable.deleteItems(forKeys: keys, tableOverrides: tableOverrides)
     }
     
-    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws {
-        return try await wrappedDynamoDBTable.deleteItems(existingItems: existingItems)
+    public func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
+                                                    tableOverrides: WritableTableOverrides?) async throws {
+        return try await wrappedDynamoDBTable.deleteItems(existingItems: existingItems, tableOverrides: tableOverrides)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                                     sortKeyCondition: AttributeCondition?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
                                                     sortKeyCondition: sortKeyCondition,
-                                                    consistentRead: consistentRead)
+                                                    tableOverrides: tableOverrides)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                                     sortKeyCondition: AttributeCondition?,
                                                                     limit: Int?,
                                                                     exclusiveStartKey: String?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
                                                     sortKeyCondition: sortKeyCondition,
                                                     limit: limit,
                                                     exclusiveStartKey: exclusiveStartKey,
-                                                    consistentRead: consistentRead)
+                                                    tableOverrides: tableOverrides)
     }
     
     public func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -163,7 +175,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                                     limit: Int?,
                                                                     scanIndexForward: Bool,
                                                                     exclusiveStartKey: String?,
-                                                                    consistentRead: Bool) async throws
+                                                                    tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
@@ -171,70 +183,79 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                     limit: limit,
                                                     scanIndexForward: scanIndexForward,
                                                     exclusiveStartKey: exclusiveStartKey,
-                                                    consistentRead: consistentRead)
+                                                    tableOverrides: tableOverrides)
     }
     
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [ReturnedType] {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.execute(partitionKeys: partitionKeys,
                                                       attributesFilter: attributesFilter,
-                                                      additionalWhereClause: additionalWhereClause)
+                                                      additionalWhereClause: additionalWhereClause,
+                                                      tableOverrides: tableOverrides)
     }
     
     public func execute<ReturnedType: PolymorphicOperationReturnType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.execute(partitionKeys: partitionKeys,
                                                       attributesFilter: attributesFilter,
                                                       additionalWhereClause: additionalWhereClause,
-                                                      nextToken: nextToken)
+                                                      nextToken: nextToken,
+                                                      tableOverrides: tableOverrides)
     }
     
     public func monomorphicGetItems<AttributesType, ItemType>(
-        forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws
+        forKeys keys: [CompositePrimaryKey<AttributesType>],
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>] {
         // simply delegate to the wrapped implementation
-        return try await wrappedDynamoDBTable.monomorphicGetItems(forKeys: keys)
+        return try await wrappedDynamoDBTable.monomorphicGetItems(forKeys: keys, tableOverrides: tableOverrides)
     }
     
     public func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?) async throws
+        additionalWhereClause: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicExecute(partitionKeys: partitionKeys,
                                                                  attributesFilter: attributesFilter,
-                                                                 additionalWhereClause: additionalWhereClause)
+                                                                 additionalWhereClause: additionalWhereClause,
+                                                                 tableOverrides: tableOverrides)
     }
     
     public func monomorphicExecute<AttributesType, ItemType>(
         partitionKeys: [String],
         attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) async throws
+        additionalWhereClause: String?, nextToken: String?,
+        tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicExecute(partitionKeys: partitionKeys,
                                                                  attributesFilter: attributesFilter,
                                                                  additionalWhereClause: additionalWhereClause,
-                                                                 nextToken: nextToken)
+                                                                 nextToken: nextToken,
+                                                                 tableOverrides: tableOverrides)
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                            sortKeyCondition: AttributeCondition?,
-                                                           consistentRead: Bool) async throws
+                                                           tableOverrides: ReadableTableOverrides?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicQuery(forPartitionKey: partitionKey,
                                                                sortKeyCondition: sortKeyCondition,
-                                                               consistentRead: consistentRead)
+                                                               tableOverrides: tableOverrides)
     }
     
     public func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
@@ -242,7 +263,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                            limit: Int?,
                                                            scanIndexForward: Bool,
                                                            exclusiveStartKey: String?,
-                                                           consistentRead: Bool) async throws
+                                                           tableOverrides: ReadableTableOverrides?) async throws
     -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicQuery(forPartitionKey: partitionKey,
@@ -250,6 +271,6 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                                limit: limit,
                                                                scanIndexForward: scanIndexForward,
                                                                exclusiveStartKey: exclusiveStartKey,
-                                                               consistentRead: consistentRead)
+                                                               tableOverrides: tableOverrides)
     }
 }
