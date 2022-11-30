@@ -51,7 +51,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                     existingItem: existing)
             }
             
-            // doesn't require read consistency as nothing is being returned
+            // doesn't require read consistency as no items are being read
             return BatchStatementRequest(consistentRead: false, statement: statement)
         }
         

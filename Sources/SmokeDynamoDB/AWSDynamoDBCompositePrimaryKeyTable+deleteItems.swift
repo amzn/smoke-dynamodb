@@ -36,7 +36,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingKey: existingKey)
                 
-            // doesn't require read consistency as nothing is being returned
+            // doesn't require read consistency as no items are being read
             return BatchStatementRequest(consistentRead: false, statement: statement)
         }
         
@@ -56,7 +56,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingItem: existingItem)
                 
-            // doesn't require read consistency as nothing is being returned
+            // doesn't require read consistency as no items are being read
             return BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
