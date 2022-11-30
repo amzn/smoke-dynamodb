@@ -27,7 +27,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
     -> EventLoopFuture<[ReturnedType]> {
         return query(forPartitionKey: partitionKey,
                      sortKeyCondition: sortKeyCondition,
-                     consistentRead: true)
+                     consistentRead: self.consistentRead)
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -39,7 +39,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                      sortKeyCondition: sortKeyCondition,
                      limit: limit,
                      exclusiveStartKey: exclusiveStartKey,
-                     consistentRead: true)
+                     consistentRead: self.consistentRead)
     }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -53,7 +53,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                      limit: limit,
                      scanIndexForward: scanIndexForward,
                      exclusiveStartKey: exclusiveStartKey,
-                     consistentRead: true)
+                     consistentRead: self.consistentRead)
     }
 
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
@@ -61,7 +61,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
         return monomorphicQuery(forPartitionKey: partitionKey,
                                 sortKeyCondition: sortKeyCondition,
-                                consistentRead: true)
+                                consistentRead: self.consistentRead)
     }
 
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
@@ -75,7 +75,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                 limit: limit,
                                 scanIndexForward: scanIndexForward,
                                 exclusiveStartKey: exclusiveStartKey,
-                                consistentRead: true)
+                                consistentRead: self.consistentRead)
     }
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)

@@ -81,6 +81,9 @@ public typealias StandardWriteEntry<ItemType: Codable> = WriteEntry<StandardPrim
 
 public protocol DynamoDBCompositePrimaryKeyTable {
     var eventLoop: EventLoop { get }
+    // This property doesn't really belong on the protocol but provides
+    // access to the property for the protocol's extensions
+    var consistentRead: Bool { get }
 
     /**
      * Insert item is a non-destructive API. If an item already exists with the specified key this
@@ -453,6 +456,14 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         additionalWhereClause: String?, nextToken: String?) async throws -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
     
 #endif
+}
+
+public extension DynamoDBCompositePrimaryKeyTable {
+    // provide a default value for the table's `consistentRead`
+    // maintains backwards compatibility
+    var consistentRead: Bool {
+        return true
+    }
 }
 
 // For async/await APIs, simply delegate to the EventLoopFuture implementation until support is dropped for Swift <5.5

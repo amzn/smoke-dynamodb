@@ -66,7 +66,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let statement: String = try entryToStatement(entry)
         
-        return BatchStatementRequest(consistentRead: true, statement: statement)
+        // doesn't require read consistency as no items are being read
+        return BatchStatementRequest(consistentRead: false, statement: statement)
     }
 
     private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
@@ -98,7 +99,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                         existingItem: existing)
                 }
                 
-                return BatchStatementRequest(consistentRead: true, statement: statement)
+                // doesn't require read consistency as no items are being read
+                return BatchStatementRequest(consistentRead: false, statement: statement)
             }
         } catch {
             let promise = self.eventLoop.makePromise(of: Void.self)
@@ -215,13 +217,5 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             
             return errors
         }
-    }
-}
-
-extension BatchStatementError: Hashable {
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.code)
-        hasher.combine(self.message)
     }
 }

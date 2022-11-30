@@ -42,7 +42,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                         existingKey: existingKey)
                 
-                return BatchStatementRequest(consistentRead: true, statement: statement)
+                // doesn't require read consistency as no items are being read
+                return BatchStatementRequest(consistentRead: false, statement: statement)
             }
         } catch {
             let promise = self.eventLoop.makePromise(of: Void.self)
@@ -72,7 +73,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                         existingItem: existingItem)
                 
-                return BatchStatementRequest(consistentRead: true, statement: statement)
+                // doesn't require read consistency as no items are being read
+                return BatchStatementRequest(consistentRead: false, statement: statement)
             }
         } catch {
             let promise = self.eventLoop.makePromise(of: Void.self)
