@@ -88,14 +88,6 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
-     will handle being called multiple times. Will block until shutdown is complete.
-     */
-    public func syncShutdown() throws {
-        try self.dynamodb.syncShutdown()
-    }
-
-    /**
-     Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
     public func shutdown() async throws {

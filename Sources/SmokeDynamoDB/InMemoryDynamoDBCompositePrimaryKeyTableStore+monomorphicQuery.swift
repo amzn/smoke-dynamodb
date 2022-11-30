@@ -122,7 +122,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
                                                     scanIndexForward: Bool,
                                                     exclusiveStartKey: String?,
                                                     consistentRead: Bool) throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // get all the results
         let rawItems: [TypedDatabaseItem<AttributesType, ItemType>] = try monomorphicQuery(forPartitionKey: partitionKey,
                                                                                            sortKeyCondition: sortKeyCondition,

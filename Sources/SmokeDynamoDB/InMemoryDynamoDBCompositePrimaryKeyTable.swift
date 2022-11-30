@@ -46,6 +46,12 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     internal init(storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore) {
         self.storeWrapper = storeWrapper
     }
+    
+    public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] {
+        get async {
+            return await self.storeWrapper.store
+        }
+    }
 
     public func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await storeWrapper.insertItem(item)
@@ -104,7 +110,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
                                                                     limit: Int?,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                             limit: limit, exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)
     }
@@ -115,7 +121,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
                                                                     scanIndexForward: Bool,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                             limit: limit, scanIndexForward: scanIndexForward,
                                             exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)
@@ -134,7 +140,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await storeWrapper.execute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                               additionalWhereClause: additionalWhereClause, nextToken: nextToken)
     }
@@ -152,7 +158,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         return try await storeWrapper.monomorphicExecute(partitionKeys: partitionKeys, attributesFilter: attributesFilter,
                                                additionalWhereClause: additionalWhereClause, nextToken: nextToken)
     }
@@ -177,7 +183,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
                                                            scanIndexForward: Bool,
                                                            exclusiveStartKey: String?,
                                                            consistentRead: Bool) async throws
-       -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+       -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         return try await storeWrapper.monomorphicQuery(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                                        limit: limit, scanIndexForward: scanIndexForward,
                                                        exclusiveStartKey: exclusiveStartKey, consistentRead: consistentRead)

@@ -22,7 +22,6 @@ import DynamoDBModel
 import SmokeAWSCore
 import SmokeHTTPClient
 import AsyncHTTPClient
-import NIO
 
 public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeysProjection {
     internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
@@ -94,31 +93,9 @@ public class AWSDynamoDBCompositePrimaryKeysProjection<InvocationReportingType: 
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
-     will handle being called multiple times. Will block until shutdown is complete.
-     */
-    public func syncShutdown() throws {
-        try self.dynamodb.syncShutdown()
-    }
-
-    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
-    @available(*, deprecated, renamed: "syncShutdown")
-    public func close() throws {
-        try self.dynamodb.close()
-    }
-
-    /**
-     Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
-    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await self.dynamodb.shutdown()
-    }
-    #endif
-}
-
-extension AWSDynamoDBCompositePrimaryKeysProjection {
-    public var eventLoop: EventLoop {
-        return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }
 }

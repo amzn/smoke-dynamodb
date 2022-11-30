@@ -112,7 +112,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             sortKeyCondition: AttributeCondition?,
             exclusiveStartKey: String?,
             consistentRead: Bool) async throws -> [ReturnedType] {
-        let paginatedItems: ([ReturnedType], String?) =
+        let paginatedItems: (items: [ReturnedType], lastEvaluatedKey: String?) =
             try await query(forPartitionKey: partitionKey,
                   sortKeyCondition: sortKeyCondition,
                   limit: nil,
@@ -121,7 +121,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                   consistentRead: consistentRead)
         
         // if there are more items
-        if let lastEvaluatedKey = paginatedItems.1 {
+        if let lastEvaluatedKey = paginatedItems.lastEvaluatedKey {
             // returns a future with all the results from all later paginated calls
             let partialResult: [ReturnedType] = try await self.partialQuery(
                 forPartitionKey: partitionKey,
@@ -130,10 +130,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 consistentRead: consistentRead)
                 
             // return the results from 'this' call and all later paginated calls
-            return paginatedItems.0 + partialResult
+            return paginatedItems.items + partialResult
         } else {
             // this is it, all results have been obtained
-            return paginatedItems.0
+            return paginatedItems.items
         }
     }
     
@@ -142,7 +142,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
@@ -157,7 +157,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: ReturnedType.AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
@@ -248,7 +248,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             sortKeyCondition: AttributeCondition?,
             exclusiveStartKey: String?,
             consistentRead: Bool) async throws -> [TypedDatabaseItem<AttributesType, ItemType>] {
-        let paginatedItems: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
+        let paginatedItems: (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) =
             try await monomorphicQuery(forPartitionKey: partitionKey,
                                        sortKeyCondition: sortKeyCondition,
                                        limit: nil,
@@ -257,7 +257,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                        consistentRead: consistentRead)
         
         // if there are more items
-        if let lastEvaluatedKey = paginatedItems.1 {
+        if let lastEvaluatedKey = paginatedItems.lastEvaluatedKey {
             // returns a future with all the results from all later paginated calls
             let partialResult: [TypedDatabaseItem<AttributesType, ItemType>] = try await self.monomorphicPartialQuery(
                 forPartitionKey: partitionKey,
@@ -266,10 +266,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 consistentRead: consistentRead)
                 
             // return the results from 'this' call and all later paginated calls
-            return paginatedItems.0 + partialResult
+            return paginatedItems.items + partialResult
         } else {
             // this is it, all results have been obtained
-            return paginatedItems.0
+            return paginatedItems.items
         }
     }
     
@@ -279,7 +279,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                         scanIndexForward: Bool,
                                                         exclusiveStartKey: String?,
                                                         consistentRead: Bool) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(
                 partitionKey: partitionKey, targetTableName: targetTableName,
                 primaryKeyType: AttributesType.self,

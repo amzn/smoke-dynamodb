@@ -33,7 +33,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              exclusiveStartKey: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
@@ -46,7 +46,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                              limit: Int?,
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
@@ -68,7 +68,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                     limit: Int?,
                                                     scanIndexForward: Bool,
                                                     exclusiveStartKey: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         return try await monomorphicQuery(forPartitionKey: partitionKey,
                                           sortKeyCondition: sortKeyCondition,
                                           limit: limit,

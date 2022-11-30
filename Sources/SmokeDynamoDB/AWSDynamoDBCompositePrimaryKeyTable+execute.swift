@@ -31,7 +31,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
         guard partitionKeys.count > 0 else {
@@ -106,7 +106,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // if there are no partitions, there will be no results to return
         // succeed immediately with empty results
         guard partitionKeys.count > 0 else {
@@ -182,14 +182,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             additionalWhereClause: String?,
             nextToken: String?) async throws
     -> [ReturnedType] {
-        let paginatedItems: ([ReturnedType], String?) =
+        let paginatedItems: (items: [ReturnedType], lastEvaluatedKey: String?) =
             try await execute(partitionKeys: partitionKeys,
                     attributesFilter: attributesFilter,
                     additionalWhereClause: additionalWhereClause,
                     nextToken: nextToken)
         
         // if there are more items
-        if let returnedNextToken = paginatedItems.1 {
+        if let returnedNextToken = paginatedItems.lastEvaluatedKey {
             // returns a future with all the results from all later paginated calls
             let partialResult: [ReturnedType] = try await self.partialExecute(partitionKeys: partitionKeys,
                                                                               attributesFilter: attributesFilter,
@@ -197,10 +197,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                                               nextToken: returnedNextToken)
                 
             // return the results from 'this' call and all later paginated calls
-            return paginatedItems.0 + partialResult
+            return paginatedItems.items + partialResult
         } else {
             // this is it, all results have been obtained
-            return paginatedItems.0
+            return paginatedItems.items
         }
     }
     
@@ -210,14 +210,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             additionalWhereClause: String?,
             nextToken: String?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
-        let paginatedItems: ([TypedDatabaseItem<AttributesType, ItemType>], String?) =
+        let paginatedItems: (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) =
             try await monomorphicExecute(partitionKeys: partitionKeys,
                                          attributesFilter: attributesFilter,
                                          additionalWhereClause: additionalWhereClause,
                                          nextToken: nextToken)
         
         // if there are more items
-        if let returnedNextToken = paginatedItems.1 {
+        if let returnedNextToken = paginatedItems.lastEvaluatedKey {
             // returns a future with all the results from all later paginated calls
             let partialResult: [TypedDatabaseItem<AttributesType, ItemType>] = try await self.monomorphicPartialExecute(
                 partitionKeys: partitionKeys,
@@ -226,10 +226,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 nextToken: returnedNextToken)
                 
             // return the results from 'this' call and all later paginated calls
-            return paginatedItems.0 + partialResult
+            return paginatedItems.items + partialResult
         } else {
             // this is it, all results have been obtained
-            return paginatedItems.0
+            return paginatedItems.items
         }
     }
     

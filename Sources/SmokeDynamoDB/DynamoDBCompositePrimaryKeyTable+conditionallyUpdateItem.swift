@@ -19,7 +19,6 @@ import Foundation
 import SmokeHTTPClient
 import Logging
 import DynamoDBModel
-import NIO
 
 public extension DynamoDBCompositePrimaryKeyTable {
     /**
