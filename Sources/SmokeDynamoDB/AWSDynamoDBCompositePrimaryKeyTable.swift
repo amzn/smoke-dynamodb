@@ -175,9 +175,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     
     public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
         operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+        consistentRead: Bool = true,
         invocationAttributes: InvocationAttributesType)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.init(operationsClient: operationsClient,
+                  consistentRead: consistentRead,
                   logger: invocationAttributes.logger,
                   internalRequestId: invocationAttributes.internalRequestId,
                   eventLoop: !operationsClient.config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
