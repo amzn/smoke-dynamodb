@@ -288,7 +288,7 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         return try query(forPartitionKey: partitionKey,
                          sortKeyCondition: sortKeyCondition,
                          limit: limit,
@@ -303,7 +303,7 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // get all the results
         let rawItems: [ReturnedType] = try query(forPartitionKey: partitionKey,
                                                  sortKeyCondition: sortKeyCondition,

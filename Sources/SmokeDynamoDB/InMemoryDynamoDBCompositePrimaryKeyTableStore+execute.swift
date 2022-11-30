@@ -40,7 +40,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
             partitionKeys: [String],
             attributesFilter: [String]?,
             additionalWhereClause: String?, nextToken: String?) throws
-    -> ([ReturnedType], String?)  {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?)  {
         let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
            
         let returnedItems: [ReturnedType] = try items.map { item in
@@ -77,7 +77,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
            
         let returnedItems: [TypedDatabaseItem<AttributesType, ItemType>] = try items.map { item in

@@ -43,12 +43,12 @@ public protocol DynamoDBCompositePrimaryKeysProjection {
                                sortKeyCondition: AttributeCondition?,
                                limit: Int?,
                                exclusiveStartKey: String?) async throws
-        -> ([CompositePrimaryKey<AttributesType>], String?)
+        -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?)
     
     func query<AttributesType>(forPartitionKey partitionKey: String,
                                sortKeyCondition: AttributeCondition?,
                                limit: Int?,
                                scanIndexForward: Bool,
                                exclusiveStartKey: String?) async throws
-        -> ([CompositePrimaryKey<AttributesType>], String?)
+        -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?)
 }

@@ -94,7 +94,7 @@ internal actor InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?) {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
         return try await query(forPartitionKey: partitionKey,
                      sortKeyCondition: sortKeyCondition,
                      limit: limit,
@@ -107,7 +107,7 @@ internal actor InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
                                       limit: Int?,
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?) {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
         // get all the results
         let rawItems: [CompositePrimaryKey<AttributesType>] = try await query(forPartitionKey: partitionKey,
                                                                               sortKeyCondition: sortKeyCondition)

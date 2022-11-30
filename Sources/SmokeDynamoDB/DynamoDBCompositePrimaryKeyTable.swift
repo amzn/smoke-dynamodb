@@ -163,7 +163,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) async throws
-    -> ([ReturnedType], String?)
+    -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     /**
      * Queries a partition in the database table and optionally a sort key condition. If the
@@ -176,7 +176,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                              scanIndexForward: Bool,
                                                              exclusiveStartKey: String?,
                                                              consistentRead: Bool) async throws
-    -> ([ReturnedType], String?)
+    -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     /**
      * Uses the ExecuteStatement API to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
@@ -202,7 +202,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([ReturnedType], String?)
+    -> (items: [ReturnedType], lastEvaluatedKey: String?)
     
     // MARK: Monomorphic batch and queries
     
@@ -235,7 +235,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                                         scanIndexForward: Bool,
                                                         exclusiveStartKey: String?,
                                                         consistentRead: Bool) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?)
     
     /**
      * Uses the ExecuteStatement API to to perform batch reads or writes on data stored in DynamoDB, using PartiQL.
@@ -261,5 +261,5 @@ public protocol DynamoDBCompositePrimaryKeyTable {
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?)
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?)
 }

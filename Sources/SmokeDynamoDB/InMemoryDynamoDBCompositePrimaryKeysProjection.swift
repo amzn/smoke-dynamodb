@@ -47,7 +47,7 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?) {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
         return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                            limit: limit, exclusiveStartKey: exclusiveStartKey)
     }
@@ -57,7 +57,7 @@ public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePr
                                       limit: Int?,
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?) {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
         return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
                                            limit: limit, scanIndexForward: scanIndexForward,
                                            exclusiveStartKey: exclusiveStartKey)

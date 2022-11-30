@@ -138,7 +138,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                                                                     limit: Int?,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // if this is querying an index
         if let indexName = ReturnedType.AttributesType.indexName {
             // fail if it isn't the index we know about
@@ -162,7 +162,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                                                                     scanIndexForward: Bool,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // if this is querying an index
         if let indexName = ReturnedType.AttributesType.indexName {
             // fail if it isn't the index we know about
@@ -208,7 +208,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // if this is executing on index
         if let indexName = ReturnedType.AttributesType.indexName {
             // fail if it isn't the index we know about
@@ -261,7 +261,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                                                            scanIndexForward: Bool,
                                                            exclusiveStartKey: String?,
                                                            consistentRead: Bool) async throws
-       -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+       -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // if this is querying an index
         if let indexName = AttributesType.indexName {
             // fail if it isn't the index we know about
@@ -307,7 +307,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // if this is executing on index
         if let indexName = AttributesType.indexName {
             // fail if it isn't the index we know about

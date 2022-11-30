@@ -38,7 +38,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
             sortKeyCondition: AttributeCondition?,
             exclusiveStartKey: String?) async throws
     -> [CompositePrimaryKey<AttributesType>] {
-        let paginatedItems: ([CompositePrimaryKey<AttributesType>], String?) =
+        let paginatedItems: (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) =
             try await query(forPartitionKey: partitionKey,
                             sortKeyCondition: sortKeyCondition,
                             limit: nil,
@@ -46,7 +46,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                             exclusiveStartKey: exclusiveStartKey)
         
         // if there are more items
-        if let lastEvaluatedKey = paginatedItems.1 {
+        if let lastEvaluatedKey = paginatedItems.lastEvaluatedKey {
             // returns a future with all the results from all later paginated calls
             let partialResult: [CompositePrimaryKey<AttributesType>] = try await self.partialQuery(
                 forPartitionKey: partitionKey,
@@ -54,18 +54,19 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                 exclusiveStartKey: lastEvaluatedKey)
                 
             // return the results from 'this' call and all later paginated calls
-            return paginatedItems.0 + partialResult
+            return paginatedItems.keys + partialResult
         } else {
             // this is it, all results have been obtained
-            return paginatedItems.0
+            return paginatedItems.keys
         }
     }
     
+
     func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?)  {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?)  {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
@@ -79,7 +80,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                       limit: Int?,
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?) async throws
-    -> ([CompositePrimaryKey<AttributesType>], String?) {
+    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
         let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,

@@ -149,7 +149,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                                     limit: Int?,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
                                                     sortKeyCondition: sortKeyCondition,
@@ -164,7 +164,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                                     scanIndexForward: Bool,
                                                                     exclusiveStartKey: String?,
                                                                     consistentRead: Bool) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.query(forPartitionKey: partitionKey,
                                                     sortKeyCondition: sortKeyCondition,
@@ -189,7 +189,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([ReturnedType], String?) {
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.execute(partitionKeys: partitionKeys,
                                                       attributesFilter: attributesFilter,
@@ -219,7 +219,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         partitionKeys: [String],
         attributesFilter: [String]?,
         additionalWhereClause: String?, nextToken: String?) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicExecute(partitionKeys: partitionKeys,
                                                                  attributesFilter: attributesFilter,
@@ -243,7 +243,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
                                                            scanIndexForward: Bool,
                                                            exclusiveStartKey: String?,
                                                            consistentRead: Bool) async throws
-    -> ([TypedDatabaseItem<AttributesType, ItemType>], String?) {
+    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
         // simply delegate to the wrapped implementation
         return try await wrappedDynamoDBTable.monomorphicQuery(forPartitionKey: partitionKey,
                                                                sortKeyCondition: sortKeyCondition,
