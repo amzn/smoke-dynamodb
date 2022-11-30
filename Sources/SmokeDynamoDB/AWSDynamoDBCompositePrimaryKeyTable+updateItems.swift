@@ -219,3 +219,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
     }
 }
+
+extension BatchStatementError: Hashable {
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.code)
+        hasher.combine(self.message)
+    }
+}
