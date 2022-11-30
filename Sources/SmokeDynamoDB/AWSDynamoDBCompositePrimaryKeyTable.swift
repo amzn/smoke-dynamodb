@@ -262,7 +262,9 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         try await self.dynamodb.shutdown()
     }
     #endif
+}
 
+extension AWSDynamoDBCompositePrimaryKeyTable {
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
         -> DynamoDBModel.PutItemInput {
             let attributes = try getAttributes(forItem: item)
@@ -361,9 +363,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                              key: keyAttributes,
                                              tableName: targetTableName)
     }
-}
 
-extension AWSDynamoDBCompositePrimaryKeyTable {
     public var eventLoop: EventLoop {
         return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }
