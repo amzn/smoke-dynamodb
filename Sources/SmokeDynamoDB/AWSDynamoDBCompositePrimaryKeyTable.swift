@@ -28,12 +28,14 @@ import NIO
 public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
     internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
+    public let consistentRead: Bool
     internal let logger: Logger
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
@@ -53,6 +55,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
 
         self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
@@ -61,6 +64,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
@@ -76,6 +80,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
 
         self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
@@ -83,11 +88,13 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     public init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,
                 reporting: InvocationReportingType,
                 tableName: String,
+                consistentRead: Bool = true,
                 httpClient: HTTPOperationsClient? = nil) {
         self.logger = reporting.logger
         self.dynamodb = config.createAWSClient(reporting: reporting,
                                                httpClientOverride: httpClient)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
         self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
@@ -98,11 +105,13 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     // the operations client, this generic type can be ignored.
     public init<OperationsClientInvocationReportingType: HTTPClientCoreInvocationReporting>(
                 operationsClient: AWSGenericDynamoDBTableOperationsClient<OperationsClientInvocationReportingType>,
+                consistentRead: Bool = true,
                 reporting: InvocationReportingType) {
         self.logger = reporting.logger
         self.dynamodb = operationsClient.config.createAWSClient(reporting: reporting,
                                                                 httpClientOverride: operationsClient.httpClient)
         self.targetTableName = operationsClient.tableName
+        self.consistentRead = consistentRead
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
         self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
@@ -111,6 +120,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     public init<TraceContextType: InvocationTraceContext>(
                 config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
                 tableName: String,
+                consistentRead: Bool = true,
                 logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
                 internalRequestId: String = "none",
                 eventLoop: EventLoop? = nil,
@@ -122,6 +132,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                                eventLoopOverride: eventLoop, httpClientOverride: httpClient,
                                                outwardsRequestAggregator: outwardsRequestAggregator)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
         self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
@@ -130,10 +141,12 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
         config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
         tableName: String,
+        consistentRead: Bool = true,
         invocationAttributes: InvocationAttributesType,
         httpClient: HTTPOperationsClient? = nil)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.init(config: config, tableName: tableName,
+                  consistentRead: consistentRead,
                   logger: invocationAttributes.logger,
                   internalRequestId: invocationAttributes.internalRequestId,
                   eventLoop: !config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
@@ -143,6 +156,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     
     public init<TraceContextType: InvocationTraceContext>(
                 operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+                consistentRead: Bool = true,
                 logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
                 internalRequestId: String = "none",
                 eventLoop: EventLoop? = nil,
@@ -153,6 +167,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                                                 eventLoopOverride: eventLoop, httpClientOverride: operationsClient.httpClient,
                                                                 outwardsRequestAggregator: outwardsRequestAggregator)
         self.targetTableName = operationsClient.tableName
+        self.consistentRead = consistentRead
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
         self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
@@ -170,6 +185,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     }
     
     public init(tableName: String,
+                consistentRead: Bool = true,
                 credentialsProvider: CredentialsProvider,
                 awsRegion: AWSRegion,
                 endpointHostName endpointHostNameOptional: String? = nil,
@@ -207,6 +223,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                                eventLoopOverride: nil, httpClientOverride: nil,
                                                outwardsRequestAggregator: outwardsRequestAggregator)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
         
         let endpointHostName = self.dynamodb.httpClient.endpointHostName
         self.logger.trace("AWSDynamoDBTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
@@ -214,9 +231,11 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
     
     internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
                   targetTableName: String,
+                  consistentRead: Bool = true,
                   logger: Logger) {
         self.dynamodb = dynamodb
         self.targetTableName = targetTableName
+        self.consistentRead = consistentRead
         self.logger = logger
     }
 
@@ -243,7 +262,9 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         try await self.dynamodb.shutdown()
     }
     #endif
+}
 
+extension AWSDynamoDBCompositePrimaryKeyTable {
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
         -> DynamoDBModel.PutItemInput {
             let attributes = try getAttributes(forItem: item)
@@ -282,7 +303,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         let attributeValue = try DynamoDBEncoder().encode(key)
 
         if let keyAttributes = attributeValue.M {
-            return DynamoDBModel.GetItemInput(consistentRead: true,
+            return DynamoDBModel.GetItemInput(consistentRead: self.consistentRead,
                                               key: keyAttributes,
                                               tableName: targetTableName)
         } else {
@@ -302,7 +323,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
             }
         }
 
-        let keysAndAttributes = KeysAndAttributes(consistentRead: true,
+        let keysAndAttributes = KeysAndAttributes(consistentRead: self.consistentRead,
                                                   keys: keys)
         
         return DynamoDBModel.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])
@@ -342,9 +363,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                              key: keyAttributes,
                                              tableName: targetTableName)
     }
-}
 
-extension AWSDynamoDBCompositePrimaryKeyTable {
     public var eventLoop: EventLoop {
         return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }

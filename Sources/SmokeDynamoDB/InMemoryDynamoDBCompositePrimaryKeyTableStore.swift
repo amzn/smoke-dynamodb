@@ -22,14 +22,14 @@ import DynamoDBModel
 import NIO
 
 internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
-
+    
     internal var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
     internal let accessQueue = DispatchQueue(
         label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeyTable.accessQueue",
         target: DispatchQueue.global())
     
     internal let executeItemFilter: ExecuteItemFilterType?
-
+    
     init(executeItemFilter: ExecuteItemFilterType? = nil) {
         self.executeItemFilter = executeItemFilter
     }
@@ -43,19 +43,22 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         return promise.futureResult
     }
+}
 
+extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
+    
     func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
             let partition = self.store[item.compositePrimaryKey.partitionKey]
-
+            
             // if there is already a partition
             var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
             if let partition = partition {
                 updatedPartition = partition
-
+                
                 // if the row already exists
                 if partition[item.compositePrimaryKey.sortKey] != nil {
                     let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
@@ -65,43 +68,43 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     promise.fail(error)
                     return
                 }
-
+                
                 updatedPartition[item.compositePrimaryKey.sortKey] = item
             } else {
                 updatedPartition = [item.compositePrimaryKey.sortKey: item]
             }
-
+            
             self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
             promise.succeed(())
         }
         
         return promise.futureResult
     }
-
+    
     func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                                eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
             let partition = self.store[item.compositePrimaryKey.partitionKey]
-
+            
             // if there is already a partition
             var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
             if let partition = partition {
                 updatedPartition = partition
-
+                
                 updatedPartition[item.compositePrimaryKey.sortKey] = item
             } else {
                 updatedPartition = [item.compositePrimaryKey.sortKey: item]
             }
-
+            
             self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
             promise.succeed(())
         }
         
         return promise.futureResult
     }
-
+    
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>,
                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
@@ -109,12 +112,12 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         accessQueue.async {
             let partition = self.store[newItem.compositePrimaryKey.partitionKey]
-
+            
             // if there is already a partition
             var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
             if let partition = partition {
                 updatedPartition = partition
-
+                
                 // if the row already exists
                 if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
                     if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
@@ -132,7 +135,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     promise.fail(error)
                     return
                 }
-
+                
                 updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
             } else {
                 let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
@@ -141,7 +144,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 promise.fail(error)
                 return
             }
-
+            
             self.store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
             promise.succeed(())
         }
@@ -150,7 +153,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
     }
     
     public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
-                                                    eventLoop: EventLoop) -> EventLoopFuture<Void> {
+                                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let futures = entries.map { entry -> EventLoopFuture<Void> in
             switch entry {
             case .update(new: let new, existing: let existing):
@@ -213,30 +216,30 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
             }
             
             return EventLoopFuture.whenAllComplete(futures, on: eventLoop)
-                    .flatMapThrowing { results in
-                        var errors: Set<BatchStatementErrorCodeEnum> = Set()
-                        try results.forEach { result in
-                            if let error = try result.get() {
-                                errors.insert(error)
-                            }
+                .flatMapThrowing { results in
+                    var errors: Set<BatchStatementErrorCodeEnum> = Set()
+                    try results.forEach { result in
+                        if let error = try result.get() {
+                            errors.insert(error)
                         }
-                        return errors
                     }
+                    return errors
+                }
         }
-
+    
     func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
                                            eventLoop: EventLoop)
-        -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
+    -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
         let promise = eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>?.self)
         
         accessQueue.async {
             if let partition = self.store[key.partitionKey] {
-
+                
                 guard let value = partition[key.sortKey] else {
                     promise.succeed(nil)
                     return
                 }
-
+                
                 guard let item = value as? TypedDatabaseItem<AttributesType, ItemType> else {
                     let foundType = type(of: value)
                     let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
@@ -246,11 +249,11 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     promise.fail(error)
                     return
                 }
-
+                
                 promise.succeed(item)
                 return
             }
-
+            
             promise.succeed(nil)
         }
         
@@ -268,13 +271,13 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
             
             keys.forEach { key in
                 if let partition = self.store[key.partitionKey] {
-
+                    
                     guard let value = partition[key.sortKey] else {
                         return
                     }
                     
                     let itemAsReturnedType: ReturnedType
-                        
+                    
                     do {
                         itemAsReturnedType = try self.convertToQueryableType(input: value)
                     } catch {
@@ -291,7 +294,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         return promise.futureResult
     }
-
+    
     func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                     eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
@@ -310,16 +313,16 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         accessQueue.async {
             let partition = self.store[existingItem.compositePrimaryKey.partitionKey]
-
+            
             // if there is already a partition
             var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
             if let partition = partition {
                 updatedPartition = partition
-
+                
                 // if the row already exists
                 if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
                     if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
-                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
+                        existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
                         let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
                                                                               sortKey: existingItem.compositePrimaryKey.sortKey,
                                                                               message: "Trying to delete incorrect version.")
@@ -335,7 +338,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                     promise.fail(error)
                     return
                 }
-
+                
                 updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
             } else {
                 let error =  SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
@@ -345,7 +348,7 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 promise.fail(error)
                 return
             }
-
+            
             self.store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
             promise.succeed(())
         }
