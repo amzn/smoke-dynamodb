@@ -53,6 +53,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
     public let traceContext: InvocationReportingType.TraceContextType
     public let reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
     public let ignoreInvocationEventLoop: Bool
+    public let enableAHCLogging: Bool
     
     internal let clientDelegate: JSONAWSHttpClientDelegate<DynamoDBError>
     internal let reportingProvider: (Logger, String, EventLoop?, OutwardsRequestAggregator?) -> InvocationReportingType
@@ -74,7 +75,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
+        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
+        enableAHCLogging: Bool = false)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         let useTLS = requiresTLS ?? AWSHTTPClientDelegate.requiresTLS(forEndpointPort: endpointPort)
         
@@ -93,6 +95,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         self.traceContext = traceContext
         self.timeoutConfiguration = timeoutConfiguration
         self.reportingConfiguration = reportingConfiguration
+        self.enableAHCLogging = enableAHCLogging
                 
         self.reportingProvider = { (logger, internalRequestId, eventLoop, outwardsRequestAggregator) in
             return StandardHTTPClientCoreInvocationReporting(
@@ -119,7 +122,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
+        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
+        enableAHCLogging: Bool = false)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
         self.init(credentialsProvider: credentialsProvider,
                   awsRegion: awsRegion,
@@ -135,7 +139,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
                   retryConfiguration: retryConfiguration,
                   eventLoopProvider: eventLoopProvider,
                   reportingConfiguration: reportingConfiguration,
-                  connectionPoolConfiguration: connectionPoolConfiguration)
+                  connectionPoolConfiguration: connectionPoolConfiguration,
+                  enableAHCLogging: enableAHCLogging)
     }
     
     public func createOperationsClient(forTableName tableName: String)
@@ -152,7 +157,8 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
             clientDelegate: self.clientDelegate,
             timeoutConfiguration: self.timeoutConfiguration,
             eventLoopProvider: .shared(self.eventLoopGroup),
-            connectionPoolConfiguration: self.connectionPoolConfiguration)
+            connectionPoolConfiguration: self.connectionPoolConfiguration,
+            enableAHCLogging: enableAHCLogging)
     }
     
     internal func createAWSClient(logger: Logger, internalRequestId: String,
