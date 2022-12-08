@@ -199,10 +199,42 @@ public extension DynamoDBCompositePrimaryKeyTable {
             primaryItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>?) -> TypedDatabaseItem<AttributesType, ItemType>,
             historicalItemProvider: @escaping (TypedDatabaseItem<AttributesType, ItemType>) -> TypedDatabaseItem<AttributesType, ItemType>,
             withRetries retries: Int = 10) async throws {
-        try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
-                                               historicalItemProvider: historicalItemProvider,
-                                               withRetries: retries).get()
+        let primaryItem = primaryItemProvider(nil)
+
+        guard retries > 0 else {
+            throw SmokeDynamoDBError.concurrencyError(partitionKey: primaryItem.compositePrimaryKey.partitionKey,
+                                                      sortKey: primaryItem.compositePrimaryKey.sortKey,
+                                                      message: "Unable to complete request to clobber versioned item in specified number of attempts")
+            
+        }
+        
+        let existingItemOptional: TypedDatabaseItem<AttributesType, ItemType>? = try await getItem(forKey: primaryItem.compositePrimaryKey)
+            
+        if let existingItem = existingItemOptional {
+            let newItem: TypedDatabaseItem<AttributesType, ItemType> = primaryItemProvider(existingItem)
+
+            do {
+                try await updateItemWithHistoricalRow(primaryItem: newItem, existingItem: existingItem,
+                                                      historicalItem: historicalItemProvider(newItem))
+            } catch {
+                try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                                       historicalItemProvider: historicalItemProvider,
+                                                       withRetries: retries - 1)
+                return
+            }
+        } else {
+            do {
+                try await insertItemWithHistoricalRow(primaryItem: primaryItem,
+                                                      historicalItem: historicalItemProvider(primaryItem))
+            } catch {
+                try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                                       historicalItemProvider: historicalItemProvider,
+                                                       withRetries: retries - 1)
+                return
+            }
+        }
     }
+
     
     /**
       Operations will attempt to update the primary item, repeatedly calling the

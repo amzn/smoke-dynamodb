@@ -145,4 +145,116 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
             throw error.asUnrecognizedSmokeDynamoDBError()
         }
     }
+    
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
+    func query<AttributesType>(forPartitionKey partitionKey: String,
+                                      sortKeyCondition: AttributeCondition?) async throws
+    -> [CompositePrimaryKey<AttributesType>] {
+        return try await partialQuery(forPartitionKey: partitionKey,
+                                      sortKeyCondition: sortKeyCondition,
+                                      exclusiveStartKey: nil)
+    }
+    
+    // function to return a future with the results of a query call and all future paginated calls
+    private func partialQuery<AttributesType>(
+            forPartitionKey partitionKey: String,
+            sortKeyCondition: AttributeCondition?,
+            exclusiveStartKey: String?) async throws
+    -> [CompositePrimaryKey<AttributesType>] {
+        let paginatedItems: ([CompositePrimaryKey<AttributesType>], String?) =
+            try await query(forPartitionKey: partitionKey,
+                            sortKeyCondition: sortKeyCondition,
+                            limit: nil,
+                            scanIndexForward: true,
+                            exclusiveStartKey: exclusiveStartKey)
+        
+        // if there are more items
+        if let lastEvaluatedKey = paginatedItems.1 {
+            // returns a future with all the results from all later paginated calls
+            let partialResult: [CompositePrimaryKey<AttributesType>] = try await self.partialQuery(
+                forPartitionKey: partitionKey,
+                sortKeyCondition: sortKeyCondition,
+                exclusiveStartKey: lastEvaluatedKey)
+                
+            // return the results from 'this' call and all later paginated calls
+            return paginatedItems.0 + partialResult
+        } else {
+            // this is it, all results have been obtained
+            return paginatedItems.0
+        }
+    }
+    
+    func query<AttributesType>(forPartitionKey partitionKey: String,
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      exclusiveStartKey: String?) async throws
+    -> ([CompositePrimaryKey<AttributesType>], String?)  {
+        return try await query(forPartitionKey: partitionKey,
+                               sortKeyCondition: sortKeyCondition,
+                               limit: limit,
+                               scanIndexForward: true,
+                               exclusiveStartKey: exclusiveStartKey)
+        
+    }
+    
+    func query<AttributesType>(forPartitionKey partitionKey: String,
+                                      sortKeyCondition: AttributeCondition?,
+                                      limit: Int?,
+                                      scanIndexForward: Bool,
+                                      exclusiveStartKey: String?) async throws
+    -> ([CompositePrimaryKey<AttributesType>], String?) {
+        let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
+                                                                          primaryKeyType: AttributesType.self,
+                                                                          sortKeyCondition: sortKeyCondition, limit: limit,
+                                                                          scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey,
+                                                                          consistentRead: false)
+        
+        let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
+            "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
+        self.logger.debug("\(logMessage)")
+        
+        do {
+            let queryOutput = try await self.dynamodb.query(input: queryInput)
+            
+            let lastEvaluatedKey: String?
+            if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
+                let encodedLastEvaluatedKey: Data
+                
+                do {
+                    encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
+                } catch {
+                    throw error.asUnrecognizedSmokeDynamoDBError()
+                }
+                
+                lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
+            } else {
+                lastEvaluatedKey = nil
+            }
+            
+            if let outputAttributeValues = queryOutput.items {
+                let items: [CompositePrimaryKey<AttributesType>]
+                
+                do {
+                    items = try outputAttributeValues.map { values in
+                        let attributeValue = DynamoDBModel.AttributeValue(M: values)
+                        
+                        return try DynamoDBDecoder().decode(attributeValue)
+                    }
+                } catch {
+                    throw error.asUnrecognizedSmokeDynamoDBError()
+                }
+                
+                return (items, lastEvaluatedKey)
+            } else {
+                return ([], lastEvaluatedKey)
+            }
+        } catch {
+            if let typedError = error as? DynamoDBError {
+                throw typedError.asSmokeDynamoDBError()
+            }
+            
+            throw error.asUnrecognizedSmokeDynamoDBError()
+        }
+    }
+#endif
 }

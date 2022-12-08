@@ -110,4 +110,62 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
+    
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
+    private func deleteChunkedItems<AttributesType>(_ keys: [CompositePrimaryKey<AttributesType>]) async throws {
+        // if there are no keys, there is nothing to update
+        guard keys.count > 0 else {
+            return
+        }
+        
+        let statements: [BatchStatementRequest] = try keys.map { existingKey -> BatchStatementRequest in
+            let statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingKey: existingKey)
+                
+            return BatchStatementRequest(consistentRead: true, statement: statement)
+        }
+        
+        let executeInput = BatchExecuteStatementInput(statements: statements)
+        
+        let response = try await self.dynamodb.batchExecuteStatement(input: executeInput)
+        try throwOnBatchExecuteStatementErrors(response: response)
+    }
+    
+    private func deleteChunkedItems<ItemType: DatabaseItem>(_ existingItems: [ItemType]) async throws {
+        // if there are no items, there is nothing to update
+        guard existingItems.count > 0 else {
+            return
+        }
+        
+        let statements: [BatchStatementRequest] = try existingItems.map { existingItem -> BatchStatementRequest in
+            let statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingItem: existingItem)
+                
+            return BatchStatementRequest(consistentRead: true, statement: statement)
+        }
+        
+        let executeInput = BatchExecuteStatementInput(statements: statements)
+        
+        let response = try await self.dynamodb.batchExecuteStatement(input: executeInput)
+        try throwOnBatchExecuteStatementErrors(response: response)
+    }
+    
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) async throws {
+        // BatchExecuteStatement has a maximum of 25 statements
+        // This function handles pagination internally.
+        let chunkedKeys = keys.chunked(by: maximumUpdatesPerExecuteStatement)
+        try await chunkedKeys.concurrentForEach { chunk in
+            try await self.deleteChunkedItems(chunk)
+        }
+    }
+    
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) async throws {
+        // BatchExecuteStatement has a maximum of 25 statements
+        // This function handles pagination internally.
+        let chunkedItems = existingItems.chunked(by: maximumUpdatesPerExecuteStatement)
+        try await chunkedItems.concurrentForEach { chunk in
+            try await self.deleteChunkedItems(chunk)
+        }
+    }
+#endif
 }

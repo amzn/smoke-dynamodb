@@ -30,6 +30,7 @@ let package = Package(
         .package(url: "https://github.com/amzn/smoke-http.git", from: "2.16.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0"..<"3.0.0"),
+        .package(url: "https://github.com/JohnSundell/CollectionConcurrencyKit", from :"0.2.0")
     ],
     targets: [
         .target(
@@ -39,6 +40,7 @@ let package = Package(
                 .product(name: "DynamoDBClient", package: "smoke-aws"),
                 .product(name: "SmokeHTTPClient", package: "smoke-http"),
                 .product(name: "_SmokeAWSHttpConcurrency", package: "smoke-aws"),
+                .product(name: "CollectionConcurrencyKit", package: "CollectionConcurrencyKit"),
             ]),
         .testTarget(
             name: "SmokeDynamoDBTests", dependencies: [
