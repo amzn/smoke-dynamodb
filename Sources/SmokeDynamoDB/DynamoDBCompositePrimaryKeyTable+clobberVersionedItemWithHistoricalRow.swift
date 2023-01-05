@@ -96,12 +96,34 @@ public extension DynamoDBCompositePrimaryKeyTable {
         item: ItemType,
         primaryKeyType: AttributesType.Type,
         generateSortKey: @escaping (Int) -> String) async throws {
-            try await clobberVersionedItemWithHistoricalRow(
-                forPrimaryKey: partitionKey,
-                andHistoricalKey: historicalKey,
-                item: item,
-                primaryKeyType: primaryKeyType,
-                generateSortKey: generateSortKey).get()
+            func primaryItemProvider(_ existingItem: TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>>?)
+                -> TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>> {
+                    if let existingItem = existingItem {
+                        // If an item already exists, the inserted item should be created
+                        // from that item (to get an accurate version number)
+                        // with the payload from the default item.
+                        let overWrittenItemRowValue = existingItem.rowValue.createUpdatedItem(
+                            withVersion: existingItem.rowValue.itemVersion + 1,
+                            withValue: item)
+                        return existingItem.createUpdatedItem(withValue: overWrittenItemRowValue)
+                    }
+                    
+                    // If there is no existing item to be overwritten, a new item should be constructed.
+                    let newItemRowValue = RowWithItemVersion.newItem(withValue: item)
+                    let defaultKey = CompositePrimaryKey<AttributesType>(partitionKey: partitionKey, sortKey: generateSortKey(0))
+                    return TypedDatabaseItem.newItem(withKey: defaultKey, andValue: newItemRowValue)
+            }
+        
+            func historicalItemProvider(_ primaryItem: TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>>)
+                -> TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>> {
+                    let sortKey = generateSortKey(primaryItem.rowValue.itemVersion)
+                    let key = CompositePrimaryKey<AttributesType>(partitionKey: historicalKey,
+                                                               sortKey: sortKey)
+                    return TypedDatabaseItem.newItem(withKey: key, andValue: primaryItem.rowValue)
+            }
+        
+            return try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                                          historicalItemProvider: historicalItemProvider)
     }
 #endif
 }

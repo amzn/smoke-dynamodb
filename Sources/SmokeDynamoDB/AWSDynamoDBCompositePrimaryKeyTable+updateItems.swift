@@ -21,6 +21,8 @@ import DynamoDBModel
 import SmokeHTTPClient
 import Logging
 import NIO
+import CollectionConcurrencyKit
+
 // BatchExecuteStatement has a maximum of 25 statements
 private let maximumUpdatesPerExecuteStatement = 25
 private let maxStatementLength = 8192
@@ -218,6 +220,96 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return errors
         }
     }
+    
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
+    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+        // if there are no items, there is nothing to update
+        guard entries.count > 0 else {
+            return
+        }
+        
+        let statements: [BatchStatementRequest] = try entries.map { entry -> BatchStatementRequest in
+            let statement: String
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                statement = try getUpdateExpression(tableName: self.targetTableName,
+                                                    newItem: new,
+                                                    existingItem: existing)
+            case .insert(new: let new):
+                statement = try getInsertExpression(tableName: self.targetTableName,
+                                                    newItem: new)
+            case .deleteAtKey(key: let key):
+                statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingKey: key)
+            case .deleteItem(existing: let existing):
+                statement = try getDeleteExpression(tableName: self.targetTableName,
+                                                    existingItem: existing)
+            }
+            
+            return BatchStatementRequest(consistentRead: true, statement: statement)
+        }
+        
+        let executeInput = BatchExecuteStatementInput(statements: statements)
+        
+        let response = try await dynamodb.batchExecuteStatement(input: executeInput)
+        try throwOnBatchExecuteStatementErrors(response: response)
+    }
+    
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+        // BatchExecuteStatement has a maximum of 25 statements
+        // This function handles pagination internally.
+        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        try await chunkedEntries.concurrentForEach { chunk in
+            try await self.writeChunkedItems(chunk)
+        }
+    }
+    
+    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> Set<BatchStatementErrorCodeEnum> {
+        // if there are no items, there is nothing to update
+        
+        guard entries.count > 0 else {
+            self.logger.trace("\(entries) with count = 0")
+            
+            return []
+        }
+        
+        let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
+        let executeInput = BatchExecuteStatementInput(statements: statements)
+        let result = try await dynamodb.batchExecuteStatement(input: executeInput)
+        
+        var errorCodeSet: Set<BatchStatementErrorCodeEnum> = Set()
+        // TODO: Remove errorCodeSet and return errorSet instead
+        var errorSet: Set<BatchStatementError> = Set()
+        result.responses?.forEach { response in
+            if let error = response.error, let code = error.code {
+                errorCodeSet.insert(code)
+                errorSet.insert(error)
+            }
+        }
+
+        // if there are errors
+        if !errorSet.isEmpty {
+            self.logger.error("Received BatchStatmentErrors from dynamodb are \(errorSet)")
+        }
+        return errorCodeSet
+    }
+    
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    -> Set<BatchStatementErrorCodeEnum> {
+        // BatchExecuteStatement has a maximum of 25 statements
+        // This function handles pagination internally.
+        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+
+        let results = try await chunkedEntries.concurrentMap { chunk in
+            return try await self.writeChunkedItemsWithoutThrowing(chunk)
+        }
+        
+        return results.reduce([]) { partialResult, currentResult in
+            return partialResult.union(currentResult)
+        }
+    }
+#endif
 }
 
 extension BatchStatementError: Hashable {

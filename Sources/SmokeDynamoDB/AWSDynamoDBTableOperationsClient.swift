@@ -46,7 +46,8 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
+        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
+        enableAHCLogging: Bool = false)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
         self.config = AWSGenericDynamoDBClientConfiguration(
             credentialsProvider: credentialsProvider,
@@ -63,7 +64,8 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
             retryConfiguration: retryConfiguration,
             eventLoopProvider: eventLoopProvider,
             reportingConfiguration: reportingConfiguration,
-            connectionPoolConfiguration: connectionPoolConfiguration)
+            connectionPoolConfiguration: connectionPoolConfiguration,
+            enableAHCLogging: enableAHCLogging)
         self.httpClient = self.config.createHTTPOperationsClient()
         self.tableName = tableName
     }
@@ -84,7 +86,8 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil)
+        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
+        enableAHCLogging: Bool = false)
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
         self.init(tableName: tableName,
                   credentialsProvider: credentialsProvider,
@@ -101,7 +104,8 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
                   retryConfiguration: retryConfiguration,
                   eventLoopProvider: eventLoopProvider,
                   reportingConfiguration: reportingConfiguration,
-                  connectionPoolConfiguration: connectionPoolConfiguration)
+                  connectionPoolConfiguration: connectionPoolConfiguration,
+                  enableAHCLogging: enableAHCLogging)
     }
     
     internal init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,

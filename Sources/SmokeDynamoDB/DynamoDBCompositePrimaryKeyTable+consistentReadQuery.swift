@@ -83,7 +83,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                              sortKeyCondition: AttributeCondition?) async throws
     -> [ReturnedType] {
         return try await query(forPartitionKey: partitionKey,
-                               sortKeyCondition: sortKeyCondition).get()
+                               sortKeyCondition: sortKeyCondition,
+                               consistentRead: self.consistentRead)
     }
     
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -94,7 +95,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
         return try await query(forPartitionKey: partitionKey,
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
-                               exclusiveStartKey: exclusiveStartKey).get()
+                               exclusiveStartKey: exclusiveStartKey,
+                               consistentRead: self.consistentRead)
     }
     
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
@@ -107,14 +109,16 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                sortKeyCondition: sortKeyCondition,
                                limit: limit,
                                scanIndexForward: scanIndexForward,
-                               exclusiveStartKey: exclusiveStartKey).get()
+                               exclusiveStartKey: exclusiveStartKey,
+                               consistentRead: self.consistentRead)
     }
     
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?) async throws
     -> [TypedDatabaseItem<AttributesType, ItemType>] {
         return try await monomorphicQuery(forPartitionKey: partitionKey,
-                                          sortKeyCondition: sortKeyCondition).get()
+                                          sortKeyCondition: sortKeyCondition,
+                                          consistentRead: self.consistentRead)
     }
     
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
@@ -127,7 +131,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                           sortKeyCondition: sortKeyCondition,
                                           limit: limit,
                                           scanIndexForward: scanIndexForward,
-                                          exclusiveStartKey: exclusiveStartKey).get()
+                                          exclusiveStartKey: exclusiveStartKey,
+                                          consistentRead: self.consistentRead)
     }
 #endif
 }
