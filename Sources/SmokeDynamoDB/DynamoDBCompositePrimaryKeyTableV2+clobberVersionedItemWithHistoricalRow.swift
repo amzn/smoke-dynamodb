@@ -1,4 +1,4 @@
-// Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License").
 // You may not use this file except in compliance with the License.
@@ -11,14 +11,15 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 //
-//  DynamoDBCompositePrimaryKeyTable+clobberVersionedItemWithHistoricalRow.swift
+//  DynamoDBCompositePrimaryKeyTableV2+clobberVersionedItemWithHistoricalRow.swift
 //  SmokeDynamoDB
 //
 
 import Foundation
 import NIO
 
-public extension DynamoDBCompositePrimaryKeyTable {
+public extension DynamoDBCompositePrimaryKeyTableV2 {
+#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      * This operation provide a mechanism for managing mutable database rows
      * and storing all previous versions of that row in a historical partition.
@@ -41,7 +42,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         andHistoricalKey historicalKey: String,
         item: ItemType,
         primaryKeyType: AttributesType.Type,
-        generateSortKey: @escaping (Int) -> String) -> EventLoopFuture<Void> {
+        generateSortKey: @escaping (Int) -> String) async throws {
             func primaryItemProvider(_ existingItem: TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>>?)
                 -> TypedDatabaseItem<AttributesType, RowWithItemVersion<ItemType>> {
                     if let existingItem = existingItem {
@@ -68,7 +69,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     return TypedDatabaseItem.newItem(withKey: key, andValue: primaryItem.rowValue)
             }
         
-            return clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
-                                                historicalItemProvider: historicalItemProvider)
+            return try await clobberItemWithHistoricalRow(primaryItemProvider: primaryItemProvider,
+                                                          historicalItemProvider: historicalItemProvider)
     }
+#endif
 }
