@@ -21,12 +21,12 @@ import SmokeHTTPClient
 import DynamoDBModel
 import CollectionConcurrencyKit
 
+#if compiler(>=5.7)
 public protocol DynamoDBCompositePrimaryKeyGSILogicV2: GenericDynamoDBCompositePrimaryKeyGSILogic
 where TableType == InMemoryDynamoDBCompositePrimaryKeyTableV2 {
     
 }
 
-#if compiler(>=5.7)
 public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndexV2<GSILogic: DynamoDBCompositePrimaryKeyGSILogicV2>: DynamoDBCompositePrimaryKeyTableV2 {
     public let primaryTable: InMemoryDynamoDBCompositePrimaryKeyTableV2
     public let gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTableV2
