@@ -21,7 +21,7 @@ import DynamoDBModel
 import NIO
 
 public extension DynamoDBCompositePrimaryKeyTable {
-
+    
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?)
     -> EventLoopFuture<[ReturnedType]> {
@@ -29,7 +29,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                      sortKeyCondition: sortKeyCondition,
                      consistentRead: self.consistentRead)
     }
-
+    
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
@@ -41,7 +41,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                      exclusiveStartKey: exclusiveStartKey,
                      consistentRead: self.consistentRead)
     }
-
+    
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
@@ -55,7 +55,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                      exclusiveStartKey: exclusiveStartKey,
                      consistentRead: self.consistentRead)
     }
-
+    
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?)
     -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
@@ -63,7 +63,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                 sortKeyCondition: sortKeyCondition,
                                 consistentRead: self.consistentRead)
     }
-
+    
     func monomorphicQuery<AttributesType, ItemType>(forPartitionKey partitionKey: String,
                                                     sortKeyCondition: AttributeCondition?,
                                                     limit: Int?,
@@ -77,7 +77,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                 exclusiveStartKey: exclusiveStartKey,
                                 consistentRead: self.consistentRead)
     }
-    
+}
+ 
+public extension DynamoDBCompositePrimaryKeyTableV2 {
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?) async throws

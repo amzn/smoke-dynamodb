@@ -20,64 +20,70 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+public protocol DynamoDBCompositePrimaryKeyGSILogic: GenericDynamoDBCompositePrimaryKeyGSILogic
+where TableType == InMemoryDynamoDBCompositePrimaryKeyTable {
+    
+}
+
 /**
   A protocol that simulates the logic of a GSI reacting to events on the main table.
  */
-public protocol DynamoDBCompositePrimaryKeyGSILogic {
+public protocol GenericDynamoDBCompositePrimaryKeyGSILogic {
     associatedtype GSIAttributesType: PrimaryKeyAttributes
+    associatedtype TableType
 
     /**
      * Called when an item is inserted on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onInsertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) -> EventLoopFuture<Void>
+                                                gsiDataStore: TableType) -> EventLoopFuture<Void>
 
     /**
      * Called when an item is clobbered on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onClobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                 gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) -> EventLoopFuture<Void>
+                                                 gsiDataStore: TableType) -> EventLoopFuture<Void>
 
     /**
      * Called when an item is updated on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onUpdateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                 existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) -> EventLoopFuture<Void>
+                                                gsiDataStore: TableType) -> EventLoopFuture<Void>
  
     /**
      * Called when an item is delete on the main table. Can be used to also delete the corresponding item on the GSI.
 
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                      gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) -> EventLoopFuture<Void>
+                                      gsiDataStore: TableType) -> EventLoopFuture<Void>
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
      * Called when an item is inserted on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onInsertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+                                                gsiDataStore: TableType) async throws
 
     /**
      * Called when an item is clobbered on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onClobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                 gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+                                                 gsiDataStore: TableType) async throws
 
     /**
      * Called when an item is updated on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onUpdateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                 existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+                                                gsiDataStore: TableType) async throws
  
     /**
      * Called when an item is delete on the main table. Can be used to also delete the corresponding item on the GSI.
 
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                      gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+                                      gsiDataStore: TableType) async throws
 #endif
 }
 
@@ -85,7 +91,7 @@ public protocol DynamoDBCompositePrimaryKeyGSILogic {
 public extension DynamoDBCompositePrimaryKeyGSILogic {
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     func onInsertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+                                                gsiDataStore: TableType) async throws {
         try await onInsertItem(item, gsiDataStore: gsiDataStore).get()
     }
 
@@ -93,7 +99,7 @@ public extension DynamoDBCompositePrimaryKeyGSILogic {
      * Called when an item is clobbered on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
     func onClobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                                 gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+                                                 gsiDataStore: TableType) async throws {
         try await onClobberItem(item, gsiDataStore: gsiDataStore).get()
     }
 
@@ -102,7 +108,7 @@ public extension DynamoDBCompositePrimaryKeyGSILogic {
      */
     func onUpdateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                 existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+                                                gsiDataStore: TableType) async throws {
         try await onUpdateItem(newItem: newItem, existingItem: existingItem, gsiDataStore: gsiDataStore).get()
     }
  
@@ -111,7 +117,7 @@ public extension DynamoDBCompositePrimaryKeyGSILogic {
 
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                      gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+                                      gsiDataStore: TableType) async throws {
         try await onDeleteItem(forKey: key, gsiDataStore: gsiDataStore).get()
     }
 #endif

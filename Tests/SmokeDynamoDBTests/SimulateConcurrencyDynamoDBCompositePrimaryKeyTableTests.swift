@@ -239,12 +239,4 @@ class SimulateConcurrencyDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let nowDeletedItem: DatabaseRowType? = try! table.getItem(forKey: key).wait()
         XCTAssertNil(nowDeletedItem)
     }
-  
-    static var allTests = [
-        ("testSimulateConcurrencyOnInsert", testSimulateConcurrencyOnInsert),
-        ("testSimulateConcurrencyWithUpdate", testSimulateConcurrencyWithUpdate),
-        ("testSimulateWithNoConcurrency", testSimulateWithNoConcurrency),
-        ("testSimulateConcurrencyWithQuery", testSimulateConcurrencyWithQuery),
-        ("testSimulateClobberConcurrencyWithGet", testSimulateClobberConcurrencyWithGet),
-    ]
 }
