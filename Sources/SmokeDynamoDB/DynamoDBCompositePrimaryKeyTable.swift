@@ -86,6 +86,12 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     var consistentRead: Bool { get }
 
     /**
+     * PartiQL string attributes cannot contain single quotes. Otherwise, PartiQL statement is consider to be invalid.
+     * This property controls if single quotes are escaped while formatting PartiQL statements.
+     */
+    var escapeSingleQuoteInPartiQL: Bool { get }
+
+    /**
      * Insert item is a non-destructive API. If an item already exists with the specified key this
      * API should fail.
      */
@@ -463,6 +469,12 @@ public extension DynamoDBCompositePrimaryKeyTable {
     // maintains backwards compatibility
     var consistentRead: Bool {
         return true
+    }
+
+    // provide a default value for the table's `escapeSingleQuoteInPartiQL`
+    // maintains backwards compatibility
+    var escapeSingleQuoteInPartiQL: Bool {
+        return false
     }
 }
 

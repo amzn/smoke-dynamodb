@@ -28,6 +28,7 @@ import NIO
 public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     internal let dynamodbGenerator: _AWSDynamoDBClientGenerator
     internal let targetTableName: String
+    internal let escapeSingleQuoteInPartiQL: Bool
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion,
@@ -37,7 +38,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -51,6 +53,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                                                              eventLoopProvider: eventLoopProvider,
                                                              reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
 
     public init(credentialsProvider: CredentialsProvider,
@@ -61,7 +64,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         self.dynamodbGenerator = _AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
                                                              awsRegion: region,
                                                              endpointHostName: endpointHostName,
@@ -71,6 +75,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                                                              eventLoopProvider: eventLoopProvider,
                                                              reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
 
     /**
@@ -102,6 +107,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
         return AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
             targetTableName: self.targetTableName,
+            escapeSingleQuoteInPartiQL: self.escapeSingleQuoteInPartiQL,
             logger: reporting.logger)
     }
     
