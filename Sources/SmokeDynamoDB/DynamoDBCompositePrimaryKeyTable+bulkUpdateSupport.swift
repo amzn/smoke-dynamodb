@@ -285,6 +285,10 @@ extension DynamoDBCompositePrimaryKeyTable {
         return "{\(joinedElements)}"
     }
 
+    /// In PartiQL single quotes indicate start and end of an attribute. If, however,
+    /// the string itself contains a single quote then the database does not know
+    /// where the string should end. Therefore, need to escape single quote by
+    /// doubling it. E.g. 'foo'bar' becomes 'foo''bar'.
     private func sanitizeString(_ string: String) -> String {
         if self.escapeSingleQuoteInPartiQL {
             return string.replacingOccurrences(of: "'", with: "''")
