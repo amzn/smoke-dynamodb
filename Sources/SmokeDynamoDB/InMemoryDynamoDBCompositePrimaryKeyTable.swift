@@ -42,6 +42,7 @@ public typealias ExecuteItemFilterType = (String, String, String, PolymorphicOpe
 public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
 
     public let eventLoop: EventLoop
+    public let escapeSingleQuoteInPartiQL: Bool
     internal let storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore
     
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] {
@@ -53,15 +54,19 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
     
     public init(eventLoop: EventLoop,
-                executeItemFilter: ExecuteItemFilterType? = nil) {
+                executeItemFilter: ExecuteItemFilterType? = nil,
+                escapeSingleQuoteInPartiQL: Bool = false) {
         self.eventLoop = eventLoop
         self.storeWrapper = InMemoryDynamoDBCompositePrimaryKeyTableStore(executeItemFilter: executeItemFilter)
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
     
     internal init(eventLoop: EventLoop,
-                  storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore) {
+                  storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore,
+                  escapeSingleQuoteInPartiQL: Bool = false) {
         self.eventLoop = eventLoop
         self.storeWrapper = storeWrapper
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
     
     public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeyTable {
