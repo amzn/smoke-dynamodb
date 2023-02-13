@@ -307,32 +307,28 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             try await self.writeTransactionItems(entries, constraints: constraints)
         } catch DynamoDBError.transactionCanceled(let exception) {
             let reasons = try exception.cancellationReasons?.compactMap { cancellationReason -> SmokeDynamoDBError? in
+                let key: StandardCompositePrimaryKey?
+                if let item = cancellationReason.item {
+                    key = try DynamoDBDecoder().decode(.init(M: item))
+                } else {
+                    key = nil
+                }
+                
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteTransaction.html
                 switch cancellationReason.code {
                 case "None":
                     return nil
                 case "ConditionalCheckFailed":
-                    if let item = cancellationReason.item {
-                        let key: StandardCompositePrimaryKey = try DynamoDBDecoder().decode(.init(M: item))
+                    if let key = key {
                         return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
                                                                          sortKey: key.sortKey,
                                                                          message: cancellationReason.message)
                     } else {
-                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, message: cancellationReason.message)
+                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: nil,
+                                                                     sortKey: nil, message: cancellationReason.message)
                     }
                 case "DuplicateItem":
-                    let partitionKey: String?
-                    let sortKey: String?
-                    if let item = cancellationReason.item {
-                        let key: StandardCompositePrimaryKey = try DynamoDBDecoder().decode(.init(M: item))
-                        partitionKey = key.partitionKey
-                        sortKey = key.sortKey
-                    } else {
-                        partitionKey = nil
-                        sortKey = nil
-                    }
-                    
-                    return SmokeDynamoDBError.duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: cancellationReason.message)
+                    return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey, message: cancellationReason.message)
                 case "ItemCollectionSizeLimitExceeded":
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
                                                                       maximumSize: maximumUpdatesPerTransactionStatement)
@@ -345,8 +341,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
                 case "ValidationError":
                     return SmokeDynamoDBError.transactionValidation(message: cancellationReason.message)
-                default:
-                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, message: cancellationReason.message)
+                default:                    
+                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: key?.partitionKey,
+                                                                 sortKey: key?.sortKey,message: cancellationReason.message)
                 }
             }
             
