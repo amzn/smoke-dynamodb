@@ -29,6 +29,7 @@ public enum SmokeDynamoDBError: Error {
     case dynamoDBError(cause: DynamoDBError)
     case unexpectedResponse(reason: String)
     case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
+    case duplicateItem(partitionKey: String?, sortKey: String?, message: String?)
     case typeMismatch(expected: String, provided: String)
     case unexpectedType(provided: String)
     case concurrencyError(partitionKey: String, sortKey: String, message: String?)

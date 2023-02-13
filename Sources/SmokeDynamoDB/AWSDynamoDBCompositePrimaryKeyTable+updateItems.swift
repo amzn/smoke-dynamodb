@@ -306,9 +306,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         do {
             try await self.writeTransactionItems(entries, constraints: constraints)
         } catch DynamoDBError.transactionCanceled(let exception) {
-            let reasons = try exception.cancellationReasons?.map { cancellationReason -> SmokeDynamoDBError in
+            let reasons = try exception.cancellationReasons?.compactMap { cancellationReason -> SmokeDynamoDBError? in
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteTransaction.html
                 switch cancellationReason.code {
+                case "None":
+                    return nil
                 case "ConditionalCheckFailed":
                     if let item = cancellationReason.item {
                         let key: StandardCompositePrimaryKey = try DynamoDBDecoder().decode(.init(M: item))
@@ -318,6 +320,19 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     } else {
                         return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, message: cancellationReason.message)
                     }
+                case "DuplicateItem":
+                    let partitionKey: String?
+                    let sortKey: String?
+                    if let item = cancellationReason.item {
+                        let key: StandardCompositePrimaryKey = try DynamoDBDecoder().decode(.init(M: item))
+                        partitionKey = key.partitionKey
+                        sortKey = key.sortKey
+                    } else {
+                        partitionKey = nil
+                        sortKey = nil
+                    }
+                    
+                    return SmokeDynamoDBError.duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: cancellationReason.message)
                 case "ItemCollectionSizeLimitExceeded":
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
                                                                       maximumSize: maximumUpdatesPerTransactionStatement)
