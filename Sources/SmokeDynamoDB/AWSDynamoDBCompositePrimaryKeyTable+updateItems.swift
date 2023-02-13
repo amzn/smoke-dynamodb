@@ -289,8 +289,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
-        let noContraints: [EmptyPolymorphicTransactionConstraintEntry] = []
-        return try await transactWrite(entries, constraints: noContraints)
+        let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
+        return try await transactWrite(entries, constraints: noConstraints)
     }
     
     func transactWrite<WriteEntryType: PolymorphicWriteEntry,
@@ -326,6 +326,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
 
                 case "ProvisionedThroughputExceeded":
                     return SmokeDynamoDBError.transactionProvisionedThroughputExceeded(message: cancellationReason.message)
+                case "ThrottlingError":
+                    return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
+                case "ValidationError":
+                    return SmokeDynamoDBError.transactionValidation(message: cancellationReason.message)
                 default:
                     return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, message: cancellationReason.message)
                 }

@@ -42,6 +42,8 @@ public enum SmokeDynamoDBError: Error {
     case transactionSizeExceeded(attemptedSize: Int, maximumSize: Int)
     case transactionConflict(message: String?)
     case transactionProvisionedThroughputExceeded(message: String?)
+    case transactionThrottling(message: String?)
+    case transactionValidation(message: String?)
     case transactionUnknown(code: String?, message: String?)
     case transactionCanceled(reasons: [SmokeDynamoDBError])
 }

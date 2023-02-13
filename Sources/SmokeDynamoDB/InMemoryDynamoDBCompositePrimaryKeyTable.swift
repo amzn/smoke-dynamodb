@@ -147,8 +147,8 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     }
     
     public func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
-        let noContraints: [EmptyPolymorphicTransactionConstraintEntry] = []
-        return try await transactWrite(entries, constraints: noContraints)
+        let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
+        return try await transactWrite(entries, constraints: noConstraints)
     }
     
     public func transactWrite<WriteEntryType: PolymorphicWriteEntry,
