@@ -92,9 +92,4 @@ class DynamoDBEncoderDecoderTests: XCTestCase {
         XCTAssertEqual(attributes, output.rowValue)
         XCTAssertEqual(timeToLiveTimestamp, output.timeToLive?.timeToLiveTimestamp)
     }
-    
-    static var allTests = [
-        ("testEncoderDecoder", testEncoderDecoder),
-        ("testEncoderDecoderWithTimeToLive", testEncoderDecoderWithTimeToLive),
-    ]
 }

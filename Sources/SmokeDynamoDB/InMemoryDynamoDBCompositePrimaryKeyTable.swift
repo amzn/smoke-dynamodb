@@ -20,7 +20,9 @@ import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
 import NIO
+import CollectionConcurrencyKit
 
+private let maximumUpdatesPerTransactionStatement = 100
 private let maxStatementLength = 8192
 
 public protocol PolymorphicOperationReturnTypeConvertable {
@@ -36,13 +38,58 @@ extension TypedDatabaseItem: PolymorphicOperationReturnTypeConvertable {
     }
 }
 
+private struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
+    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTable
+
+    let future: EventLoopFuture<Void>
+
+    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: WriteEntry<AttributesType, ItemType>, table: TableType) throws {
+        switch entry {
+        case .update(new: let new, existing: let existing):
+            future = table.updateItem(newItem: new, existingItem: existing)
+        case .insert(new: let new):
+            future = table.insertItem(new)
+        case .deleteAtKey(key: let key):
+            future = table.deleteItem(forKey: key)
+        case .deleteItem(existing: let existing):
+            future = table.deleteItem(existingItem: existing)
+        }
+    }
+}
+
+private struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTable
+    
+    let partitionKey: String
+    let sortKey: String
+    let rowVersion: Int
+    
+    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: TransactionConstraintEntry<AttributesType, ItemType>,
+                                                                  table: TableType) throws {
+        switch entry {
+        case .required(existing: let existing):
+            self.partitionKey = existing.compositePrimaryKey.partitionKey
+            self.sortKey = existing.compositePrimaryKey.sortKey
+            self.rowVersion = existing.rowStatus.rowVersion
+        }
+    }
+}
+
 public typealias ExecuteItemFilterType = (String, String, String, PolymorphicOperationReturnTypeConvertable)
     -> Bool
+
+public protocol InMemoryTransactionDelegate {
+    func injectErrors<WriteEntryType: PolymorphicWriteEntry,
+                      TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+                        table: InMemoryDynamoDBCompositePrimaryKeyTable) async throws -> [SmokeDynamoDBError]
+}
 
 public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
 
     public let eventLoop: EventLoop
     public let escapeSingleQuoteInPartiQL: Bool
+    public let transactionDelegate: InMemoryTransactionDelegate?
     internal let storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore
     
     public var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] {
@@ -55,18 +102,22 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     
     public init(eventLoop: EventLoop,
                 executeItemFilter: ExecuteItemFilterType? = nil,
-                escapeSingleQuoteInPartiQL: Bool = false) {
+                escapeSingleQuoteInPartiQL: Bool = false,
+                transactionDelegate: InMemoryTransactionDelegate? = nil) {
         self.eventLoop = eventLoop
         self.storeWrapper = InMemoryDynamoDBCompositePrimaryKeyTableStore(executeItemFilter: executeItemFilter)
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.transactionDelegate = transactionDelegate
     }
     
     internal init(eventLoop: EventLoop,
                   storeWrapper: InMemoryDynamoDBCompositePrimaryKeyTableStore,
-                  escapeSingleQuoteInPartiQL: Bool = false) {
+                  escapeSingleQuoteInPartiQL: Bool = false,
+                  transactionDelegate: InMemoryTransactionDelegate? = nil) {
         self.eventLoop = eventLoop
         self.storeWrapper = storeWrapper
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.transactionDelegate = transactionDelegate
     }
     
     public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeyTable {
@@ -93,6 +144,95 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
     public func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                      existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> EventLoopFuture<Void> {
         return storeWrapper.updateItem(newItem: newItem, existingItem: existingItem, eventLoop: self.eventLoop)
+    }
+    
+    public func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        let noContraints: [EmptyPolymorphicTransactionConstraintEntry] = []
+        return try await transactWrite(entries, constraints: noContraints)
+    }
+    
+    public func transactWrite<WriteEntryType: PolymorphicWriteEntry,
+                              TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                                _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
+        // if there is a transaction delegate and it wants to inject errors
+        if let errors = try await transactionDelegate?.injectErrors(entries, constraints: constraints, table: self), !errors.isEmpty {
+            throw SmokeDynamoDBError.transactionCanceled(reasons: errors)
+        }
+        
+        let entryCount = entries.count + constraints.count
+        let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                           InMemoryPolymorphicTransactionConstraintTransform>(table: self)
+            
+        if entryCount > maximumUpdatesPerTransactionStatement {
+            throw SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
+                                                             maximumSize: maximumUpdatesPerTransactionStatement)
+        }
+        
+        let store = self.store
+        let errors = try constraints.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicTransactionConstraintTransform = try entry.handle(context: context)
+            
+            guard let partition = store[transform.partitionKey],
+                    let item = partition[transform.sortKey],
+                        item.rowStatus.rowVersion == transform.rowVersion else {
+                return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                 sortKey: transform.sortKey,
+                                                                 message: "Item doesn't exist or doesn't have correct version")
+            }
+            
+            return nil
+        }
+        
+        if !errors.isEmpty {
+            throw SmokeDynamoDBError.transactionCanceled(reasons: errors)
+        }
+        
+        let writeErrors = try await entries.asyncCompactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicWriteEntryTransform = try entry.handle(context: context)
+            
+            do {
+                try await transform.future.get()
+            } catch let error {
+                if let typedError = error as? SmokeDynamoDBError {
+                    return typedError
+                }
+                
+                // rethrow unexpected error
+                throw error
+            }
+            
+            return nil
+        }
+                                    
+        if writeErrors.count > 0 {
+            throw SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
+        }
+    }
+    
+    public func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                           InMemoryPolymorphicTransactionConstraintTransform>(table: self)
+        
+        let writeErrors = try await entries.asyncCompactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicWriteEntryTransform = try entry.handle(context: context)
+            
+            do {
+                try await transform.future.get()
+            } catch let error {
+                if let typedError = error as? SmokeDynamoDBError {
+                    return typedError
+                }
+                
+                // rethrow unexpected error
+                throw error
+            }
+            
+            return nil
+        }
+                                    
+        if writeErrors.count > 0 {
+            throw SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
+        }
     }
     
     public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])

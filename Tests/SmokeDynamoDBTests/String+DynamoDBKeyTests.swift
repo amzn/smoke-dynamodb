@@ -52,11 +52,4 @@ class StringDynamoDBKeyTests: XCTestCase {
         XCTAssertEqual(["one", "two"].dynamodbKeyWithPrefixedVersion(8, minimumFieldWidth: 2), "v08.one.two")
         XCTAssertEqual(["one", "two"].dynamodbKeyWithPrefixedVersion(4888, minimumFieldWidth: 2), "v4888.one.two")
     }
-
-    static var allTests = [
-        ("testDynamoDBKeyTests", testDynamoDBKeyTests),
-        ("testDropAsDynamoDBKeyPrefix", testDropAsDynamoDBKeyPrefix),
-        ("testDynamoDBKeyPrefixTests", testDynamoDBKeyPrefixTests),
-        ("testDynamoDBKeyWithPrefixedVersionTests", testDynamoDBKeyWithPrefixedVersionTests)
-    ]
 }

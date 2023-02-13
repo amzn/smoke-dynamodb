@@ -39,6 +39,11 @@ public enum SmokeDynamoDBError: Error {
     case validationError(reason: String)
     case batchErrorsReturned(errorCount: Int, messageMap: [String: Int])
     case statementLengthExceeded(reason: String)
+    case transactionSizeExceeded(attemptedSize: Int, maximumSize: Int)
+    case transactionConflict(message: String?)
+    case transactionProvisionedThroughputExceeded(message: String?)
+    case transactionUnknown(code: String?, message: String?)
+    case transactionCanceled(reasons: [SmokeDynamoDBError])
 }
 
 public typealias SmokeDynamoDBErrorResult<SuccessPayload> = Result<SuccessPayload, SmokeDynamoDBError>
@@ -75,6 +80,19 @@ public enum WriteEntry<AttributesType: PrimaryKeyAttributes, ItemType: Codable> 
     case insert(new: TypedDatabaseItem<AttributesType, ItemType>)
     case deleteAtKey(key: CompositePrimaryKey<AttributesType>)
     case deleteItem(existing: TypedDatabaseItem<AttributesType, ItemType>)
+    
+    public var compositePrimaryKey: CompositePrimaryKey<AttributesType> {
+        switch self {
+        case .update(new: let new, existing: _):
+            return new.compositePrimaryKey
+        case .insert(new: let new):
+            return new.compositePrimaryKey
+        case .deleteAtKey(key: let key):
+            return key
+        case .deleteItem(existing: let existing):
+            return existing.compositePrimaryKey
+        }
+    }
 }
 
 public typealias StandardWriteEntry<ItemType: Codable> = WriteEntry<StandardPrimaryKeyAttributes, ItemType>
@@ -300,6 +318,26 @@ public protocol DynamoDBCompositePrimaryKeyTable {
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws
     
     /**
+     * Provides the ability to bulk write database rows in a transaction.
+     * The transaction will comprise of the write entries specified in `entries`.
+     * The transaction will fail if the number of entries is greater than 100.
+     */
+    func transactWrite<WriteEntryType: PolymorphicWriteEntry>(
+        _ entries: [WriteEntryType]) async throws
+    
+    /**
+     * Provides the ability to bulk write database rows in a transaction.
+     * The transaction will comprise of the write entries specified in `entries`.
+     * The transaction will be cancelled if the contraints specified in `constraints` are not met (for example you can specify that an item
+     * with a specified version must exist regardless of if it will be written to by the transaction).
+     * The transaction will fail if the number of entries and constraints combined is greater than 100.
+     */
+    func transactWrite<WriteEntryType: PolymorphicWriteEntry, TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws
+    
+    func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws
+    
+    /**
      * Provides the ability to bulk write database rows
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
@@ -493,6 +531,20 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await updateItem(newItem: newItem, existingItem: existingItem).get()
+    }
+    
+    func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        fatalError("Not implemented")
+    }
+    
+    func transactWrite<WriteEntryType: PolymorphicWriteEntry,
+                       TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
+        fatalError("Not implemented")
+    }
+    
+    func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        fatalError("Not implemented")
     }
     
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {

@@ -101,6 +101,20 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
         return wrappedDynamoDBTable.updateItem(newItem: newItem, existingItem: existingItem)
     }
     
+    public func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        return try await self.wrappedDynamoDBTable.transactWrite(entries)
+    }
+    
+    public func transactWrite<WriteEntryType: PolymorphicWriteEntry,
+                              TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                                _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
+        return try await self.wrappedDynamoDBTable.transactWrite(entries, constraints: constraints)
+    }
+    
+    public func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
+        return try await self.wrappedDynamoDBTable.bulkWrite(entries)
+    }
+    
     public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Void> {
         let futures = entries.map { entry -> EventLoopFuture<Void> in

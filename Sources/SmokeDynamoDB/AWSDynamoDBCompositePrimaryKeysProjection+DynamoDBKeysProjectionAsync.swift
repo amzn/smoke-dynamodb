@@ -211,7 +211,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
         
         let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         do {
             let queryOutput = try await self.dynamodb.query(input: queryInput)

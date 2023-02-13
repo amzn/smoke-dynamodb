@@ -582,36 +582,6 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
-
-    static var allTests = [
-        ("testCreateUpdatedRowWithItemVersion", testCreateUpdatedRowWithItemVersion),
-        ("testCreateUpdatedRowWithItemVersionWithTimeToLive", testCreateUpdatedRowWithItemVersionWithTimeToLive),
-        ("testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion",
-         testCreateUpdatedRowWithItemVersionWithCorrectConditionalVersion),
-        ("testCreateUpdatedRowWithItemVersionWithIncorrectConditionalVersion",
-         testCreateUpdatedRowWithItemVersionWithIncorrectConditionalVersion),
-        ("testStringFieldDifference", testStringFieldDifference),
-        ("testStringFieldDifferenceWithEscapedQuotes", testStringFieldDifferenceWithEscapedQuotes),
-        ("testNumberFieldDifference", testNumberFieldDifference),
-        ("testStructFieldDifference", testStructFieldDifference),
-        ("testStructFieldDifferenceWithEscapedQuotes", testStructFieldDifferenceWithEscapedQuotes),
-        ("testListFieldDifference", testListFieldDifference),
-        ("testListFieldDifferenceWithEscapedQuotes", testListFieldDifferenceWithEscapedQuotes),
-        ("testStringFieldAddition", testStringFieldAddition),
-        ("testNumberFieldAddition", testNumberFieldAddition),
-        ("testStructFieldAddition", testStructFieldAddition),
-        ("testListFieldAddition", testListFieldAddition),
-        ("testStringFieldRemoval", testStringFieldRemoval),
-        ("testNumberFieldRemoval", testNumberFieldRemoval),
-        ("testStructFieldRemoval", testStructFieldRemoval),
-        ("testListFieldRemoval", testListFieldRemoval),
-        ("testListFieldDifferenceExpression", testListFieldDifferenceExpression),
-        ("testListFieldDifferenceExpressionWithEscapedQuotes", testListFieldDifferenceExpressionWithEscapedQuotes),
-        ("testListFieldAdditionExpression", testListFieldAdditionExpression),
-        ("testDeleteItemExpression", testDeleteItemExpression),
-        ("testDeleteItemExpressionWithEscapedQuotes", testDeleteItemExpressionWithEscapedQuotes),
-        ("testDeleteKeyExpression", testDeleteKeyExpression),
-    ]
 }
 
 extension Array where Element == AttributeDifference {

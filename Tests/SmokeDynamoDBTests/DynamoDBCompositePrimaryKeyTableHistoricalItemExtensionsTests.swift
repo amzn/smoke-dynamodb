@@ -526,29 +526,4 @@ class CompositePrimaryKeyDynamoDBHistoricalClientTests: XCTestCase {
         XCTAssertEqual(inserted.rowStatus.rowVersion, 6)
         XCTAssertEqual(inserted.rowValue.itemVersion, 1)
     }
-
-    static var allTests = [
-        ("testInsertItemSuccess", testInsertItemSuccess),
-        ("testInsertItemFailure", testInsertItemFailure),
-        ("testUpdateItemSuccess", testUpdateItemSuccess),
-        ("testUpdateItemFailure", testUpdateItemFailure),
-        ("testClobberItemSuccess", testClobberItemSuccess),
-        ("testClobberItemFailure", testClobberItemFailure),
-        ("testClobberItemSuccessAfterRetry", testClobberItemSuccessAfterRetry),
-        ("testConditionallyUpdateItemWithHistoricalRow", testConditionallyUpdateItemWithHistoricalRow),
-        ("testConditionallyUpdateItemWithHistoricalRowWithAsyncProvider",
-            testConditionallyUpdateItemWithHistoricalRowWithAsyncProvider),
-        ("testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrency",
-         testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrency),
-        ("testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrencyWithAsyncProvider",
-            testConditionallyUpdateItemWithHistoricalRowAcceptableConcurrencyWithAsyncProvider),
-        ("testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrency",
-         testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrency),
-        ("testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrencyWithAsyncProvider",
-            testConditionallyUpdateItemWithHistoricalRowUnacceptableConcurrencyWithAsyncProvider),
-        ("testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderError",
-         testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderError),
-        ("testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderErrorWithAsyncProvider",
-            testConditionallyUpdateItemWithHistoricalRowPrimaryItemProviderErrorWithAsyncProvider),
-    ]
 }

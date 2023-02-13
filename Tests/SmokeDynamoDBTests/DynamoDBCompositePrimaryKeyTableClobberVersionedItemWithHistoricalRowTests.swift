@@ -101,8 +101,4 @@ class DynamoDBCompositePrimaryKeyTableClobberVersionedItemWithHistoricalRowTests
         XCTAssertEqual(1, item5.rowStatus.rowVersion)
         XCTAssertEqual(payload2, item5.rowValue.rowValue)
     }
-
-    static var allTests = [
-        ("testClobberVersionedItemWithHistoricalRow", testClobberVersionedItemWithHistoricalRow),
-    ]
 }

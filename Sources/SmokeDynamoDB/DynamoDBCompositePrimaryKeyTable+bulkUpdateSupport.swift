@@ -104,6 +104,17 @@ extension DynamoDBCompositePrimaryKeyTable {
             + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(existingKey.sortKey))'"
     }
     
+    func getExistsExpression<AttributesType, ItemType>(tableName: String,
+                                                       existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> String {
+        // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html
+        return "EXISTS("
+            + "SELECT * FROM \"\(tableName)\" "
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.partitionKey))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.sortKey))' "
+            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
+            + ")"
+    }
+    
     /*
      Function to return the differences between two items. This is used to then create an UPDATE
      query that just specifies the values that are changing.

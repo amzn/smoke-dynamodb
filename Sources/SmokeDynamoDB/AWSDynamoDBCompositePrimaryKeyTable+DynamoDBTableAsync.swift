@@ -434,13 +434,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     -> TypedDatabaseItem<AttributesType, ItemType>? {
         let getItemInput = try getInputForGetItem(forKey: key)
             
-        self.logger.debug("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
+        self.logger.trace("dynamodb.getItem with key: \(key) and table name \(targetTableName)")
         
         do {
             let attributeValue = try await self.dynamodb.getItem(input: getItemInput)
             
             if let item = attributeValue.item {
-                self.logger.debug("Value returned from DynamoDB.")
+                self.logger.trace("Value returned from DynamoDB.")
                 
                 do {
                     let decodedItem: TypedDatabaseItem<AttributesType, ItemType>? =
@@ -450,7 +450,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     throw error.asUnrecognizedSmokeDynamoDBError()
                 }
             } else {
-                self.logger.debug("No item returned from DynamoDB.")
+                self.logger.trace("No item returned from DynamoDB.")
                 
                 return nil
             }
@@ -466,7 +466,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) async throws {
         let deleteItemInput = try getInputForDeleteItem(forKey: key)
         
-        self.logger.debug("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
+        self.logger.trace("dynamodb.deleteItem with key: \(key) and table name \(targetTableName)")
         _ = try await self.dynamodb.deleteItem(input: deleteItemInput)
     }
     
@@ -476,7 +476,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         let logMessage = "dynamodb.deleteItem with key: \(existingItem.compositePrimaryKey), "
             + " version \(existingItem.rowStatus.rowVersion) and table name \(targetTableName)"
         
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         _ = try await self.dynamodb.deleteItem(input: deleteItemInput)
     }
     
@@ -550,7 +550,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         do {
             let queryOutput = try await self.dynamodb.query(input: queryInput)
@@ -601,7 +601,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     private func putItem<AttributesType>(forInput putItemInput: DynamoDBModel.PutItemInput,
                                          withKey compositePrimaryKey: CompositePrimaryKey<AttributesType>) async throws {
         let logMessage = "dynamodb.putItem with item: \(putItemInput.item) and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         do {
             _ = try await self.dynamodb.putItem(input: putItemInput)
@@ -673,7 +673,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let logMessage = "dynamodb.query with partitionKey: \(partitionKey), " +
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
-        self.logger.debug("\(logMessage)")
+        self.logger.trace("\(logMessage)")
         
         do {
             let queryOutput = try await self.dynamodb.query(input: queryInput)
