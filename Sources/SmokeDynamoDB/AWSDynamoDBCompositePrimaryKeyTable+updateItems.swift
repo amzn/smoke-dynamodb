@@ -328,7 +328,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                                      sortKey: nil, message: cancellationReason.message)
                     }
                 case "DuplicateItem":
-                    return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey, message: cancellationReason.message)
+                    return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                                                            message: cancellationReason.message)
                 case "ItemCollectionSizeLimitExceeded":
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
                                                                       maximumSize: maximumUpdatesPerTransactionStatement)
@@ -340,8 +341,9 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 case "ThrottlingError":
                     return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
                 case "ValidationError":
-                    return SmokeDynamoDBError.transactionValidation(message: cancellationReason.message)
-                default:                    
+                    return SmokeDynamoDBError.transactionValidation(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                                                                    message: cancellationReason.message)
+                default:
                     return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: key?.partitionKey,
                                                                  sortKey: key?.sortKey,message: cancellationReason.message)
                 }
