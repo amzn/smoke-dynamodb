@@ -23,10 +23,12 @@ import Logging
 import NIO
 import CollectionConcurrencyKit
 
-// BatchExecuteStatement has a maximum of 25 statements
-private let maximumUpdatesPerExecuteStatement = 25
-private let maximumUpdatesPerTransactionStatement = 100
-private let maxStatementLength = 8192
+public struct AWSDynamoDBLimits {
+    // BatchExecuteStatement has a maximum of 25 statements
+    public static let maximumUpdatesPerExecuteStatement = 25
+    public static let maximumUpdatesPerTransactionStatement = 100
+    public static let maxStatementLength = 8192
+}
 
 private struct AWSDynamoDBPolymorphicWriteEntryTransform<InvocationReportingType: HTTPClientCoreInvocationReporting>: PolymorphicWriteEntryTransform {
     typealias TableType = AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType>
@@ -57,9 +59,10 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let statement: String = try entryToStatement(entry)
         
-        if statement.count > maxStatementLength {
+        if statement.count > AWSDynamoDBLimits.maxStatementLength {
             throw SmokeDynamoDBError.statementLengthExceeded(
-                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(statement.count)")
+                reason: "failed to satisfy constraint: Member must have length less than or equal "
+                    + "to \(AWSDynamoDBLimits.maxStatementLength). Actual length \(statement.count)")
         }
     }
     
@@ -190,7 +193,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     -> EventLoopFuture<Void> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
         let futures = chunkedEntries.map { chunk -> EventLoopFuture<Void> in
             return writeChunkedItems(chunk)
         }
@@ -240,7 +243,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
 
         let futures = chunkedEntries.map { chunk in
             return self.writeChunkedItemsWithoutThrowing(chunk)
@@ -298,15 +301,21 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
         let entryCount = entries.count + constraints.count
             
-        if entryCount > maximumUpdatesPerTransactionStatement {
+        if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
             throw SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
-                                                             maximumSize: maximumUpdatesPerTransactionStatement)
+                                                             maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
         }
         
         do {
             try await self.writeTransactionItems(entries, constraints: constraints)
         } catch DynamoDBError.transactionCanceled(let exception) {
-            let reasons = try exception.cancellationReasons?.compactMap { cancellationReason -> SmokeDynamoDBError? in
+            guard let cancellationReasons = exception.cancellationReasons else {
+                throw SmokeDynamoDBError.transactionCanceled(reasons: [])
+            }
+            
+            let keys = entries.map { $0.compositePrimaryKey } + constraints.map { $0.compositePrimaryKey }
+            
+            let reasons = try zip(cancellationReasons, keys).compactMap { (cancellationReason, entryKey) -> SmokeDynamoDBError? in
                 let key: StandardCompositePrimaryKey?
                 if let item = cancellationReason.item {
                     key = try DynamoDBDecoder().decode(.init(M: item))
@@ -314,25 +323,23 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     key = nil
                 }
                 
+                let partitionKey = key?.partitionKey ?? entryKey?.partitionKey
+                let sortKey = key?.sortKey ?? entryKey?.sortKey
+                
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteTransaction.html
                 switch cancellationReason.code {
                 case "None":
                     return nil
                 case "ConditionalCheckFailed":
-                    if let key = key {
-                        return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
-                                                                         sortKey: key.sortKey,
-                                                                         message: cancellationReason.message)
-                    } else {
-                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: nil,
-                                                                     sortKey: nil, message: cancellationReason.message)
-                    }
+                    return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: partitionKey,
+                                                                                sortKey: sortKey,
+                                                                                message: cancellationReason.message)
                 case "DuplicateItem":
-                    return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                    return SmokeDynamoDBError.duplicateItem(partitionKey: partitionKey, sortKey: sortKey,
                                                             message: cancellationReason.message)
                 case "ItemCollectionSizeLimitExceeded":
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
-                                                                      maximumSize: maximumUpdatesPerTransactionStatement)
+                                                                      maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
                 case "TransactionConflict":
                     return SmokeDynamoDBError.transactionConflict(message: cancellationReason.message)
 
@@ -341,15 +348,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 case "ThrottlingError":
                     return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
                 case "ValidationError":
-                    return SmokeDynamoDBError.transactionValidation(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                    return SmokeDynamoDBError.transactionValidation(partitionKey: partitionKey, sortKey: sortKey,
                                                                     message: cancellationReason.message)
                 default:
-                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: key?.partitionKey,
-                                                                 sortKey: key?.sortKey,message: cancellationReason.message)
+                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: partitionKey,
+                                                                 sortKey: sortKey,message: cancellationReason.message)
                 }
             }
             
-            throw SmokeDynamoDBError.transactionCanceled(reasons: reasons ?? [])
+            throw SmokeDynamoDBError.transactionCanceled(reasons: reasons)
         } catch DynamoDBError.transactionConflict(let exception) {
             let reason = SmokeDynamoDBError.transactionConflict(message: exception.message)
             
@@ -382,7 +389,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
         try await chunkedEntries.concurrentForEach { chunk in
             try await self.writeChunkedItems(chunk)
         }
@@ -424,7 +431,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
         try await chunkedEntries.concurrentForEach { chunk in
             try await self.writeChunkedItems(chunk)
         }
@@ -465,7 +472,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     -> Set<BatchStatementErrorCodeEnum> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: maximumUpdatesPerExecuteStatement)
+        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
 
         let results = try await chunkedEntries.concurrentMap { chunk in
             return try await self.writeChunkedItemsWithoutThrowing(chunk)

@@ -508,6 +508,35 @@ let constraintList: [TestPolymorphicTransactionConstraintEntry] = [
 try await table.transactWrite(entryList, constraints: constraintList)
 ```
 
+Both the `PolymorphicWriteEntry` and `PolymorphicTransactionConstraintEntry` conforming types can
+optionally provide a `compositePrimaryKey` property that will allow the API to return more information
+about failed transactions.
+
+```swift
+enum TestPolymorphicWriteEntry: PolymorphicWriteEntry {
+    case testTypeA(TestTypeAWriteEntry)
+    case testTypeB(TestTypeBWriteEntry)
+
+    func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteEntryTransformType {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return try context.transform(writeEntry)
+        case .testTypeB(let writeEntry):
+            return try context.transform(writeEntry)
+        }
+    }
+    
+    var compositePrimaryKey: StandardCompositePrimaryKey? {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return writeEntry.compositePrimaryKey
+        case .testTypeA(let writeEntry):
+            return writeEntry.compositePrimaryKey
+        }
+    }
+}
+```
+
 ## Recording updates in a historical partition
 
 This package contains a number of convenience functions for storing versions of a row in a historical partition

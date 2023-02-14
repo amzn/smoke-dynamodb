@@ -17,21 +17,35 @@
 
 import DynamoDBModel
 
+// Conforming types are provided by the Table implementation to convert a `WriteEntry` into
+// something the table can use to perform the write.
 public protocol PolymorphicWriteEntryTransform {
     associatedtype TableType
 
     init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: WriteEntry<AttributesType, ItemType>, table: TableType) throws
 }
 
+// Conforming types are provided by the Table implementation to convert a `WriteEntry` into
+// something the table can use to achieve the constraint.
 public protocol PolymorphicTransactionConstraintTransform {
     associatedtype TableType
     
     init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: TransactionConstraintEntry<AttributesType, ItemType>, table: TableType) throws
 }
 
+// Conforming types are provided by the application to express the different possible write entries
+// and how they can be converted to the table-provided transform type.
 public protocol PolymorphicWriteEntry {
 
     func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteEntryTransformType
+    
+    var compositePrimaryKey: StandardCompositePrimaryKey? { get }
+}
+
+public extension PolymorphicWriteEntry {
+    var compositePrimaryKey: StandardCompositePrimaryKey? {
+        return nil
+    }
 }
 
 public typealias StandardTransactionConstraintEntry<ItemType: Codable> = TransactionConstraintEntry<StandardPrimaryKeyAttributes, ItemType>
@@ -40,9 +54,19 @@ public enum TransactionConstraintEntry<AttributesType: PrimaryKeyAttributes, Ite
     case required(existing: TypedDatabaseItem<AttributesType, ItemType>)
 }
 
+// Conforming types are provided by the application to express the different possible constraint entries
+// and how they can be converted to the table-provided transform type.
 public protocol PolymorphicTransactionConstraintEntry {
 
     func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteTransactionConstraintType
+    
+    var compositePrimaryKey: StandardCompositePrimaryKey? { get }
+}
+
+public extension PolymorphicTransactionConstraintEntry {
+    var compositePrimaryKey: StandardCompositePrimaryKey? {
+        return nil
+    }
 }
 
 public struct EmptyPolymorphicTransactionConstraintEntry: PolymorphicTransactionConstraintEntry {
@@ -51,6 +75,7 @@ public struct EmptyPolymorphicTransactionConstraintEntry: PolymorphicTransaction
     }
 }
 
+// Helper Context type that enables transforming Write Entries into the table-provided transform type.
 public protocol PolymorphicWriteEntryContext {
     associatedtype WriteEntryTransformType: PolymorphicWriteEntryTransform
     associatedtype WriteTransactionConstraintType: PolymorphicTransactionConstraintTransform
