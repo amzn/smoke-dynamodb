@@ -732,39 +732,4 @@ class DynamoDBCompositePrimaryKeyTableUpdateItemConditionallyAtKeyTests: XCTestC
         
         XCTAssertNil(secondRetrievedItem)
     }
-    
-    static var allTests = [
-        ("testUpdateItemConditionallyAtKey", testUpdateItemConditionallyAtKey),
-        ("testUpdateItemConditionallyAtKeyWithItemProvider", testUpdateItemConditionallyAtKeyWithItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithAsyncProvider", testUpdateItemConditionallyAtKeyWithAsyncProvider),
-        ("testUpdateItemConditionallyAtKeyWithAsyncItemProvider", testUpdateItemConditionallyAtKeyWithAsyncItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrency", testUpdateItemConditionallyAtKeyWithAcceptableConcurrency),
-        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithItemProvider",
-         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider",
-         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncProvider),
-        ("testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncItemProvider",
-         testUpdateItemConditionallyAtKeyWithAcceptableConcurrencyWithAsyncItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrency", testUpdateItemConditionallyAtKeyWithUnacceptableConcurrency),
-        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithItemProvider",
-         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider",
-         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncItemProvider",
-         testUpdateItemConditionallyAtKeyWithUnacceptableConcurrencyWithAsyncItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithFailingUpdate", testUpdateItemConditionallyAtKeyWithFailingUpdate),
-        ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithItemProvider",
-         testUpdateItemConditionallyAtKeyWithFailingUpdateWithItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider",
-         testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncProvider),
-        ("testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncItemProvider",
-         testUpdateItemConditionallyAtKeyWithFailingUpdateWithAsyncItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnknownItem", testUpdateItemConditionallyAtKeyWithUnknownItem),
-        ("testUpdateItemConditionallyAtKeyWithUnknownItemWithItemProvider",
-         testUpdateItemConditionallyAtKeyWithUnknownItemWithItemProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncProvider",
-         testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncProvider),
-        ("testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncItemProvider",
-         testUpdateItemConditionallyAtKeyWithUnknownItemWithAsyncItemProvider),
-    ]
 }

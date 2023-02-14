@@ -449,6 +449,65 @@ for primaryKey in queryItems {
 }
 ```
 
+## Writes and Batch or Transactions
+
+You can write multiple database rows using either a bulk or [transaction](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html) write-
+
+```swift
+typealias TestTypeAWriteEntry = StandardWriteEntry<TestTypeA>
+typealias TestTypeBWriteEntry = StandardWriteEntry<TestTypeB>
+
+enum TestPolymorphicWriteEntry: PolymorphicWriteEntry {
+    case testTypeA(TestTypeAWriteEntry)
+    case testTypeB(TestTypeBWriteEntry)
+
+    func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteEntryTransformType {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return try context.transform(writeEntry)
+        case .testTypeB(let writeEntry):
+            return try context.transform(writeEntry)
+        }
+    }
+}
+
+let entryList: [TestPolymorphicWriteEntry] = [
+    .testTypeA(.insert(new: databaseItem1)),
+    .testTypeB(.insert(new: databaseItem2))
+]
+        
+try await table.bulkWrite(entryList)
+try await table.transactWrite(entryList)
+```
+
+For transactions, you can additionally specify a set of constraints to be part of the transaction-
+
+```swift
+typealias TestTypeAStandardTransactionConstraintEntry = StandardTransactionConstraintEntry<TestTypeA>
+typealias TestTypeBStandardTransactionConstraintEntry = StandardTransactionConstraintEntry<TestTypeB>
+
+enum TestPolymorphicTransactionConstraintEntry: PolymorphicTransactionConstraintEntry {
+    case testTypeA(TestTypeAStandardTransactionConstraintEntry)
+    case testTypeB(TestTypeBStandardTransactionConstraintEntry)
+
+    func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteTransactionConstraintType {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return try context.transform(writeEntry)
+        case .testTypeB(let writeEntry):
+            return try context.transform(writeEntry)
+        }
+    }
+}
+
+let constraintList: [TestPolymorphicTransactionConstraintEntry] = [
+    .testTypeA(.required(existing: databaseItem3)),
+    .testTypeB(.required(existing: databaseItem4))
+    ]
+         
+try await table.transactWrite(entryList, constraints: constraintList)
+```
+
 ## Recording updates in a historical partition
 
 This package contains a number of convenience functions for storing versions of a row in a historical partition
