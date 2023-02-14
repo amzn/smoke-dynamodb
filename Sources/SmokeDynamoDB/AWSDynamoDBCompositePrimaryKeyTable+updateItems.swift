@@ -306,7 +306,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         do {
             try await self.writeTransactionItems(entries, constraints: constraints)
         } catch DynamoDBError.transactionCanceled(let exception) {
-            let reasons = try exception.cancellationReasons?.compactMap { cancellationReason -> SmokeDynamoDBError? in
+            guard let cancellationReasons = exception.cancellationReasons else {
+                throw SmokeDynamoDBError.transactionCanceled(reasons: [])
+            }
+            
+            let keys = entries.map { $0.compositePrimaryKey } + constraints.map { $0.compositePrimaryKey }
+            
+            let reasons = try zip(cancellationReasons, keys).compactMap { (cancellationReason, entryKey) -> SmokeDynamoDBError? in
                 let key: StandardCompositePrimaryKey?
                 if let item = cancellationReason.item {
                     key = try DynamoDBDecoder().decode(.init(M: item))
@@ -324,8 +330,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                                          sortKey: key.sortKey,
                                                                          message: cancellationReason.message)
                     } else {
-                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: nil,
-                                                                     sortKey: nil, message: cancellationReason.message)
+                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: entryKey?.partitionKey,
+                                                                     sortKey: entryKey?.partitionKey, message: cancellationReason.message)
                     }
                 case "DuplicateItem":
                     return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
@@ -341,15 +347,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 case "ThrottlingError":
                     return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
                 case "ValidationError":
-                    return SmokeDynamoDBError.transactionValidation(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                    return SmokeDynamoDBError.transactionValidation(partitionKey: entryKey?.partitionKey, sortKey: entryKey?.sortKey,
                                                                     message: cancellationReason.message)
                 default:
-                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: key?.partitionKey,
-                                                                 sortKey: key?.sortKey,message: cancellationReason.message)
+                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: entryKey?.partitionKey,
+                                                                 sortKey: entryKey?.sortKey,message: cancellationReason.message)
                 }
             }
             
-            throw SmokeDynamoDBError.transactionCanceled(reasons: reasons ?? [])
+            throw SmokeDynamoDBError.transactionCanceled(reasons: reasons)
         } catch DynamoDBError.transactionConflict(let exception) {
             let reason = SmokeDynamoDBError.transactionConflict(message: exception.message)
             
