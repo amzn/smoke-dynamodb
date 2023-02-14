@@ -22,9 +22,6 @@ import DynamoDBModel
 import NIO
 import CollectionConcurrencyKit
 
-private let maximumUpdatesPerTransactionStatement = 100
-private let maxStatementLength = 8192
-
 public protocol PolymorphicOperationReturnTypeConvertable {
     var createDate: Foundation.Date { get }
     var rowStatus: RowStatus { get }
@@ -127,9 +124,10 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
 
     public func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
         let entryString = "\(entry)"
-        if entryString.count > maxStatementLength {
+        if entryString.count > AWSDynamoDBLimits.maxStatementLength {
             throw SmokeDynamoDBError.statementLengthExceeded(
-                reason: "failed to satisfy constraint: Member must have length less than or equal to \(maxStatementLength). Actual length \(entryString.count)")
+                reason: "failed to satisfy constraint: Member must have length less than or equal to "
+                    + "\(AWSDynamoDBLimits.maxStatementLength). Actual length \(entryString.count)")
         }
     }
 
@@ -163,9 +161,9 @@ public class InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryK
         let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
                                                            InMemoryPolymorphicTransactionConstraintTransform>(table: self)
             
-        if entryCount > maximumUpdatesPerTransactionStatement {
+        if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
             throw SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
-                                                             maximumSize: maximumUpdatesPerTransactionStatement)
+                                                             maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
         }
         
         let store = self.store

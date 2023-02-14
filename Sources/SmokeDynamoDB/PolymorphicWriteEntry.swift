@@ -18,7 +18,7 @@
 import DynamoDBModel
 
 // Conforming types are provided by the Table implementation to convert a `WriteEntry` into
-//something the table can use to perform the write.
+// something the table can use to perform the write.
 public protocol PolymorphicWriteEntryTransform {
     associatedtype TableType
 
@@ -26,7 +26,7 @@ public protocol PolymorphicWriteEntryTransform {
 }
 
 // Conforming types are provided by the Table implementation to convert a `WriteEntry` into
-//something the table can use to achieve the constraint.
+// something the table can use to achieve the constraint.
 public protocol PolymorphicTransactionConstraintTransform {
     associatedtype TableType
     
@@ -75,7 +75,7 @@ public struct EmptyPolymorphicTransactionConstraintEntry: PolymorphicTransaction
     }
 }
 
-// Helper Context type that enables transforming Write Entries into the to the table-provided transform type.
+// Helper Context type that enables transforming Write Entries into the table-provided transform type.
 public protocol PolymorphicWriteEntryContext {
     associatedtype WriteEntryTransformType: PolymorphicWriteEntryTransform
     associatedtype WriteTransactionConstraintType: PolymorphicTransactionConstraintTransform
