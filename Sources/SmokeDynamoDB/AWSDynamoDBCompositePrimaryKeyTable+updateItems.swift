@@ -320,21 +320,19 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     key = nil
                 }
                 
+                let partitionKey = key?.partitionKey ?? entryKey?.partitionKey
+                let sortKey = key?.sortKey ?? entryKey?.sortKey
+                
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExecuteTransaction.html
                 switch cancellationReason.code {
                 case "None":
                     return nil
                 case "ConditionalCheckFailed":
-                    if let key = key {
-                        return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: key.partitionKey,
-                                                                         sortKey: key.sortKey,
-                                                                         message: cancellationReason.message)
-                    } else {
-                        return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: entryKey?.partitionKey,
-                                                                     sortKey: entryKey?.partitionKey, message: cancellationReason.message)
-                    }
+                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: partitionKey ?? "Not provided",
+                                                                     sortKey: sortKey ?? "Not provided",
+                                                                     message: cancellationReason.message)
                 case "DuplicateItem":
-                    return SmokeDynamoDBError.duplicateItem(partitionKey: key?.partitionKey, sortKey: key?.sortKey,
+                    return SmokeDynamoDBError.duplicateItem(partitionKey: partitionKey, sortKey: sortKey,
                                                             message: cancellationReason.message)
                 case "ItemCollectionSizeLimitExceeded":
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
@@ -347,11 +345,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 case "ThrottlingError":
                     return SmokeDynamoDBError.transactionThrottling(message: cancellationReason.message)
                 case "ValidationError":
-                    return SmokeDynamoDBError.transactionValidation(partitionKey: entryKey?.partitionKey, sortKey: entryKey?.sortKey,
+                    return SmokeDynamoDBError.transactionValidation(partitionKey: partitionKey, sortKey: sortKey,
                                                                     message: cancellationReason.message)
                 default:
-                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: entryKey?.partitionKey,
-                                                                 sortKey: entryKey?.sortKey,message: cancellationReason.message)
+                    return SmokeDynamoDBError.transactionUnknown(code: cancellationReason.code, partitionKey: partitionKey,
+                                                                 sortKey: sortKey,message: cancellationReason.message)
                 }
             }
             
