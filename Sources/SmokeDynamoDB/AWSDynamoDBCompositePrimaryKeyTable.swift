@@ -25,10 +25,11 @@ import SmokeHTTPClient
 import ClientRuntime
 import AWSMiddleware
 
-public typealias AWSDynamoDBCompositePrimaryKeyTable = GenericAWSDynamoDBCompositePrimaryKeyTable<AWSHTTPMiddlewareStack<DynamoDBError>>
+public typealias AWSDynamoDBCompositePrimaryKeyTable =
+    GenericAWSDynamoDBCompositePrimaryKeyTable<JSONPayloadTransformStack<DynamoDBError>>
 
-public class GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>: DynamoDBCompositePrimaryKeyTable {
-    public let dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>
+public class GenericAWSDynamoDBCompositePrimaryKeyTable<StackType: JSONPayloadTransformStackProtocol>: DynamoDBCompositePrimaryKeyTable {
+    public let dynamodb: GenericAWSDynamoDBClientV2<StackType>
     public let targetTableName: String
     public let consistentRead: Bool
     public let escapeSingleQuoteInPartiQL: Bool
@@ -49,7 +50,7 @@ public class GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType: AWS
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
                 retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
         self.logger = logger
-        self.dynamodb = try GenericAWSDynamoDBClientV2<MiddlewareStackType>(
+        self.dynamodb = try GenericAWSDynamoDBClientV2(
             credentialsProvider: credentialsProvider, awsRegion: awsRegion,
             endpointHostName: endpointHostName, endpointPort: endpointPort,
             requiresTLS: requiresTLS, service: service,

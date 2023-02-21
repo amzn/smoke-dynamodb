@@ -69,9 +69,9 @@ public struct AWSDynamoDBClientConfiguration {
         self.retryConfiguration = retryConfiguration
     }
     
-    internal func getAWSClient<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>(logger: Logger) throws
-    -> GenericAWSDynamoDBClientV2<MiddlewareStackType> {
-        return try GenericAWSDynamoDBClientV2<MiddlewareStackType>(
+    internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol>(logger: Logger) throws
+    -> GenericAWSDynamoDBClientV2<StackType> {
+        return try GenericAWSDynamoDBClientV2(
             credentialsProvider: self.credentialsProvider, awsRegion: self.awsRegion,
             endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
             requiresTLS: self.requiresTLS, service: self.service,
@@ -79,10 +79,10 @@ public struct AWSDynamoDBClientConfiguration {
             retryConfiguration: self.retryConfiguration)
     }
     
-    internal func getAWSClient<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>(logger: Logger,
-                                                                                    httpClientEngine: SmokeHTTPClientEngine)
-    -> GenericAWSDynamoDBClientV2<MiddlewareStackType> {
-        return GenericAWSDynamoDBClientV2<MiddlewareStackType>(
+    internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol>(logger: Logger,
+                                                                             httpClientEngine: SmokeHTTPClientEngine)
+    -> GenericAWSDynamoDBClientV2<StackType> {
+        return GenericAWSDynamoDBClientV2(
             credentialsProvider: self.credentialsProvider, awsRegion: self.awsRegion,
             endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
             requiresTLS: self.requiresTLS, service: self.service,

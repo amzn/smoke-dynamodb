@@ -41,14 +41,14 @@ public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
     private class MonomorphicGetItemsRetriable<AttributesType: PrimaryKeyAttributes, ItemType: Codable> {
         typealias OutputType = [CompositePrimaryKey<AttributesType>: TypedDatabaseItem<AttributesType, ItemType>]
         
-        let dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>
+        let dynamodb: GenericAWSDynamoDBClientV2<StackType>
                 
         var retriesRemaining: Int
         var input: BatchGetItemInput
         var outputItems: OutputType = [:]
         
         init(initialInput: BatchGetItemInput,
-             dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>) {
+             dynamodb: GenericAWSDynamoDBClientV2<StackType>) {
             self.dynamodb = dynamodb
             self.retriesRemaining = dynamodb.retryConfiguration.numRetries
             self.input = initialInput

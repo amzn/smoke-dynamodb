@@ -30,8 +30,8 @@ public struct AWSDynamoDBLimits {
     public static let maxStatementLength = 8192
 }
 
-private struct AWSDynamoDBPolymorphicWriteEntryTransform<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>: PolymorphicWriteEntryTransform {
-    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType>
+private struct AWSDynamoDBPolymorphicWriteEntryTransform<StackType: JSONPayloadTransformStackProtocol>: PolymorphicWriteEntryTransform {
+    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<StackType>
 
     let statement: String
 
@@ -40,9 +40,8 @@ private struct AWSDynamoDBPolymorphicWriteEntryTransform<MiddlewareStackType: AW
     }
 }
 
-private struct AWSDynamoDBPolymorphicTransactionConstraintTransform<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>:
-PolymorphicTransactionConstraintTransform {
-    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType>
+private struct AWSDynamoDBPolymorphicTransactionConstraintTransform<StackType: JSONPayloadTransformStackProtocol>: PolymorphicTransactionConstraintTransform {
+    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<StackType>
 
     let statement: String
     

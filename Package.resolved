@@ -42,7 +42,7 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
           "branch": "middleware",
-          "revision": "2422e6064a79570c103f303da690e33c0d6a7147",
+          "revision": "479ad9760526a914a7b2a1d6a78d6709165c14be",
           "version": null
         }
       },
@@ -51,7 +51,7 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws-support.git",
         "state": {
           "branch": "initial_middleware",
-          "revision": "005ffc88438cd3f574d4991f96950e8880ad9723",
+          "revision": "68379c73d8a90a2a618b7659cab22a0fbc561636",
           "version": null
         }
       },
@@ -60,7 +60,7 @@
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
           "branch": "smoke_http_middleware",
-          "revision": "8736aa8dfcf679cb4fc21b7bfae5b472356948a0",
+          "revision": "20dd4334bfd84ff372b3cf7749d3f908921787de",
           "version": null
         }
       },
