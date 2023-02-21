@@ -60,4 +60,28 @@ public class GenericAWSDynamoDBCompositePrimaryKeysProjection<MiddlewareStackTyp
 
         self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
     }
+    
+    public init(config: AWSDynamoDBClientConfiguration,
+                logger: Logging.Logger = Logger(label: "DynamoDBClient"),
+                internalRequestId: String = "none",
+                tableName: String) throws {
+        self.logger = logger
+        self.dynamodb = try config.getAWSClient(logger: logger)
+        self.targetTableName = tableName
+
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+    }
+    
+    public init(operationsClient: AWSDynamoDBTableOperationsClient,
+                logger: Logging.Logger = Logger(label: "DynamoDBClient"),
+                internalRequestId: String = "none") {
+        let config = operationsClient.config
+        
+        self.logger = logger
+        self.dynamodb = config.getAWSClient(logger: logger,
+                                            httpClientEngine: operationsClient.httpClientEngine)
+        self.targetTableName = operationsClient.tableName
+
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+    }
 }

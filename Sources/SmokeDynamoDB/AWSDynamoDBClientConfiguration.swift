@@ -80,7 +80,7 @@ public struct AWSDynamoDBClientConfiguration {
     }
     
     internal func getAWSClient<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>(logger: Logger,
-                                                                                    httpClientEngine: SmokeHTTPClientEngine) throws
+                                                                                    httpClientEngine: SmokeHTTPClientEngine)
     -> GenericAWSDynamoDBClientV2<MiddlewareStackType> {
         return GenericAWSDynamoDBClientV2<MiddlewareStackType>(
             credentialsProvider: self.credentialsProvider, awsRegion: self.awsRegion,

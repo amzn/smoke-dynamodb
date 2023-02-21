@@ -59,7 +59,7 @@ public class GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType: AWS
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
 
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeyTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     public init(config: AWSDynamoDBClientConfiguration,
@@ -74,22 +74,22 @@ public class GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType: AWS
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
 
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeyTable created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
     }
     
     public init(operationsClient: AWSDynamoDBTableOperationsClient,
                 logger: Logging.Logger = Logger(label: "DynamoDBClient"),
-                internalRequestId: String = "none") throws {
+                internalRequestId: String = "none") {
         let config = operationsClient.config
         
         self.logger = logger
-        self.dynamodb = try config.getAWSClient(logger: logger,
-                                                httpClientEngine: operationsClient.httpClientEngine)
+        self.dynamodb = config.getAWSClient(logger: logger,
+                                            httpClientEngine: operationsClient.httpClientEngine)
         self.targetTableName = operationsClient.tableName
         self.consistentRead = operationsClient.consistentRead
         self.escapeSingleQuoteInPartiQL = operationsClient.escapeSingleQuoteInPartiQL
 
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeyTable created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
     }
 }
 
