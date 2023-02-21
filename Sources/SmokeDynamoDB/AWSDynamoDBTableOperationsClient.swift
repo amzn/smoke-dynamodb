@@ -21,7 +21,7 @@ import AWSCore
 import SmokeHTTPClient
 import AWSHttp
 import ClientRuntime
-
+/*
 public typealias AWSDynamoDBTableOperationsClient =
     AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>>
 
@@ -107,4 +107,4 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
-}
+}*/

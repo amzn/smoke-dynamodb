@@ -24,70 +24,12 @@ import AWSHttp
 import SmokeHTTPClient
 import ClientRuntime
 
-public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
-    internal let dynamodb: GenericAWSDynamoDBClient<InvocationReportingType>
+public class AWSDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
+    internal let dynamodb: AWSDynamoDBClientV2
     internal let targetTableName: String
     public let consistentRead: Bool
     public let escapeSingleQuoteInPartiQL: Bool
     internal let logger: Logger
-
-    public init(accessKeyId: String, secretAccessKey: String,
-                region: AWSRegion, reporting: InvocationReportingType,
-                endpointHostName: String, endpointPort: Int = 443,
-                requiresTLS: Bool? = nil, tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) {
-        let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
-                                                  secretAccessKey: secretAccessKey,
-                                                  sessionToken: nil)
-
-        self.logger = reporting.logger
-        self.dynamodb = GenericAWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                                 awsRegion: region, reporting: reporting,
-                                                 endpointHostName: endpointHostName,
-                                                 endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                 runtimeConfig: runtimeConfig,
-                                                 reportingConfiguration: reportingConfiguration)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(region)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                reporting: InvocationReportingType,
-                endpointHostName: String,
-                endpointPort: Int = 443,
-                requiresTLS: Bool? = nil,
-                service: String = "dynamodb",
-                contentType: String = "application/x-amz-json-1.0",
-                target: String? = "DynamoDB_20120810",
-                tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
-                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() ) {
-        self.logger = reporting.logger
-        self.dynamodb = GenericAWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                                 awsRegion: awsRegion, reporting: reporting,
-                                                 endpointHostName: endpointHostName,
-                                                 endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                 runtimeConfig: runtimeConfig,
-                                                 retryConfiguration: retryConfiguration,
-                                                 reportingConfiguration: reportingConfiguration)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
-    }
     
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
                 logger: Logging.Logger = Logger(label: "DynamoDBClient"),
@@ -104,99 +46,19 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
-                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() )
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() ) throws {
         self.logger = logger
         let reporting = StandardHTTPClientCoreInvocationReporting(logger: logger, internalRequestId: internalRequestId,
                                                                   traceContext: AWSClientInvocationTraceContext())
-        self.dynamodb = GenericAWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                                 awsRegion: awsRegion, reporting: reporting,
-                                                 endpointHostName: endpointHostName,
-                                                 endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                                 runtimeConfig: runtimeConfig,
-                                                 retryConfiguration: retryConfiguration,
-                                                 reportingConfiguration: reportingConfiguration)
+        self.dynamodb = try AWSDynamoDBClientV2(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
+                                                endpointHostName: endpointHostName, endpointPort: endpointPort,
+                                                requiresTLS: requiresTLS, service: service,
+                                                contentType: contentType, target: target, logger: logger)
         self.targetTableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
 
         self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
-        config: GenericAWSDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        invocationAttributes: InvocationAttributesType,
-        tableName: String,
-        consistentRead: Bool = true,
-        escapeSingleQuoteInPartiQL: Bool = false,
-        httpClient: HTTPOperationsClient? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = invocationAttributes.logger
-        self.dynamodb = GenericAWSDynamoDBClient(config: config,
-                                                 invocationAttributes: invocationAttributes,
-                                                 httpClient: httpClient)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
-    }
-    
-    public init<TraceContextType: InvocationTraceContext>(
-        config: GenericAWSDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        logger: Logging.Logger = Logger(label: "DynamoDBClient"),
-        internalRequestId: String = "none",
-        tableName: String,
-        consistentRead: Bool = true,
-        escapeSingleQuoteInPartiQL: Bool = false,
-        httpClient: HTTPOperationsClient? = nil,
-        outwardsRequestAggregator: OutwardsRequestAggregator? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = logger
-        self.dynamodb = GenericAWSDynamoDBClient(config: config,
-                                                 logger: logger,
-                                                 internalRequestId: internalRequestId,
-                                                 httpClient: httpClient,
-                                                 outwardsRequestAggregator: outwardsRequestAggregator)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
-    }
-    
-    public init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
-        operationsClient tableOperationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        invocationAttributes: InvocationAttributesType)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = invocationAttributes.logger
-        self.dynamodb = GenericAWSDynamoDBClient(operationsClient: tableOperationsClient.wrappedOperationsClient,
-                                                 invocationAttributes: invocationAttributes)
-        self.targetTableName = tableOperationsClient.tableName
-        self.consistentRead = tableOperationsClient.consistentRead
-        self.escapeSingleQuoteInPartiQL = tableOperationsClient.escapeSingleQuoteInPartiQL
-
-        let config = tableOperationsClient.wrappedOperationsClient.config
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
-    }
-    
-    public init<TraceContextType: InvocationTraceContext>(
-        operationsClient tableOperationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        logger: Logging.Logger = Logger(label: "DynamoDBClient"),
-        internalRequestId: String = "none",
-        outwardsRequestAggregator: OutwardsRequestAggregator? = nil)
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = logger
-        self.dynamodb = GenericAWSDynamoDBClient(operationsClient: tableOperationsClient.wrappedOperationsClient,
-                                                 logger: logger,
-                                                 internalRequestId: internalRequestId,
-                                                 outwardsRequestAggregator: outwardsRequestAggregator)
-        self.targetTableName = tableOperationsClient.tableName
-        self.consistentRead = tableOperationsClient.consistentRead
-        self.escapeSingleQuoteInPartiQL = tableOperationsClient.escapeSingleQuoteInPartiQL
-
-        let config = tableOperationsClient.wrappedOperationsClient.config
-        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
     }
 }
 

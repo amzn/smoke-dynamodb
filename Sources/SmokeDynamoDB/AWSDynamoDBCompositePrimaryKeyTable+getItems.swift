@@ -41,14 +41,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     private class GetItemsRetriable<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType> {
         typealias OutputType = [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]
         
-        let dynamodb: GenericAWSDynamoDBClient<InvocationReportingType>
+        let dynamodb: AWSDynamoDBClientV2
                 
         var retriesRemaining: Int
         var input: BatchGetItemInput
         var outputItems: OutputType = [:]
         
         init(initialInput: BatchGetItemInput,
-             dynamodb: GenericAWSDynamoDBClient<InvocationReportingType>) {
+             dynamodb: AWSDynamoDBClientV2) {
             self.dynamodb = dynamodb
             self.retriesRemaining = dynamodb.retryConfiguration.numRetries
             self.input = initialInput
@@ -89,7 +89,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
         
         func getMoreResults() async throws -> OutputType {
-            let logger = self.dynamodb.reporting.logger
+            let logger = self.dynamodb.middlewareContext.logger
             
             // if there are retries remaining
             if retriesRemaining > 0 {

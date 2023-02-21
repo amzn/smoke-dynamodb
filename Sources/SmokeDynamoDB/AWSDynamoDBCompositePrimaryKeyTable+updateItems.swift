@@ -29,8 +29,8 @@ public struct AWSDynamoDBLimits {
     public static let maxStatementLength = 8192
 }
 
-private struct AWSDynamoDBPolymorphicWriteEntryTransform<InvocationReportingType: HTTPClientCoreInvocationReporting>: PolymorphicWriteEntryTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType>
+private struct AWSDynamoDBPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
+    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
 
     let statement: String
 
@@ -39,9 +39,8 @@ private struct AWSDynamoDBPolymorphicWriteEntryTransform<InvocationReportingType
     }
 }
 
-private struct AWSDynamoDBPolymorphicTransactionConstraintTransform<
-        InvocationReportingType: HTTPClientCoreInvocationReporting>: PolymorphicTransactionConstraintTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType>
+private struct AWSDynamoDBPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
 
     let statement: String
     
