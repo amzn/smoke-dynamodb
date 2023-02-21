@@ -45,7 +45,7 @@ public struct AWSDynamoDBClientConfiguration {
     public let retryConfiguration: HTTPClientRetryConfiguration
     
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                endpointHostName: String,
+                endpointHostName endpointHostNameOptional: String? = nil,
                 endpointPort: Int = 443,
                 requiresTLS: Bool? = nil,
                 service: String = "dynamodb",
@@ -57,7 +57,7 @@ public struct AWSDynamoDBClientConfiguration {
                 retryConfiguration: HTTPClientRetryConfiguration = .default) {
         self.credentialsProvider = credentialsProvider
         self.awsRegion = awsRegion
-        self.endpointHostName = endpointHostName
+        self.endpointHostName = endpointHostNameOptional ?? "dynamodb.\(awsRegion.rawValue).amazonaws.com"
         self.endpointPort = endpointPort
         self.requiresTLS = requiresTLS
         self.service = service

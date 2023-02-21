@@ -32,7 +32,7 @@ public class AWSDynamoDBTableOperationsClient {
     public let escapeSingleQuoteInPartiQL: Bool
     
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                endpointHostName: String,
+                endpointHostName endpointHostNameOptional: String? = nil,
                 endpointPort: Int = 443,
                 requiresTLS: Bool? = nil,
                 service: String = "dynamodb",
@@ -44,7 +44,7 @@ public class AWSDynamoDBTableOperationsClient {
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
                 retryConfiguration: HTTPClientRetryConfiguration = .default) {
         self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
-                                                     endpointHostName: endpointHostName,
+                                                     endpointHostName: endpointHostNameOptional,
                                                      endpointPort: endpointPort,
                                                      requiresTLS: requiresTLS,
                                                      service: service,
@@ -61,7 +61,7 @@ public class AWSDynamoDBTableOperationsClient {
     }
     
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                endpointHostName: String,
+                endpointHostName endpointHostNameOptional: String? = nil,
                 endpointPort: Int = 443,
                 requiresTLS: Bool? = nil,
                 service: String = "dynamodb",
@@ -73,7 +73,7 @@ public class AWSDynamoDBTableOperationsClient {
                 retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
         let runtimeConfig = try ClientRuntime.DefaultSDKRuntimeConfiguration("DynamoDBClient")
         self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
-                                                     endpointHostName: endpointHostName,
+                                                     endpointHostName: endpointHostNameOptional,
                                                      endpointPort: endpointPort,
                                                      requiresTLS: requiresTLS,
                                                      service: service,
