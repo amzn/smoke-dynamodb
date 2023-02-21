@@ -16,11 +16,10 @@
 //
 
 import Foundation
-import SmokeAWSCore
+import AWSCore
 import DynamoDBModel
 import SmokeHTTPClient
 import Logging
-import NIO
 import CollectionConcurrencyKit
 
 public struct AWSDynamoDBLimits {
@@ -110,51 +109,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         // doesn't require read consistency as no items are being read
         return BatchStatementRequest(consistentRead: false, statement: statement)
     }
-
-    private func writeChunkedItems<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Void> {
-        // if there are no items, there is nothing to update
-        guard entries.count > 0 else {
-            let promise = self.eventLoop.makePromise(of: Void.self)
-            promise.succeed(())
-            return promise.futureResult
-        }
-        
-        let statements: [BatchStatementRequest]
-        do {
-            statements = try entries.map { entry -> BatchStatementRequest in
-                let statement: String
-                switch entry {
-                case .update(new: let new, existing: let existing):
-                    statement = try getUpdateExpression(tableName: self.targetTableName,
-                                                        newItem: new,
-                                                        existingItem: existing)
-                case .insert(new: let new):
-                    statement = try getInsertExpression(tableName: self.targetTableName,
-                                                        newItem: new)
-                case .deleteAtKey(key: let key):
-                    statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                        existingKey: key)
-                case .deleteItem(existing: let existing):
-                    statement = try getDeleteExpression(tableName: self.targetTableName,
-                                                        existingItem: existing)
-                }
-                
-                // doesn't require read consistency as no items are being read
-                return BatchStatementRequest(consistentRead: false, statement: statement)
-            }
-        } catch {
-            let promise = self.eventLoop.makePromise(of: Void.self)
-            promise.fail(error)
-            return promise.futureResult
-        }
-        
-        let executeInput = BatchExecuteStatementInput(statements: statements)
-        
-        return dynamodb.batchExecuteStatement(input: executeInput).flatMapThrowing { response in
-            try self.throwOnBatchExecuteStatementErrors(response: response)
-        }
-    }
     
     func throwOnBatchExecuteStatementErrors(response: DynamoDBModel.BatchExecuteStatementOutput) throws {
         var errorMap: [String: Int] = [:]
@@ -187,77 +141,6 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         }
         
         throw SmokeDynamoDBError.batchErrorsReturned(errorCount: errorCount, messageMap: errorMap)
-    }
-    
-    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Void> {
-        // BatchExecuteStatement has a maximum of 25 statements
-        // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
-        let futures = chunkedEntries.map { chunk -> EventLoopFuture<Void> in
-            return writeChunkedItems(chunk)
-        }
-        
-        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
-    }
-    
-    func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
-        // if there are no items, there is nothing to update
-        
-        guard entries.count > 0 else {
-            self.logger.trace("\(entries) with count = 0")
-            let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
-            promise.succeed(Set())
-            return promise.futureResult
-        }
-        
-        do {
-            let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
-            let executeInput = BatchExecuteStatementInput(statements: statements)
-            return dynamodb.batchExecuteStatement(input: executeInput).map { result -> Set<BatchStatementErrorCodeEnum> in
-                var errorCodeSet: Set<BatchStatementErrorCodeEnum> = Set()
-                // TODO: Remove errorCodeSet and return errorSet instead
-                var errorSet: Set<BatchStatementError> = Set()
-                result.responses?.forEach { response in
-                    if let error = response.error, let code = error.code {
-                        errorCodeSet.insert(code)
-                        errorSet.insert(error)
-                    }
-                }
-
-                // if there are errors
-                if !errorSet.isEmpty {
-                    self.logger.error("Received BatchStatmentErrors from dynamodb are \(errorSet)")
-                }
-                return errorCodeSet
-            }
-        } catch {
-            let promise = self.eventLoop.makePromise(of: Set<BatchStatementErrorCodeEnum>.self)
-            promise.fail(error)
-            return promise.futureResult
-        }
-    }
-
-    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
-    -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
-        // BatchExecuteStatement has a maximum of 25 statements
-        // This function handles pagination internally.
-        let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
-
-        let futures = chunkedEntries.map { chunk in
-            return self.writeChunkedItemsWithoutThrowing(chunk)
-        }  
-
-        return EventLoopFuture.whenAllComplete(futures, on: self.eventLoop).flatMapThrowing { results in
-            var errors: Set<BatchStatementErrorCodeEnum> = Set()
-            try results.forEach { result in
-                let error = try result.get()
-                errors = errors.union(error)
-            }
-            
-            return errors
-        }
     }
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)

@@ -19,7 +19,6 @@ import Foundation
 import SmokeHTTPClient
 import Logging
 import DynamoDBModel
-import NIO
 
 internal enum AttributeDifference: Equatable {
     case update(path: String, value: String)

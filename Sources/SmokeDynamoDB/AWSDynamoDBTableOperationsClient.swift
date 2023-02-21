@@ -15,123 +15,96 @@
 // DynamoDBClient
 //
 
+import DynamoDBClient
 import DynamoDBModel
-import SmokeAWSCore
+import AWSCore
 import SmokeHTTPClient
-import SmokeAWSHttp
-import AsyncHTTPClient
+import AWSHttp
+import ClientRuntime
 
 public typealias AWSDynamoDBTableOperationsClient =
     AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>>
 
 public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: HTTPClientCoreInvocationReporting> {
-    public let config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>
+    public let wrappedOperationsClient: GenericAWSDynamoDBOperationsClient<InvocationReportingType>
     public let tableName: String
-    public let httpClient: HTTPOperationsClient
+    public let consistentRead: Bool
+    public let escapeSingleQuoteInPartiQL: Bool
     
-    public init<TraceContextType: InvocationTraceContext>(
-        tableName: String,
-        credentialsProvider: CredentialsProvider,
-        awsRegion: AWSRegion,
-        endpointHostName endpointHostNameOptional: String? = nil,
-        endpointPort: Int = 443,
-        requiresTLS: Bool? = nil,
-        service: String = "dynamodb",
-        contentType: String = "application/x-amz-json-1.0",
-        target: String? = "DynamoDB_20120810",
-        ignoreInvocationEventLoop: Bool = false,
-        traceContext: TraceContextType,
-        timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
-        retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
-        reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
-            = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
-        enableAHCLogging: Bool = false)
+    public init<TraceContextType: InvocationTraceContext>(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
+                                                          tableName: String,
+                                                          consistentRead: Bool = true,
+                                                          escapeSingleQuoteInPartiQL: Bool = false,
+                                                          endpointHostName: String,
+                                                          endpointPort: Int = 443,
+                                                          requiresTLS: Bool? = nil,
+                                                          service: String = "dynamodb",
+                                                          contentType: String = "application/x-amz-json-1.0",
+                                                          target: String? = "DynamoDB_20120810",
+                                                          traceContext: TraceContextType,
+                                                          runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
+                                                          retryConfiguration: HTTPClientRetryConfiguration = .default,
+                                                          reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                                                            = HTTPClientReportingConfiguration<DynamoDBModelOperations>() )
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.config = AWSGenericDynamoDBClientConfiguration(
+        self.wrappedOperationsClient = GenericAWSDynamoDBOperationsClient(
             credentialsProvider: credentialsProvider,
             awsRegion: awsRegion,
-            endpointHostName: endpointHostNameOptional,
+            endpointHostName: endpointHostName,
             endpointPort: endpointPort,
             requiresTLS: requiresTLS,
             service: service,
             contentType: contentType,
             target: target,
-            ignoreInvocationEventLoop: ignoreInvocationEventLoop,
             traceContext: traceContext,
-            timeoutConfiguration: timeoutConfiguration,
+            runtimeConfig: runtimeConfig,
             retryConfiguration: retryConfiguration,
-            eventLoopProvider: eventLoopProvider,
-            reportingConfiguration: reportingConfiguration,
-            connectionPoolConfiguration: connectionPoolConfiguration,
-            enableAHCLogging: enableAHCLogging)
-        self.httpClient = self.config.createHTTPOperationsClient()
+            reportingConfiguration: reportingConfiguration)
         self.tableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
     
-    public init(
-        tableName: String,
-        credentialsProvider: CredentialsProvider,
-        awsRegion: AWSRegion,
-        endpointHostName endpointHostNameOptional: String? = nil,
-        endpointPort: Int = 443,
-        requiresTLS: Bool? = nil,
-        service: String = "dynamodb",
-        contentType: String = "application/x-amz-json-1.0",
-        target: String? = "DynamoDB_20120810",
-        ignoreInvocationEventLoop: Bool = false,
-        timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
-        retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
-        reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
-            = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-        connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
-        enableAHCLogging: Bool = false)
+    public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                endpointHostName: String,
+                endpointPort: Int = 443,
+                requiresTLS: Bool? = nil,
+                service: String = "dynamodb",
+                contentType: String = "application/x-amz-json-1.0",
+                target: String? = "DynamoDB_20120810",
+                runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() )
     where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
-        self.init(tableName: tableName,
-                  credentialsProvider: credentialsProvider,
-                  awsRegion: awsRegion,
-                  endpointHostName: endpointHostNameOptional,
-                  endpointPort: endpointPort,
-                  requiresTLS: requiresTLS,
-                  service: service,
-                  contentType: contentType,
-                  target: target,
-                  ignoreInvocationEventLoop: ignoreInvocationEventLoop,
-                  traceContext: AWSClientInvocationTraceContext(),
-                  timeoutConfiguration: timeoutConfiguration,
-                  retryConfiguration: retryConfiguration,
-                  eventLoopProvider: eventLoopProvider,
-                  reportingConfiguration: reportingConfiguration,
-                  connectionPoolConfiguration: connectionPoolConfiguration,
-                  enableAHCLogging: enableAHCLogging)
-    }
-    
-    internal init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,
-                  tableName: String) {
-        self.config = config
+        self.wrappedOperationsClient = GenericAWSDynamoDBOperationsClient(
+            credentialsProvider: credentialsProvider,
+            awsRegion: awsRegion,
+            endpointHostName: endpointHostName,
+            endpointPort: endpointPort,
+            requiresTLS: requiresTLS,
+            service: service,
+            contentType: contentType,
+            target: target,
+            traceContext: AWSClientInvocationTraceContext(),
+            runtimeConfig: runtimeConfig,
+            retryConfiguration: retryConfiguration,
+            reportingConfiguration: reportingConfiguration)
         self.tableName = tableName
-        self.httpClient = self.config.createHTTPOperationsClient()
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
     
-    /**
-     Gracefully shuts down the eventloop if owned by this client.
-     This function is idempotent and will handle being called multiple
-     times. Will block until shutdown is complete.
-     */
-    public func syncShutdown() throws {
-        try httpClient.syncShutdown()
+    public init(wrappedOperationsClient: GenericAWSDynamoDBOperationsClient<InvocationReportingType>,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false) {
+        self.wrappedOperationsClient = wrappedOperationsClient
+        self.tableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
-    
-    /**
-     Gracefully shuts down the eventloop if owned by this client.
-     This function is idempotent and will handle being called multiple
-     times. Will return when shutdown is complete.
-     */
-#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
-    public func shutdown() async throws {
-        try await httpClient.shutdown()
-    }
-#endif
 }

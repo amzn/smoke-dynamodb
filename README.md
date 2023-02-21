@@ -163,8 +163,8 @@ You can then call DynamoDB Local using the following code.
 
 ```swift
 import SmokeDynamoDB
-import SmokeAWSCore
-import SmokeAWSHttp
+import AWSCore
+import AWSHttp
 import Logging
         
 let credentials = StaticCredentials(accessKeyId: "accessKeyId",

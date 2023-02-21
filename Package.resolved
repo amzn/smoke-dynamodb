@@ -6,8 +6,17 @@
         "repositoryURL": "https://github.com/swift-server/async-http-client.git",
         "state": {
           "branch": null,
-          "revision": "7f05a8da46cc2a4ab43218722298b81ac7a08031",
-          "version": "1.13.2"
+          "revision": "864c8d9e0ead5de7ba70b61c8982f89126710863",
+          "version": "1.15.0"
+        }
+      },
+      {
+        "package": "aws-crt-swift",
+        "repositoryURL": "https://github.com/awslabs/aws-crt-swift.git",
+        "state": {
+          "branch": null,
+          "revision": "6feec6c3787877807aa9a00fad09591b96752376",
+          "version": "0.6.1"
         }
       },
       {
@@ -20,30 +29,39 @@
         }
       },
       {
+        "package": "smithy-swift",
+        "repositoryURL": "https://github.com/awslabs/smithy-swift",
+        "state": {
+          "branch": null,
+          "revision": "4d843d4aed2f7223e18f0832e0f5e3ac38684a8d",
+          "version": "0.12.0"
+        }
+      },
+      {
         "package": "smoke-aws",
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
-          "branch": null,
-          "revision": "24c05c5faa12a4662584241bebee0a017c3ce9bf",
-          "version": "2.44.174"
+          "branch": "middleware",
+          "revision": "3e78cb4e993b6632d22b025a5ac0a0de367af44c",
+          "version": null
         }
       },
       {
         "package": "smoke-aws-support",
         "repositoryURL": "https://github.com/amzn/smoke-aws-support.git",
         "state": {
-          "branch": null,
-          "revision": "7bdcbdb7b01bf54dfbdeb99d38d8e6edd6a560c1",
-          "version": "1.1.0"
+          "branch": "initial_middleware",
+          "revision": "005ffc88438cd3f574d4991f96950e8880ad9723",
+          "version": null
         }
       },
       {
         "package": "smoke-http",
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
-          "branch": null,
-          "revision": "77c629dc155170e15cb845ac9504355744328204",
-          "version": "2.17.1"
+          "branch": "smoke_http_middleware",
+          "revision": "8736aa8dfcf679cb4fc21b7bfae5b472356948a0",
+          "version": null
         }
       },
       {
@@ -92,6 +110,15 @@
         }
       },
       {
+        "package": "swift-middleware",
+        "repositoryURL": "https://github.com/tachyonics/swift-middleware",
+        "state": {
+          "branch": "static_poc_2",
+          "revision": "f582c2d4463cb0114093590d0ecb6d79f16e00d4",
+          "version": null
+        }
+      },
+      {
         "package": "swift-nio",
         "repositoryURL": "https://github.com/apple/swift-nio.git",
         "state": {
@@ -114,8 +141,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-http2.git",
         "state": {
           "branch": null,
-          "revision": "22757ac305f3d44d2b99ba541193ff1d64e77d00",
-          "version": "1.24.1"
+          "revision": "8dcda6828844022028025241e4e7d52cbbe250de",
+          "version": "1.25.0"
         }
       },
       {
@@ -134,6 +161,15 @@
           "branch": null,
           "revision": "c0d9a144cfaec8d3d596aadde3039286a266c15c",
           "version": "1.15.0"
+        }
+      },
+      {
+        "package": "XMLCoder",
+        "repositoryURL": "https://github.com/MaxDesiatov/XMLCoder.git",
+        "state": {
+          "branch": null,
+          "revision": "c438dad94f6a243b411b70a4b4bac54595064808",
+          "version": "0.15.0"
         }
       },
       {
