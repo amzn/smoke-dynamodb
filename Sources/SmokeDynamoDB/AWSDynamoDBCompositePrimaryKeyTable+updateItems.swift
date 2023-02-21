@@ -21,6 +21,7 @@ import DynamoDBModel
 import SmokeHTTPClient
 import Logging
 import CollectionConcurrencyKit
+import AWSMiddleware
 
 public struct AWSDynamoDBLimits {
     // BatchExecuteStatement has a maximum of 25 statements
@@ -29,8 +30,8 @@ public struct AWSDynamoDBLimits {
     public static let maxStatementLength = 8192
 }
 
-private struct AWSDynamoDBPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
+private struct AWSDynamoDBPolymorphicWriteEntryTransform<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>: PolymorphicWriteEntryTransform {
+    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType>
 
     let statement: String
 
@@ -39,8 +40,9 @@ private struct AWSDynamoDBPolymorphicWriteEntryTransform: PolymorphicWriteEntryT
     }
 }
 
-private struct AWSDynamoDBPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
+private struct AWSDynamoDBPolymorphicTransactionConstraintTransform<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>:
+PolymorphicTransactionConstraintTransform {
+    typealias TableType = GenericAWSDynamoDBCompositePrimaryKeyTable<MiddlewareStackType>
 
     let statement: String
     
@@ -51,7 +53,7 @@ private struct AWSDynamoDBPolymorphicTransactionConstraintTransform: Polymorphic
 }
 
 /// DynamoDBTable conformance updateItems function
-public extension AWSDynamoDBCompositePrimaryKeyTable {
+public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
     
     func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
         

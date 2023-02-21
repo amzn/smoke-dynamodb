@@ -23,11 +23,14 @@ import AWSCore
 import AWSHttp
 import SmokeHTTPClient
 import ClientRuntime
+import AWSMiddleware
 
-public struct AWSDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
-    internal let dynamodb: AWSDynamoDBClientV2
-    internal let targetTableName: String
-    internal let logger: Logger
+public typealias AWSDynamoDBCompositePrimaryKeysProjection = GenericAWSDynamoDBCompositePrimaryKeysProjection<AWSHTTPMiddlewareStack<DynamoDBError>>
+
+public class GenericAWSDynamoDBCompositePrimaryKeysProjection<MiddlewareStackType: AWSHTTPMiddlewareStackProtocol>: DynamoDBCompositePrimaryKeysProjection {
+    public let dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>
+    public let targetTableName: String
+    public let logger: Logger
 
     internal class QueryPaginationResults<AttributesType: PrimaryKeyAttributes> {
         var items: [CompositePrimaryKey<AttributesType>] = []
@@ -45,14 +48,14 @@ public struct AWSDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimar
                 target: String? = "DynamoDB_20120810",
                 tableName: String,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
-                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() ) throws {
+                retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
         self.logger = logger
-        self.dynamodb = try AWSDynamoDBClientV2(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
-                                                endpointHostName: endpointHostName, endpointPort: endpointPort,
-                                                requiresTLS: requiresTLS, service: service,
-                                                contentType: contentType, target: target, logger: logger)
+        self.dynamodb = try GenericAWSDynamoDBClientV2<MiddlewareStackType>(
+            credentialsProvider: credentialsProvider, awsRegion: awsRegion,
+            endpointHostName: endpointHostName, endpointPort: endpointPort,
+            requiresTLS: requiresTLS, service: service,
+            contentType: contentType, target: target, logger: logger,
+            retryConfiguration: retryConfiguration)
         self.targetTableName = tableName
 
         self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")

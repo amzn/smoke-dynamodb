@@ -25,7 +25,7 @@ import Logging
 private let maximumUpdatesPerExecuteStatement = 25
 
 /// DynamoDBTable conformance updateItems function
-public extension AWSDynamoDBCompositePrimaryKeyTable {
+public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     private func deleteChunkedItems<AttributesType>(_ keys: [CompositePrimaryKey<AttributesType>]) async throws {

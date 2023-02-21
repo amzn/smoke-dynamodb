@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import Logging
 
 /// DynamoDBTable conformance async functions
-public extension AWSDynamoDBCompositePrimaryKeyTable {
+public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {

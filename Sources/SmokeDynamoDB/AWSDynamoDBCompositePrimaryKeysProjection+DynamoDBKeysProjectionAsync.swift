@@ -22,7 +22,7 @@ import SmokeHTTPClient
 import Logging
 
 /// DynamoDBKeysProjection conformance async functions
-public extension AWSDynamoDBCompositePrimaryKeysProjection {
+public extension GenericAWSDynamoDBCompositePrimaryKeysProjection {
     
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     func query<AttributesType>(forPartitionKey partitionKey: String,

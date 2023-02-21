@@ -25,7 +25,7 @@ import Logging
 private let maximumKeysPerExecuteStatement = 50
 
 /// DynamoDBTable conformance execute function
-public extension AWSDynamoDBCompositePrimaryKeyTable {
+public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
     
     private func getStatement(partitionKeys: [String],
                               attributesFilter: [String]?,

@@ -28,7 +28,7 @@ private let maximumKeysPerGetItemBatch = 100
 private let millisecondsToNanoSeconds: UInt64 = 1000000
 
 /// DynamoDBTable conformance getItems function
-public extension AWSDynamoDBCompositePrimaryKeyTable {
+public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
  
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     /**
@@ -41,14 +41,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     private class GetItemsRetriable<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType> {
         typealias OutputType = [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]
         
-        let dynamodb: AWSDynamoDBClientV2
+        let dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>
                 
         var retriesRemaining: Int
         var input: BatchGetItemInput
         var outputItems: OutputType = [:]
         
         init(initialInput: BatchGetItemInput,
-             dynamodb: AWSDynamoDBClientV2) {
+             dynamodb: GenericAWSDynamoDBClientV2<MiddlewareStackType>) {
             self.dynamodb = dynamodb
             self.retriesRemaining = dynamodb.retryConfiguration.numRetries
             self.input = initialInput

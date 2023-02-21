@@ -15,96 +15,88 @@
 // DynamoDBClient
 //
 
-import DynamoDBClient
 import DynamoDBModel
-import AWSCore
+import SmokeAWSCore
 import SmokeHTTPClient
-import AWSHttp
+import SmokeAWSHttp
+import AsyncHTTPClient
 import ClientRuntime
-/*
-public typealias AWSDynamoDBTableOperationsClient =
-    AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>>
+import DynamoDBClient
+import SmokeHTTPMiddleware
 
-public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: HTTPClientCoreInvocationReporting> {
-    public let wrappedOperationsClient: GenericAWSDynamoDBOperationsClient<InvocationReportingType>
+public class AWSDynamoDBTableOperationsClient {
+    public let httpClientEngine: SmokeHTTPClientEngine
+    public let config: AWSDynamoDBClientConfiguration
     public let tableName: String
     public let consistentRead: Bool
     public let escapeSingleQuoteInPartiQL: Bool
     
-    public init<TraceContextType: InvocationTraceContext>(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                                                          tableName: String,
-                                                          consistentRead: Bool = true,
-                                                          escapeSingleQuoteInPartiQL: Bool = false,
-                                                          endpointHostName: String,
-                                                          endpointPort: Int = 443,
-                                                          requiresTLS: Bool? = nil,
-                                                          service: String = "dynamodb",
-                                                          contentType: String = "application/x-amz-json-1.0",
-                                                          target: String? = "DynamoDB_20120810",
-                                                          traceContext: TraceContextType,
-                                                          runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                                                          retryConfiguration: HTTPClientRetryConfiguration = .default,
-                                                          reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
-                                                            = HTTPClientReportingConfiguration<DynamoDBModelOperations>() )
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.wrappedOperationsClient = GenericAWSDynamoDBOperationsClient(
-            credentialsProvider: credentialsProvider,
-            awsRegion: awsRegion,
-            endpointHostName: endpointHostName,
-            endpointPort: endpointPort,
-            requiresTLS: requiresTLS,
-            service: service,
-            contentType: contentType,
-            target: target,
-            traceContext: traceContext,
-            runtimeConfig: runtimeConfig,
-            retryConfiguration: retryConfiguration,
-            reportingConfiguration: reportingConfiguration)
-        self.tableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-    }
-    
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
-                tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
                 endpointHostName: String,
                 endpointPort: Int = 443,
                 requiresTLS: Bool? = nil,
                 service: String = "dynamodb",
                 contentType: String = "application/x-amz-json-1.0",
                 target: String? = "DynamoDB_20120810",
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
-                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>() )
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
-        self.wrappedOperationsClient = GenericAWSDynamoDBOperationsClient(
-            credentialsProvider: credentialsProvider,
-            awsRegion: awsRegion,
-            endpointHostName: endpointHostName,
-            endpointPort: endpointPort,
-            requiresTLS: requiresTLS,
-            service: service,
-            contentType: contentType,
-            target: target,
-            traceContext: AWSClientInvocationTraceContext(),
-            runtimeConfig: runtimeConfig,
-            retryConfiguration: retryConfiguration,
-            reportingConfiguration: reportingConfiguration)
+                retryConfiguration: HTTPClientRetryConfiguration = .default) {
+        self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
+                                                     endpointHostName: endpointHostName,
+                                                     endpointPort: endpointPort,
+                                                     requiresTLS: requiresTLS,
+                                                     service: service,
+                                                     contentType: contentType,
+                                                     target: target,
+                                                     consistentRead: consistentRead,
+                                                     escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
+                                                     runtimeConfig: runtimeConfig,
+                                                     retryConfiguration: retryConfiguration)
+        self.httpClientEngine = SmokeHTTPClientEngine(runtimeConfig: runtimeConfig)
         self.tableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
     
-    public init(wrappedOperationsClient: GenericAWSDynamoDBOperationsClient<InvocationReportingType>,
+    public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
+                endpointHostName: String,
+                endpointPort: Int = 443,
+                requiresTLS: Bool? = nil,
+                service: String = "dynamodb",
+                contentType: String = "application/x-amz-json-1.0",
+                target: String? = "DynamoDB_20120810",
                 tableName: String,
                 consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false) {
-        self.wrappedOperationsClient = wrappedOperationsClient
+                escapeSingleQuoteInPartiQL: Bool = false,
+                retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
+        let runtimeConfig = try ClientRuntime.DefaultSDKRuntimeConfiguration("DynamoDBClient")
+        self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
+                                                     endpointHostName: endpointHostName,
+                                                     endpointPort: endpointPort,
+                                                     requiresTLS: requiresTLS,
+                                                     service: service,
+                                                     contentType: contentType,
+                                                     target: target,
+                                                     consistentRead: consistentRead,
+                                                     escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
+                                                     runtimeConfig: runtimeConfig,
+                                                     retryConfiguration: retryConfiguration)
+        self.httpClientEngine = SmokeHTTPClientEngine(runtimeConfig: runtimeConfig)
         self.tableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
-}*/
+    
+    public init(config: AWSDynamoDBClientConfiguration,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false) {
+        self.config = config
+        self.httpClientEngine = SmokeHTTPClientEngine(runtimeConfig: config.runtimeConfig)
+        self.tableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+    }
+}
