@@ -49,14 +49,17 @@ public class GenericAWSDynamoDBCompositePrimaryKeysProjection<StackType: JSONPay
                 target: String? = "DynamoDB_20120810",
                 tableName: String,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) throws {
         self.logger = logger
         self.dynamodb = try GenericAWSDynamoDBClientV2(
             credentialsProvider: credentialsProvider, awsRegion: awsRegion,
             endpointHostName: endpointHostName, endpointPort: endpointPort,
             requiresTLS: requiresTLS, service: service,
             contentType: contentType, target: target, logger: logger,
-            retryConfiguration: retryConfiguration)
+            retryConfiguration: retryConfiguration,
+            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
 
         self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")

@@ -48,14 +48,17 @@ public class GenericAWSDynamoDBCompositePrimaryKeyTable<StackType: JSONPayloadTr
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) throws {
         self.logger = logger
         self.dynamodb = try GenericAWSDynamoDBClientV2(
             credentialsProvider: credentialsProvider, awsRegion: awsRegion,
             endpointHostName: endpointHostName, endpointPort: endpointPort,
             requiresTLS: requiresTLS, service: service,
             contentType: contentType, target: target, logger: logger,
-            retryConfiguration: retryConfiguration)
+            retryConfiguration: retryConfiguration,
+            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL

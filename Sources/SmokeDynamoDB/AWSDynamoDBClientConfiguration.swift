@@ -44,6 +44,8 @@ public struct AWSDynamoDBClientConfiguration {
     public let runtimeConfig: ClientRuntime.SDKRuntimeConfiguration
     public let retryConfiguration: HTTPClientRetryConfiguration
     
+    public let reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+    
     public init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
                 endpointHostName endpointHostNameOptional: String? = nil,
                 endpointPort: Int = 443,
@@ -54,7 +56,9 @@ public struct AWSDynamoDBClientConfiguration {
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default) {
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) {
         self.credentialsProvider = credentialsProvider
         self.awsRegion = awsRegion
         self.endpointHostName = endpointHostNameOptional ?? "dynamodb.\(awsRegion.rawValue).amazonaws.com"
@@ -67,6 +71,7 @@ public struct AWSDynamoDBClientConfiguration {
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
         self.runtimeConfig = runtimeConfig
         self.retryConfiguration = retryConfiguration
+        self.reportingConfiguration = reportingConfiguration
     }
     
     internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol>(logger: Logger) throws
@@ -76,7 +81,8 @@ public struct AWSDynamoDBClientConfiguration {
             endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
             requiresTLS: self.requiresTLS, service: self.service,
             contentType: self.contentType, target: self.target, logger: logger,
-            retryConfiguration: self.retryConfiguration)
+            retryConfiguration: self.retryConfiguration,
+            reportingConfiguration: self.reportingConfiguration)
     }
     
     internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol,
@@ -87,7 +93,8 @@ public struct AWSDynamoDBClientConfiguration {
             endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
             requiresTLS: self.requiresTLS, service: self.service,
             contentType: self.contentType, target: self.target, invocationAttributes: invocationAttributes,
-            retryConfiguration: self.retryConfiguration)
+            retryConfiguration: self.retryConfiguration,
+            reportingConfiguration: self.reportingConfiguration)
     }
     
     internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol>(logger: Logger,
@@ -100,7 +107,8 @@ public struct AWSDynamoDBClientConfiguration {
             requiresTLS: self.requiresTLS, service: self.service,
             contentType: self.contentType, target: self.target, logger: logger,
             retryConfiguration: self.retryConfiguration, runtimeConfig: runtimeConfig,
-            httpClientEngine: httpClientEngine)
+            httpClientEngine: httpClientEngine,
+            reportingConfiguration: self.reportingConfiguration)
     }
     
     internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol,
@@ -114,6 +122,7 @@ public struct AWSDynamoDBClientConfiguration {
             requiresTLS: self.requiresTLS, service: self.service,
             contentType: self.contentType, target: self.target, invocationAttributes: invocationAttributes,
             retryConfiguration: self.retryConfiguration, runtimeConfig: self.runtimeConfig,
-            httpClientEngine: httpClientEngine)
+            httpClientEngine: httpClientEngine,
+            reportingConfiguration: self.reportingConfiguration)
     }
 }

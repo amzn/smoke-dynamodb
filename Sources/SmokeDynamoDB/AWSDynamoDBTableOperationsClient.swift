@@ -42,7 +42,9 @@ public class AWSDynamoDBTableOperationsClient {
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
                 runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
-                retryConfiguration: HTTPClientRetryConfiguration = .default) {
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) {
         self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
                                                      endpointHostName: endpointHostNameOptional,
                                                      endpointPort: endpointPort,
@@ -53,7 +55,8 @@ public class AWSDynamoDBTableOperationsClient {
                                                      consistentRead: consistentRead,
                                                      escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
                                                      runtimeConfig: runtimeConfig,
-                                                     retryConfiguration: retryConfiguration)
+                                                     retryConfiguration: retryConfiguration,
+                                                     reportingConfiguration: reportingConfiguration)
         self.httpClientEngine = SmokeHTTPClientEngine(runtimeConfig: runtimeConfig)
         self.tableName = tableName
         self.consistentRead = consistentRead
@@ -70,7 +73,9 @@ public class AWSDynamoDBTableOperationsClient {
                 tableName: String,
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
-                retryConfiguration: HTTPClientRetryConfiguration = .default) throws {
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                reportingConfiguration: HTTPClientReportingConfiguration<DynamoDBModelOperations>
+                    = HTTPClientReportingConfiguration<DynamoDBModelOperations>()) throws {
         let runtimeConfig = try ClientRuntime.DefaultSDKRuntimeConfiguration("DynamoDBClient")
         self.config = AWSDynamoDBClientConfiguration(credentialsProvider: credentialsProvider, awsRegion: awsRegion,
                                                      endpointHostName: endpointHostNameOptional,
@@ -82,7 +87,8 @@ public class AWSDynamoDBTableOperationsClient {
                                                      consistentRead: consistentRead,
                                                      escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
                                                      runtimeConfig: runtimeConfig,
-                                                     retryConfiguration: retryConfiguration)
+                                                     retryConfiguration: retryConfiguration,
+                                                     reportingConfiguration: reportingConfiguration)
         self.httpClientEngine = SmokeHTTPClientEngine(runtimeConfig: runtimeConfig)
         self.tableName = tableName
         self.consistentRead = consistentRead
