@@ -79,7 +79,19 @@ public struct AWSDynamoDBClientConfiguration {
             retryConfiguration: self.retryConfiguration)
     }
     
+    internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol,
+                               InvocationAttributesType: HTTPClientInvocationAttributes>(invocationAttributes: InvocationAttributesType) throws
+    -> GenericAWSDynamoDBClientV2<StackType> {
+        return try GenericAWSDynamoDBClientV2(
+            credentialsProvider: self.credentialsProvider, awsRegion: self.awsRegion,
+            endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
+            requiresTLS: self.requiresTLS, service: self.service,
+            contentType: self.contentType, target: self.target, invocationAttributes: invocationAttributes,
+            retryConfiguration: self.retryConfiguration)
+    }
+    
     internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol>(logger: Logger,
+                                                                             runtimeConfig: ClientRuntime.SDKRuntimeConfiguration,
                                                                              httpClientEngine: SmokeHTTPClientEngine)
     -> GenericAWSDynamoDBClientV2<StackType> {
         return GenericAWSDynamoDBClientV2(
@@ -87,7 +99,21 @@ public struct AWSDynamoDBClientConfiguration {
             endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
             requiresTLS: self.requiresTLS, service: self.service,
             contentType: self.contentType, target: self.target, logger: logger,
-            retryConfiguration: self.retryConfiguration,
+            retryConfiguration: self.retryConfiguration, runtimeConfig: runtimeConfig,
+            httpClientEngine: httpClientEngine)
+    }
+    
+    internal func getAWSClient<StackType: JSONPayloadTransformStackProtocol,
+                               InvocationAttributesType: HTTPClientInvocationAttributes>(
+        invocationAttributes: InvocationAttributesType,
+        httpClientEngine: SmokeHTTPClientEngine)
+    -> GenericAWSDynamoDBClientV2<StackType> {
+        return GenericAWSDynamoDBClientV2(
+            credentialsProvider: self.credentialsProvider, awsRegion: self.awsRegion,
+            endpointHostName: self.endpointHostName, endpointPort: self.endpointPort,
+            requiresTLS: self.requiresTLS, service: self.service,
+            contentType: self.contentType, target: self.target, invocationAttributes: invocationAttributes,
+            retryConfiguration: self.retryConfiguration, runtimeConfig: self.runtimeConfig,
             httpClientEngine: httpClientEngine)
     }
 }

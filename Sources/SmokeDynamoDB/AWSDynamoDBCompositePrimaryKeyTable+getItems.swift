@@ -50,7 +50,7 @@ public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
         init(initialInput: BatchGetItemInput,
              dynamodb: GenericAWSDynamoDBClientV2<StackType>) {
             self.dynamodb = dynamodb
-            self.retriesRemaining = dynamodb.retryConfiguration.numRetries
+            self.retriesRemaining = dynamodb.middlewareInitContext.retryConfiguration.numRetries
             self.input = initialInput
         }
         
@@ -90,11 +90,12 @@ public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
         
         func getMoreResults() async throws -> OutputType {
             let logger = self.dynamodb.middlewareContext.logger
+            let retryConfiguration = dynamodb.middlewareInitContext.retryConfiguration
             
             // if there are retries remaining
             if retriesRemaining > 0 {
                 // determine the required interval
-                let retryInterval = Int(self.dynamodb.retryConfiguration.getRetryInterval(retriesRemaining: retriesRemaining))
+                let retryInterval = Int(retryConfiguration.getRetryInterval(retriesRemaining: retriesRemaining))
                 
                 let currentRetriesRemaining = retriesRemaining
                 retriesRemaining -= 1
@@ -109,7 +110,7 @@ public extension GenericAWSDynamoDBCompositePrimaryKeyTable {
                 return try await batchGetItem()
             }
             
-            throw SmokeDynamoDBError.batchAPIExceededRetries(retryCount: self.dynamodb.retryConfiguration.numRetries)
+            throw SmokeDynamoDBError.batchAPIExceededRetries(retryCount: retryConfiguration.numRetries)
         }
     }
     

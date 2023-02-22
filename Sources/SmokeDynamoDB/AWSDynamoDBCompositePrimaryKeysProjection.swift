@@ -73,13 +73,39 @@ public class GenericAWSDynamoDBCompositePrimaryKeysProjection<StackType: JSONPay
         self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
     }
     
+    public init<InvocationAttributesType: HTTPClientInvocationAttributes>(
+                config: AWSDynamoDBClientConfiguration,
+                invocationAttributes: InvocationAttributesType,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false) throws {
+        self.logger = invocationAttributes.logger
+        self.dynamodb = try config.getAWSClient(invocationAttributes: invocationAttributes)
+        self.targetTableName = tableName
+
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+    }
+    
     public init(operationsClient: AWSDynamoDBTableOperationsClient,
                 logger: Logging.Logger = Logger(label: "DynamoDBClient"),
                 internalRequestId: String = "none") {
         let config = operationsClient.config
         
         self.logger = logger
-        self.dynamodb = config.getAWSClient(logger: logger,
+        self.dynamodb = config.getAWSClient(logger: logger, runtimeConfig: config.runtimeConfig,
+                                            httpClientEngine: operationsClient.httpClientEngine)
+        self.targetTableName = operationsClient.tableName
+
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeysProjection created with region '\(config.awsRegion)' and hostname: '\(config.endpointHostName)'")
+    }
+    
+    public init<InvocationAttributesType: HTTPClientInvocationAttributes>(
+                operationsClient: AWSDynamoDBTableOperationsClient,
+                invocationAttributes: InvocationAttributesType) throws {
+        let config = operationsClient.config
+        
+        self.logger = invocationAttributes.logger
+        self.dynamodb = config.getAWSClient(invocationAttributes: invocationAttributes,
                                             httpClientEngine: operationsClient.httpClientEngine)
         self.targetTableName = operationsClient.tableName
 
