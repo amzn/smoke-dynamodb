@@ -101,7 +101,7 @@ public class GenericAWSDynamoDBCompositePrimaryKeysProjection<StackType: JSONPay
     
     public init<InvocationAttributesType: HTTPClientInvocationAttributes>(
                 operationsClient: AWSDynamoDBTableOperationsClient,
-                invocationAttributes: InvocationAttributesType) throws {
+                invocationAttributes: InvocationAttributesType) {
         let config = operationsClient.config
         
         self.logger = invocationAttributes.logger

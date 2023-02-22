@@ -110,7 +110,7 @@ public class GenericAWSDynamoDBCompositePrimaryKeyTable<StackType: JSONPayloadTr
     
     public init<InvocationAttributesType: HTTPClientInvocationAttributes>(
                 operationsClient: AWSDynamoDBTableOperationsClient,
-                invocationAttributes: InvocationAttributesType) throws {
+                invocationAttributes: InvocationAttributesType) {
         let config = operationsClient.config
         
         self.logger = invocationAttributes.logger
