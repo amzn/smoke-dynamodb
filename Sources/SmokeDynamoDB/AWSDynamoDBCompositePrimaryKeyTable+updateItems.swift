@@ -23,6 +23,8 @@ import Logging
 import NIO
 import CollectionConcurrencyKit
 
+private let millisecondsToNanoSeconds: UInt64 = 1000000
+
 public struct AWSDynamoDBLimits {
     // BatchExecuteStatement has a maximum of 25 statements
     public static let maximumUpdatesPerExecuteStatement = 25
@@ -299,6 +301,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func transactWrite<WriteEntryType: PolymorphicWriteEntry,
                        TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
+        return try await transactWrite(entries, constraints: constraints, retriesRemaining: dynamodb.retryConfiguration.numRetries)
+    }
+    
+    private func transactWrite<WriteEntryType: PolymorphicWriteEntry,
+                               TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+                        retriesRemaining: Int) async throws {
         let entryCount = entries.count + constraints.count
             
         if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
@@ -306,8 +315,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                              maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
         }
         
+        let result: Swift.Result<Void, SmokeDynamoDBError>
         do {
             try await self.writeTransactionItems(entries, constraints: constraints)
+            
+            result = .success(())
         } catch DynamoDBError.transactionCanceled(let exception) {
             guard let cancellationReasons = exception.cancellationReasons else {
                 throw SmokeDynamoDBError.transactionCanceled(reasons: [])
@@ -315,6 +327,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             
             let keys = entries.map { $0.compositePrimaryKey } + constraints.map { $0.compositePrimaryKey }
             
+            var isTransactionConflict = false
             let reasons = try zip(cancellationReasons, keys).compactMap { (cancellationReason, entryKey) -> SmokeDynamoDBError? in
                 let key: StandardCompositePrimaryKey?
                 if let item = cancellationReason.item {
@@ -341,6 +354,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                     return SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
                                                                       maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
                 case "TransactionConflict":
+                    isTransactionConflict = true
+                    
                     return SmokeDynamoDBError.transactionConflict(message: cancellationReason.message)
 
                 case "ProvisionedThroughputExceeded":
@@ -356,12 +371,45 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                 }
             }
             
-            throw SmokeDynamoDBError.transactionCanceled(reasons: reasons)
+            if isTransactionConflict && retriesRemaining > 0 {
+                return try await retryTransactWrite(entries, constraints: constraints, retriesRemaining: retriesRemaining)
+            }
+            
+            result = .failure(SmokeDynamoDBError.transactionCanceled(reasons: reasons))
         } catch DynamoDBError.transactionConflict(let exception) {
+            if retriesRemaining > 0 {
+                return try await retryTransactWrite(entries, constraints: constraints, retriesRemaining: retriesRemaining)
+            }
+            
             let reason = SmokeDynamoDBError.transactionConflict(message: exception.message)
             
-            throw SmokeDynamoDBError.transactionCanceled(reasons: [reason])
+            result = .failure(SmokeDynamoDBError.transactionCanceled(reasons: [reason]))
         }
+                            
+        let retryCount = self.dynamodb.retryConfiguration.numRetries - retriesRemaining
+        self.tableMetrics.transactWriteRetryCountRecorder?.record(retryCount)
+                            
+        switch result {
+        case .success:
+            return
+        case .failure(let failure):
+            throw failure
+        }
+    }
+    
+    private func retryTransactWrite<WriteEntryType: PolymorphicWriteEntry,
+                                    TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+                        retriesRemaining: Int) async throws {
+        // determine the required interval
+        let retryInterval = Int(self.dynamodb.retryConfiguration.getRetryInterval(retriesRemaining: retriesRemaining))
+                
+        logger.warning(
+            "Transaction retried due to conflict. Remaining retries: \(retriesRemaining). Retrying in \(retryInterval) ms.")
+        try await Task.sleep(nanoseconds: UInt64(retryInterval) * millisecondsToNanoSeconds)
+                
+        logger.trace("Reattempting request due to remaining retries: \(retryInterval)")
+        return try await transactWrite(entries, constraints: constraints, retriesRemaining: retriesRemaining - 1)
     }
     
     private func writeChunkedItems<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws
