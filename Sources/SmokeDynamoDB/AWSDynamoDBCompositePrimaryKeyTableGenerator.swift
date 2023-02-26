@@ -104,7 +104,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType,
-            tableMetrics: TableMetrics = .init()) -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
         return AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
             targetTableName: self.targetTableName,
@@ -118,7 +119,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
             internalRequestId: String = "none",
             traceContext: NewTraceContextType,
             eventLoop: EventLoop? = nil,
-            tableMetrics: TableMetrics = .init()) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
@@ -132,7 +134,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
             logger: Logging.Logger,
             internalRequestId: String = "none",
             eventLoop: EventLoop? = nil,
-            tableMetrics: TableMetrics = .init()) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
