@@ -295,13 +295,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     
     func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
         let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
-        return try await transactWrite(entries, constraints: noConstraints)
+        return try await transactWrite(entries, constraints: noConstraints,
+                                       retriesRemaining: self.dynamodb.retryConfiguration.numRetries)
     }
     
     func transactWrite<WriteEntryType: PolymorphicWriteEntry,
                        TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
-        return try await transactWrite(entries, constraints: constraints, retriesRemaining: dynamodb.retryConfiguration.numRetries)
+        return try await transactWrite(entries, constraints: constraints,
+                                       retriesRemaining: self.dynamodb.retryConfiguration.numRetries)
     }
     
     private func transactWrite<WriteEntryType: PolymorphicWriteEntry,
