@@ -103,38 +103,45 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     #endif
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
-            reporting: NewInvocationReportingType) -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
+            reporting: NewInvocationReportingType,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
         return AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
             targetTableName: self.targetTableName,
             escapeSingleQuoteInPartiQL: self.escapeSingleQuoteInPartiQL,
-            logger: reporting.logger)
+            logger: reporting.logger,
+            tableMetrics: tableMetrics)
     }
     
     public func with<NewTraceContextType: InvocationTraceContext>(
             logger: Logging.Logger,
             internalRequestId: String = "none",
             traceContext: NewTraceContextType,
-            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+            eventLoop: EventLoop? = nil,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
             traceContext: traceContext,
             eventLoop: eventLoop)
 
-        return with(reporting: reporting)
+        return with(reporting: reporting, tableMetrics: tableMetrics)
     }
 
     public func with(
             logger: Logging.Logger,
             internalRequestId: String = "none",
-            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+            eventLoop: EventLoop? = nil,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
             traceContext: AWSClientInvocationTraceContext(),
             eventLoop: eventLoop)
 
-        return with(reporting: reporting)
+        return with(reporting: reporting, tableMetrics: tableMetrics)
     }
 }
