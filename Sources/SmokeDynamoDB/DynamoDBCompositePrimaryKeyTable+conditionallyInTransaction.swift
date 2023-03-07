@@ -60,8 +60,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func conditionallyUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
                                     ContextType, WriteEntryType: PolymorphicWriteEntry>(
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
-        withRetries retries: Int = 10,
-        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        withRetries retries: Int = 10, context: ContextType?,
+        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType?) async throws
             -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: ContextType),
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType) async throws
@@ -74,7 +74,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: context,
             updatedItemProvider: updatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
@@ -112,7 +112,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType]) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await updatedItemProvider(item)
             
@@ -131,7 +131,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             updatedItemProvider: innerUpdatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: innerAdditionalEntriesProvider,
@@ -168,7 +168,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await updatedItemProvider(item)
             
@@ -187,7 +187,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             updatedItemProvider: innerUpdatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
@@ -221,8 +221,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                     ContextType, WriteEntryType: PolymorphicWriteEntry,
                                     TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
-        withRetries retries: Int = 10,
-        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        withRetries retries: Int = 10, context: ContextType?,
+        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType?) async throws
             -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: ContextType),
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType) async throws
@@ -244,21 +244,21 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                                             message: "Item not present in database.")
         }
         
-        let (updatedDatabaseItem, context) = try await updatedItemProvider(databaseItem)
+        let (updatedDatabaseItem, updatedContext) = try await updatedItemProvider(databaseItem, context)
             
         let entries: [WriteEntryType]
         let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .update(new: updatedDatabaseItem, existing: databaseItem)
         let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
         
-        let additionalEntries = try await additionalEntriesProvider(updatedDatabaseItem, context)
-        let constraints = try await constraintsProvider(updatedDatabaseItem, context)
+        let additionalEntries = try await additionalEntriesProvider(updatedDatabaseItem, updatedContext)
+        let constraints = try await constraintsProvider(updatedDatabaseItem, updatedContext)
         
         entries = [typedPrimaryWriteEntry] + additionalEntries
             
         do {
             try await transactWrite(entries, constraints: constraints)
             
-            return (updatedDatabaseItem, context)
+            return (updatedDatabaseItem, updatedContext)
         } catch SmokeDynamoDBError.transactionCanceled(let reasons) {
             let failureState: ConditionalTransactionFailureState = reasons.reduce(.unknown) { partialResult, error in
                 switch error {
@@ -283,7 +283,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             case .primaryItemFailureOnly:
                 // try again
                 return try await conditionallyUpdateItemInTransaction(
-                    forKey: key, withRetries: retries - 1,
+                    forKey: key, withRetries: retries - 1, context: updatedContext,
                     updatedItemProvider: updatedItemProvider,
                     primaryWriteEntryProvider: primaryWriteEntryProvider,
                     additionalEntriesProvider: additionalEntriesProvider,
@@ -331,7 +331,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         constraintsProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
             -> [TransactionConstraintEntryType]) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await updatedItemProvider(item)
             
@@ -350,7 +350,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             updatedItemProvider: innerUpdatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: innerAdditionalEntriesProvider,
@@ -390,7 +390,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        func innerUpdatedItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await updatedItemProvider(item)
             
@@ -409,7 +409,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             updatedItemProvider: innerUpdatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
@@ -438,8 +438,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func conditionallyInsertOrUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
                                                       ContextType, WriteEntryType: PolymorphicWriteEntry>(
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
-        withRetries retries: Int = 10,
-        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?) async throws
+        withRetries retries: Int = 10, context: ContextType?,
+        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, ContextType?) async throws
             -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: ContextType),
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType) async throws -> [WriteEntryType]) async throws
@@ -451,7 +451,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: context,
             primaryItemProvider: primaryItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
@@ -486,7 +486,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType]) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?) async throws
+        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await primaryItemProvider(item)
             
@@ -505,7 +505,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             primaryItemProvider: innerPrimaryItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: innerAdditionalEntriesProvider,
@@ -539,7 +539,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?) async throws
+        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await primaryItemProvider(item)
             
@@ -558,7 +558,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             primaryItemProvider: innerPrimaryItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
@@ -589,8 +589,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                     ContextType, WriteEntryType: PolymorphicWriteEntry,
                                     TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
-        withRetries retries: Int = 10,
-        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?) async throws
+        withRetries retries: Int = 10, context: ContextType?,
+        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, ContextType?) async throws
             -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: ContextType),
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
         additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, ContextType) async throws -> [WriteEntryType],
@@ -605,24 +605,24 @@ public extension DynamoDBCompositePrimaryKeyTable {
                                         
         let existingItemOptional: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>? = try await getItem(forKey: key)
             
-        let context: ContextType
+        let updatedContext: ContextType
         let entries: [WriteEntryType]
         let updatedPrimaryItem: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>
         let constraints: [TransactionConstraintEntryType]
         if let existingItem = existingItemOptional {
-            let (newItem, newContext) = try await primaryItemProvider(existingItem)
+            let (newItem, newContext) = try await primaryItemProvider(existingItem, context)
             
             let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .update(new: newItem, existing: existingItem)
             let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
             
             let additionalEntries = try await additionalEntriesProvider(newItem, newContext)
             constraints = try await constraintsProvider(newItem, newContext)
-            context = newContext
+            updatedContext = newContext
             
             entries = [typedPrimaryWriteEntry] + additionalEntries
             updatedPrimaryItem = newItem
         } else {
-            let (primaryItem, newContext) = try await primaryItemProvider(nil)
+            let (primaryItem, newContext) = try await primaryItemProvider(nil, context)
             
             let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .insert(new: primaryItem)
             let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
@@ -632,13 +632,13 @@ public extension DynamoDBCompositePrimaryKeyTable {
             
             entries = [typedPrimaryWriteEntry] + additionalEntries
             updatedPrimaryItem = primaryItem
-            context = newContext
+            updatedContext = newContext
         }
             
         do {
             try await transactWrite(entries, constraints: constraints)
             
-            return (updatedPrimaryItem, context)
+            return (updatedPrimaryItem, updatedContext)
         } catch SmokeDynamoDBError.transactionCanceled(let reasons) {
             let failureState: ConditionalTransactionFailureState = reasons.reduce(.unknown) { partialResult, error in
                 switch error {
@@ -663,7 +663,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
             case .primaryItemFailureOnly:
                 // try again
                 return try await conditionallyInsertOrUpdateItemInTransaction(
-                    forKey: key, withRetries: retries - 1,
+                    forKey: key, withRetries: retries - 1, context: updatedContext,
                     primaryItemProvider: primaryItemProvider,
                     primaryWriteEntryProvider: primaryWriteEntryProvider,
                     additionalEntriesProvider: additionalEntriesProvider,
@@ -707,7 +707,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         constraintsProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
             -> [TransactionConstraintEntryType]) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?) async throws
+        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, context: Void?) async throws
         -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
             let returnedItem = try await primaryItemProvider(item)
             
@@ -726,7 +726,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
         
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
+            withRetries: retries, context: (),
             primaryItemProvider: innerPrimaryItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: innerAdditionalEntriesProvider,
@@ -763,23 +763,30 @@ public extension DynamoDBCompositePrimaryKeyTable {
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        func innerPrimaryItemProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?, context: Void?) async throws
+        -> (item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) {
+            let returnedItem = try await primaryItemProvider(item)
+            
+            return (returnedItem, ())
+        }
+        
+        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void) async throws
         -> [WriteEntryType] {
             return additionalEntries
         }
         
-        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>, context: Void)
         -> [TransactionConstraintEntryType] {
             return constraints
         }
         
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
-            withRetries: retries,
-            primaryItemProvider: primaryItemProvider,
+            withRetries: retries, context: (),
+            primaryItemProvider: innerPrimaryItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
             additionalEntriesProvider: additionalEntriesProvider,
-            constraintsProvider: constraintsProvider)
+            constraintsProvider: constraintsProvider).item
     }
 #endif
 }
