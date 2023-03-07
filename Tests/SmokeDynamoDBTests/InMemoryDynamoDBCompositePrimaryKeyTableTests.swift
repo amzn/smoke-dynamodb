@@ -845,17 +845,11 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
 
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
         let payload2 = TestTypeB(thirdly: "thirdly", fourthly: "fourthly")
         let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
-        
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
         
         func primaryItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>?) -> StandardTypedDatabaseItem<TestTypeB> {
             guard let item = item else {
@@ -870,16 +864,26 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>)
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+            
+            return [.testTypeA(.insert(new: databaseItem1))]
+        }
+        
         let primaryItem = try await table.conditionallyInsertOrUpdateItemInTransaction(
             forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries,
+            additionalEntriesProvider: additionalEntriesProvider,
             primaryItemProvider: primaryItemProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
-        XCTAssertEqual(databaseItem1.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-        XCTAssertEqual(databaseItem1.rowValue.firstly, retrievedItem.rowValue.firstly)
-        XCTAssertEqual(databaseItem1.rowValue.secondly, retrievedItem.rowValue.secondly)
+        // the additional transaction row has been constructed from the appropriate primary item
+        XCTAssertEqual(key1.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstly:thirdly", retrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly:fourthly", retrievedItem.rowValue.secondly)
         
         let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeB> = try await table.getItem(forKey: key2)!
         
@@ -897,18 +901,12 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
 
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
         let payload2 = TestTypeB(thirdly: "thirdly", fourthly: "fourthly")
         let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
         try await table.insertItem(databaseItem2)
-        
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
         
         func primaryItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>?) -> StandardTypedDatabaseItem<TestTypeB> {
             guard let item = item else {
@@ -923,16 +921,26 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>)
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+            
+            return [.testTypeA(.insert(new: databaseItem1))]
+        }
+        
         let primaryItem = try await table.conditionallyInsertOrUpdateItemInTransaction(
             forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries,
+            additionalEntriesProvider: additionalEntriesProvider,
             primaryItemProvider: primaryItemProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
-        XCTAssertEqual(databaseItem1.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-        XCTAssertEqual(databaseItem1.rowValue.firstly, retrievedItem.rowValue.firstly)
-        XCTAssertEqual(databaseItem1.rowValue.secondly, retrievedItem.rowValue.secondly)
+        // the additional transaction row has been constructed from the appropriate primary item
+        XCTAssertEqual(key1.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstly:thirdly+", retrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly:fourthly+", retrievedItem.rowValue.secondly)
         
         let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeB> = try await table.getItem(forKey: key2)!
         
@@ -962,10 +970,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             try await table.insertItem(databaseItem2)
         }
         
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
-        
         func primaryItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>?) -> StandardTypedDatabaseItem<TestTypeB> {
             guard let item = item else {
                 return databaseItem2
@@ -979,10 +983,19 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>)
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+            
+            return [.testTypeA(.insert(new: databaseItem1))]
+        }
+        
         do {
             _ = try await table.conditionallyInsertOrUpdateItemInTransaction(
                 forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-                additionalEntries: additionalEntries,
+                additionalEntriesProvider: additionalEntriesProvider,
                 primaryItemProvider: primaryItemProvider)
             
             XCTFail()
@@ -1013,8 +1026,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
     actor BoxedCounter {
         var counter: Int = 0
         
-        func isZero() -> Bool {
-            return (self.counter == 0)
+        func get() -> Int {
+            return self.counter
         }
         
         func atomicIncrement() -> Int {
@@ -1025,23 +1038,18 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
     }
     
     func verifyConditionallyInsertOrUpdateItemInTransaction_WithConcurrency(
-        primaryKey: StandardCompositePrimaryKey,
         table: DynamoDBCompositePrimaryKeyTable, concurrency: Int, insertAdditional: Bool,
-        databaseItem1: StandardTypedDatabaseItem<TestTypeA>,
-        databaseItem2: StandardTypedDatabaseItem<TestTypeB>) async throws
+        primaryDatabaseItem: StandardTypedDatabaseItem<TestTypeB>,
+        secondaryKey: StandardCompositePrimaryKey) async throws
     -> StandardTypedDatabaseItem<TestTypeB>{
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
-        
         let counter = BoxedCounter()
         func primaryItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>?) async throws -> StandardTypedDatabaseItem<TestTypeB> {
             guard let item = item else {
                 // simulate concurrency
-                if await counter.isZero() {
-                    try await table.insertItem(databaseItem2)
+                if await counter.get() == 0 {
+                    try await table.insertItem(primaryDatabaseItem)
                 }
-                return databaseItem2
+                return primaryDatabaseItem
             }
             
             let updatedPayload = TestTypeB(thirdly: item.rowValue.thirdly + "+", fourthly: item.rowValue.fourthly + "+")
@@ -1050,8 +1058,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             // simulate concurrency
             if await counter.atomicIncrement() <= concurrency {
                 try await table.updateItem(newItem: updatedItem, existingItem: item)
-            } else if insertAdditional {
-                try await table.insertItem(databaseItem1)
             }
             
             return updatedItem
@@ -1061,9 +1067,23 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>) async throws
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let secondaryDatabaseItem = StandardTypedDatabaseItem.newItem(withKey: secondaryKey, andValue: payload1)
+            
+            // simulate concurrency
+            if await counter.get() > concurrency && insertAdditional {
+                try await table.insertItem(secondaryDatabaseItem)
+            }
+            
+            return [.testTypeA(.insert(new: secondaryDatabaseItem))]
+        }
+        
         return try await table.conditionallyInsertOrUpdateItemInTransaction(
-            forKey: primaryKey, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries,
+            forKey: primaryDatabaseItem.compositePrimaryKey, primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider,
             primaryItemProvider: primaryItemProvider)
     }
     
@@ -1072,8 +1092,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1081,15 +1099,15 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
         
         let primaryItem = try await verifyConditionallyInsertOrUpdateItemInTransaction_WithConcurrency(
-            primaryKey: key2, table: table, concurrency: 5, insertAdditional: false,
-            databaseItem1: databaseItem1,
-            databaseItem2: databaseItem2)
+            table: table, concurrency: 5, insertAdditional: false,
+            primaryDatabaseItem: databaseItem2, secondaryKey: key1)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
-        XCTAssertEqual(databaseItem1.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-        XCTAssertEqual(databaseItem1.rowValue.firstly, retrievedItem.rowValue.firstly)
-        XCTAssertEqual(databaseItem1.rowValue.secondly, retrievedItem.rowValue.secondly)
+        // the additional transaction row has been constructed from the appropriate primary item
+        XCTAssertEqual(key1.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstly:thirdly++++++", retrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly:fourthly++++++", retrievedItem.rowValue.secondly)
         
         let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeB> = try await table.getItem(forKey: key2)!
         
@@ -1112,8 +1130,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1122,9 +1138,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await verifyConditionallyInsertOrUpdateItemInTransaction_WithConcurrency(
-                primaryKey: key2, table: table, concurrency: 15, insertAdditional: false,
-                databaseItem1: databaseItem1,
-                databaseItem2: databaseItem2)
+                table: table, concurrency: 15, insertAdditional: false,
+                primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
         } catch SmokeDynamoDBError.concurrencyError {
@@ -1139,8 +1154,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1149,9 +1162,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await verifyConditionallyInsertOrUpdateItemInTransaction_WithConcurrency(
-                primaryKey: key2, table: table, concurrency: 5, insertAdditional: true,
-                databaseItem1: databaseItem1,
-                databaseItem2: databaseItem2)
+                table: table, concurrency: 5, insertAdditional: true,
+                primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
         } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
@@ -1176,18 +1188,12 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
 
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
         let payload2 = TestTypeB(thirdly: "thirdly", fourthly: "fourthly")
         let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
         try await table.insertItem(databaseItem2)
-        
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
         
         func updatedItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>) -> StandardTypedDatabaseItem<TestTypeB> {
             let updatedPayload = TestTypeB(thirdly: item.rowValue.thirdly + "+", fourthly: item.rowValue.fourthly + "+")
@@ -1198,17 +1204,27 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>)
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+            
+            return [.testTypeA(.insert(new: databaseItem1))]
+        }
+        
         let primaryItem = try await table.conditionallyUpdateItemInTransaction(
             forKey: key2,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries,
+            additionalEntriesProvider: additionalEntriesProvider,
             updatedItemProvider: updatedItemProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
-        XCTAssertEqual(databaseItem1.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-        XCTAssertEqual(databaseItem1.rowValue.firstly, retrievedItem.rowValue.firstly)
-        XCTAssertEqual(databaseItem1.rowValue.secondly, retrievedItem.rowValue.secondly)
+        // the additional transaction row has been constructed from the appropriate primary item
+        XCTAssertEqual(key1.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstly:thirdly+", retrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly:fourthly+", retrievedItem.rowValue.secondly)
         
         let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeB> = try await table.getItem(forKey: key2)!
         
@@ -1236,10 +1252,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
         try await table.insertItem(databaseItem2)
         
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
-        
         func updatedItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>) -> StandardTypedDatabaseItem<TestTypeB> {
             let updatedPayload = TestTypeB(thirdly: item.rowValue.thirdly + "+", fourthly: item.rowValue.fourthly + "+")
             return item.createUpdatedItem(withValue: updatedPayload)
@@ -1249,11 +1261,20 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>)
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+            
+            return [.testTypeA(.insert(new: databaseItem1))]
+        }
+        
         do {
             _ = try await table.conditionallyUpdateItemInTransaction(
                 forKey: key2,
                 primaryWriteEntryProvider: primaryWriteEntryProvider,
-                additionalEntries: additionalEntries,
+                additionalEntriesProvider: additionalEntriesProvider,
                 updatedItemProvider: updatedItemProvider)
             
             XCTFail()
@@ -1270,15 +1291,10 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
     }
     
     func verifyConditionallyUpdateItemInTransaction_WithConcurrency(
-        primaryKey: StandardCompositePrimaryKey,
         table: DynamoDBCompositePrimaryKeyTable, concurrency: Int, insertAdditional: Bool,
-        databaseItem1: StandardTypedDatabaseItem<TestTypeA>,
-        databaseItem2: StandardTypedDatabaseItem<TestTypeB>) async throws
+        primaryDatabaseItem: StandardTypedDatabaseItem<TestTypeB>,
+        secondaryKey: StandardCompositePrimaryKey) async throws
     -> StandardTypedDatabaseItem<TestTypeB>{
-        let additionalEntries: [TestPolymorphicWriteEntry] = [
-            .testTypeA(.insert(new: databaseItem1)),
-        ]
-        
         let counter = BoxedCounter()
         func updatedItemProvider(_ item: StandardTypedDatabaseItem<TestTypeB>) async throws -> StandardTypedDatabaseItem<TestTypeB> {
             let updatedPayload = TestTypeB(thirdly: item.rowValue.thirdly + "+", fourthly: item.rowValue.fourthly + "+")
@@ -1287,8 +1303,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             // simulate concurrency
             if await counter.atomicIncrement() <= concurrency {
                 try await table.updateItem(newItem: updatedItem, existingItem: item)
-            } else if insertAdditional {
-                try await table.insertItem(databaseItem1)
             }
             
             return updatedItem
@@ -1298,10 +1312,24 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
             return .testTypeB(item)
         }
         
+        func additionalEntriesProvider(primaryItem: StandardTypedDatabaseItem<TestTypeB>) async throws
+        -> [TestPolymorphicWriteEntry] {
+            let payload1 = TestTypeA(firstly: "firstly:\(primaryItem.rowValue.thirdly)",
+                                     secondly: "secondly:\(primaryItem.rowValue.fourthly)")
+            let secondaryDatabaseItem = StandardTypedDatabaseItem.newItem(withKey: secondaryKey, andValue: payload1)
+            
+            // simulate concurrency
+            if await counter.get() > concurrency && insertAdditional {
+                try await table.insertItem(secondaryDatabaseItem)
+            }
+            
+            return [.testTypeA(.insert(new: secondaryDatabaseItem))]
+        }
+        
         return try await table.conditionallyUpdateItemInTransaction(
-            forKey: primaryKey,
+            forKey: primaryDatabaseItem.compositePrimaryKey,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries,
+            additionalEntriesProvider: additionalEntriesProvider,
             updatedItemProvider: updatedItemProvider)
     }
     
@@ -1310,8 +1338,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1320,15 +1346,15 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         try await table.insertItem(databaseItem2)
         
         let primaryItem = try await verifyConditionallyUpdateItemInTransaction_WithConcurrency(
-            primaryKey: key2, table: table, concurrency: 5, insertAdditional: false,
-            databaseItem1: databaseItem1,
-            databaseItem2: databaseItem2)
+            table: table, concurrency: 5, insertAdditional: false,
+            primaryDatabaseItem: databaseItem2, secondaryKey: key1)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
-        XCTAssertEqual(databaseItem1.compositePrimaryKey.sortKey, retrievedItem.compositePrimaryKey.sortKey)
-        XCTAssertEqual(databaseItem1.rowValue.firstly, retrievedItem.rowValue.firstly)
-        XCTAssertEqual(databaseItem1.rowValue.secondly, retrievedItem.rowValue.secondly)
+        // the additional transaction row has been constructed from the appropriate primary item
+        XCTAssertEqual(key1.sortKey, retrievedItem.compositePrimaryKey.sortKey)
+        XCTAssertEqual("firstly:thirdly++++++", retrievedItem.rowValue.firstly)
+        XCTAssertEqual("secondly:fourthly++++++", retrievedItem.rowValue.secondly)
         
         let secondRetrievedItem: StandardTypedDatabaseItem<TestTypeB> = try await table.getItem(forKey: key2)!
         
@@ -1351,8 +1377,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1362,9 +1386,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await verifyConditionallyUpdateItemInTransaction_WithConcurrency(
-                primaryKey: key2, table: table, concurrency: 15, insertAdditional: false,
-                databaseItem1: databaseItem1,
-                databaseItem2: databaseItem2)
+                table: table, concurrency: 15, insertAdditional: false,
+                primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
         } catch SmokeDynamoDBError.concurrencyError {
@@ -1379,8 +1402,6 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
                                                sortKey: "sortId1")
-        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
-        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
         
         let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
                                                sortKey: "sortId2")
@@ -1390,9 +1411,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await verifyConditionallyUpdateItemInTransaction_WithConcurrency(
-                primaryKey: key2, table: table, concurrency: 5, insertAdditional: true,
-                databaseItem1: databaseItem1,
-                databaseItem2: databaseItem2)
+                table: table, concurrency: 5, insertAdditional: true,
+                primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
         } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {

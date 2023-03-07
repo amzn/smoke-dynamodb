@@ -51,6 +51,50 @@ public extension DynamoDBCompositePrimaryKeyTable {
      - Parameters:
         - key: the key of the item to update
         - withRetries: the number of times to attempt to retry the update before failing.
+        - additionalEntriesProvider: provides the additional entries to be part of the transaction based on the primaryItem
+        - updatedPayloadProvider: the provider that will return updated payloads.
+     - Returns: the version of the primary item that was successfully written to the table
+     */
+    @discardableResult
+    func conditionallyUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
+                                    WriteEntryType: PolymorphicWriteEntry>(
+        forKey key: CompositePrimaryKey<PrimaryAttributesType>,
+        withRetries retries: Int = 10,
+        primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
+        additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType],
+        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+            async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+    -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [EmptyPolymorphicTransactionConstraintEntry] {
+            return []
+        }
+        
+        return try await conditionallyUpdateItemInTransaction(
+            forKey: key,
+            withRetries: retries,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
+            updatedItemProvider: updatedItemProvider)
+    }
+    
+    /**
+     Method to conditionally update an item at the specified key for a number of retries.
+     This method is useful for database rows that may be updated simultaneously by different clients
+     and each client will only attempt to update based on the current row value.
+     Similar to the `conditionalUpdateItem` family of APIs, this method is useful for database
+     rows that may be updated simultaneously by different clients and each client will only attempt to
+     update based on the current row value. Unlike `conditionalUpdateItem`, this API can be used
+     to add additional conditionality based on successfully updating other rows.
+     On each attempt, the updatedPayloadProvider will be passed the current row value. It can either
+     generate an updated payload or fail with an error if an updated payload is not valid. If an updated
+     payload is returned, this method will attempt to update the row. This update may fail due to
+     concurrency, in which case the process will repeat until the retry limit has been reached.
+ 
+     - Parameters:
+        - key: the key of the item to update
+        - withRetries: the number of times to attempt to retry the update before failing.
         - additionalEntries: the additional entries to be part of the transaction
         - updatedPayloadProvider: the provider that will return updated payloads.
      - Returns: the version of the primary item that was successfully written to the table
@@ -65,12 +109,22 @@ public extension DynamoDBCompositePrimaryKeyTable {
         updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
+        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        -> [WriteEntryType] {
+            return additionalEntries
+        }
+        
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [EmptyPolymorphicTransactionConstraintEntry] {
+            return []
+        }
+        
         return try await conditionallyUpdateItemInTransaction(
             forKey: key,
             withRetries: retries,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries, constraints: noConstraints,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
             updatedItemProvider: updatedItemProvider)
     }
     
@@ -90,8 +144,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
      - Parameters:
         - key: the key of the item to update
         - withRetries: the number of times to attempt to retry the update before failing.
-        - additionalEntries: the additional entries to be part of the transaction
-        - constraints: the contraints to include as part of the transaction
+        - additionalEntriesProvider: provides the additional entries to be part of the transaction based on the primaryItem
+        - constraintsProvider: provides the constraints to include as part of the transaction based on the primaryItem
         - updatedPayloadProvider: the provider that will return updated payloads.
      - Returns: the version of the primary item that was successfully written to the table
      */
@@ -102,7 +156,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
         withRetries retries: Int = 10,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
-        additionalEntries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+        additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType],
+        constraintsProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [TransactionConstraintEntryType],
         updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {                                        
@@ -125,6 +180,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
         let entries: [WriteEntryType]
         let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .update(new: updatedDatabaseItem, existing: databaseItem)
         let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
+        
+        let additionalEntries = try await additionalEntriesProvider(updatedDatabaseItem)
+        let constraints = try await constraintsProvider(updatedDatabaseItem)
         
         entries = [typedPrimaryWriteEntry] + additionalEntries
             
@@ -158,13 +216,108 @@ public extension DynamoDBCompositePrimaryKeyTable {
                 return try await conditionallyUpdateItemInTransaction(
                     forKey: key, withRetries: retries - 1,
                     primaryWriteEntryProvider: primaryWriteEntryProvider,
-                    additionalEntries: additionalEntries, constraints: constraints,
+                    additionalEntriesProvider: additionalEntriesProvider,
+                    constraintsProvider: constraintsProvider,
                     updatedItemProvider: updatedItemProvider)
             case .unknown, .additionalFailures:
                 // the transaction is going to fail anyway regardless of what happens with the primary item
                 throw ConditionalTransactWriteError.transactionCanceled(primaryItem: databaseItem, reasons: reasons)
             }
         }
+    }
+    
+    /**
+     Method to conditionally update an item at the specified key for a number of retries.
+     This method is useful for database rows that may be updated simultaneously by different clients
+     and each client will only attempt to update based on the current row value.
+     Similar to the `conditionalUpdateItem` family of APIs, this method is useful for database
+     rows that may be updated simultaneously by different clients and each client will only attempt to
+     update based on the current row value. Unlike `conditionalUpdateItem`, this API can be used
+     to add additional conditionality based on successfully updating or the presence of other rows.
+     On each attempt, the updatedPayloadProvider will be passed the current row value. It can either
+     generate an updated payload or fail with an error if an updated payload is not valid. If an updated
+     payload is returned, this method will attempt to update the row. This update may fail due to
+     concurrency, in which case the process will repeat until the retry limit has been reached.
+ 
+     - Parameters:
+        - key: the key of the item to update
+        - withRetries: the number of times to attempt to retry the update before failing.
+        - additionalEntries: the additional entries to be part of the transaction
+        - constraints: the constraints to include as part of the transaction
+        - updatedPayloadProvider: the provider that will return updated payloads.
+     - Returns: the version of the primary item that was successfully written to the table
+     */
+    @discardableResult
+    func conditionallyUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
+                                    WriteEntryType: PolymorphicWriteEntry,
+                                    TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        forKey key: CompositePrimaryKey<PrimaryAttributesType>,
+        withRetries retries: Int = 10,
+        primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
+        additionalEntries: [WriteEntryType],
+        constraints: [TransactionConstraintEntryType],
+        updatedItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+            async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+    -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
+        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        -> [WriteEntryType] {
+            return additionalEntries
+        }
+        
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [TransactionConstraintEntryType] {
+            return constraints
+        }
+        
+        return try await conditionallyUpdateItemInTransaction(
+            forKey: key,
+            withRetries: retries,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
+            updatedItemProvider: updatedItemProvider)
+    }
+    
+    /**
+     Method to conditionally insert or update an item at the specified key for a number of retries.
+     This method is useful for database rows that may be updated simultaneously by different clients and
+     each client will only attempt to update based on the current row value while adding additional
+     conditionality based on successfully updating other rows.
+     This operation will attempt to update the primary item, repeatedly calling the
+     `primaryItemProvider` to retrieve an updated version of the current row (if it
+     exists) until a transaction with the appropriate `insert` or  `update` write entry succeeds.
+     This update may fail due to concurrency, in which case the process will repeat until the retry
+     limit has been reached.
+     
+     - Parameters:
+        - withRetries: the number of times to attempt to retry the update before failing.
+        - primaryWriteEntryProvider: transforms the provided `WriteEntry` for the primary item into the appropriate `WriteEntryType`
+        - additionalEntriesProvider: provides the additional entries to be part of the transaction based on the primaryItem
+        - primaryItemProvider: provides the primary item
+     - Returns: the version of the primary item that was successfully written to the table
+     */
+    @discardableResult
+    func conditionallyInsertOrUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
+                                                      WriteEntryType: PolymorphicWriteEntry>(
+        forKey key: CompositePrimaryKey<PrimaryAttributesType>,
+        withRetries retries: Int = 10,
+        primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
+        additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType],
+        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?)
+            async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+    -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [EmptyPolymorphicTransactionConstraintEntry] {
+            return []
+        }
+        
+        return try await conditionallyInsertOrUpdateItemInTransaction(
+            forKey: key,
+            withRetries: retries,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
+            primaryItemProvider: primaryItemProvider)
     }
     
     /**
@@ -195,12 +348,22 @@ public extension DynamoDBCompositePrimaryKeyTable {
         primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?)
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
-        let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
+        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        -> [WriteEntryType] {
+            return additionalEntries
+        }
+        
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [EmptyPolymorphicTransactionConstraintEntry] {
+            return []
+        }
+        
         return try await conditionallyInsertOrUpdateItemInTransaction(
             forKey: key,
             withRetries: retries,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntries: additionalEntries, constraints: noConstraints,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
             primaryItemProvider: primaryItemProvider)
     }
     
@@ -218,8 +381,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
      - Parameters:
         - withRetries: the number of times to attempt to retry the update before failing.
         - primaryWriteEntryProvider: transforms the provided `WriteEntry` for the primary item into the appropriate `WriteEntryType`
-        - additionalEntries: the additional entries to be part of the transaction
-        - constraints: the contraints to include as part of the transaction
+        - additionalEntriesProvider: provides the additional entries to be part of the transaction based on the primaryItem
+        - constraintsProvider: provides the constraints to include as part of the transaction based on the primaryItem
         - primaryItemProvider: provides the primary item
      - Returns: the version of the primary item that was successfully written to the table
      */
@@ -230,7 +393,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
         forKey key: CompositePrimaryKey<PrimaryAttributesType>,
         withRetries retries: Int = 10,
         primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
-        additionalEntries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+        additionalEntriesProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [WriteEntryType],
+        constraintsProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws -> [TransactionConstraintEntryType],
         primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?)
             async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
     -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
@@ -244,11 +408,15 @@ public extension DynamoDBCompositePrimaryKeyTable {
             
         let entries: [WriteEntryType]
         let updatedPrimaryItem: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>
+        let constraints: [TransactionConstraintEntryType]
         if let existingItem = existingItemOptional {
             let newItem: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> = try await primaryItemProvider(existingItem)
             
             let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .update(new: newItem, existing: existingItem)
             let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
+            
+            let additionalEntries = try await additionalEntriesProvider(newItem)
+            constraints = try await constraintsProvider(newItem)
             
             entries = [typedPrimaryWriteEntry] + additionalEntries
             updatedPrimaryItem = newItem
@@ -257,6 +425,9 @@ public extension DynamoDBCompositePrimaryKeyTable {
             
             let primaryWriteEntry: WriteEntry<PrimaryAttributesType, PrimaryItemType> = .insert(new: primaryItem)
             let typedPrimaryWriteEntry = primaryWriteEntryProvider(primaryWriteEntry)
+            
+            let additionalEntries = try await additionalEntriesProvider(primaryItem)
+            constraints = try await constraintsProvider(primaryItem)
             
             entries = [typedPrimaryWriteEntry] + additionalEntries
             updatedPrimaryItem = primaryItem
@@ -292,13 +463,64 @@ public extension DynamoDBCompositePrimaryKeyTable {
                 return try await conditionallyInsertOrUpdateItemInTransaction(
                     forKey: key, withRetries: retries - 1,
                     primaryWriteEntryProvider: primaryWriteEntryProvider,
-                    additionalEntries: additionalEntries, constraints: constraints,
+                    additionalEntriesProvider: additionalEntriesProvider,
+                    constraintsProvider: constraintsProvider,
                     primaryItemProvider: primaryItemProvider)
             case .unknown, .additionalFailures:
                 // the transaction is going to fail anyway regardless of what happens with the primary item
                 throw ConditionalTransactWriteError.transactionCanceled(primaryItem: existingItemOptional, reasons: reasons)
             }
         }
+    }
+    
+    /**
+     Method to conditionally insert or update an item at the specified key for a number of retries.
+     This method is useful for database rows that may be updated simultaneously by different clients and
+     each client will only attempt to update based on the current row value while adding additional
+     conditionality based on successfully updating or the presence of other rows.
+     This operation will attempt to update the primary item, repeatedly calling the
+     `primaryItemProvider` to retrieve an updated version of the current row (if it
+     exists) until a transaction with the appropriate `insert` or  `update` write entry succeeds.
+     This update may fail due to concurrency, in which case the process will repeat until the retry
+     limit has been reached.
+     
+     - Parameters:
+        - withRetries: the number of times to attempt to retry the update before failing.
+        - primaryWriteEntryProvider: transforms the provided `WriteEntry` for the primary item into the appropriate `WriteEntryType`
+        - additionalEntries: the additional entries to be part of the transaction
+        - constraints: the constraints to include as part of the transaction
+        - primaryItemProvider: provides the primary item
+     - Returns: the version of the primary item that was successfully written to the table
+     */
+    @discardableResult
+    func conditionallyInsertOrUpdateItemInTransaction<PrimaryAttributesType, PrimaryItemType,
+                                    WriteEntryType: PolymorphicWriteEntry,
+                                    TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        forKey key: CompositePrimaryKey<PrimaryAttributesType>,
+        withRetries retries: Int = 10,
+        primaryWriteEntryProvider: @escaping (WriteEntry<PrimaryAttributesType, PrimaryItemType>) -> WriteEntryType,
+        additionalEntries: [WriteEntryType],
+        constraints: [TransactionConstraintEntryType],
+        primaryItemProvider: @escaping (TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?)
+            async throws -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+    -> TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType> {
+        func additionalEntriesProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>) async throws
+        -> [WriteEntryType] {
+            return additionalEntries
+        }
+        
+        func constraintsProvider(item: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>)
+        -> [TransactionConstraintEntryType] {
+            return constraints
+        }
+        
+        return try await conditionallyInsertOrUpdateItemInTransaction(
+            forKey: key,
+            withRetries: retries,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider,
+            constraintsProvider: constraintsProvider,
+            primaryItemProvider: primaryItemProvider)
     }
 #endif
 }
