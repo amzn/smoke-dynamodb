@@ -23,12 +23,12 @@ private enum ConditionalTransactionFailureState {
     case additionalFailures
 }
 
-public typealias StandardConditionalTransactWriteError<PrimaryItemType: Codable, ContextType> =
-    ConditionalTransactWriteError<StandardPrimaryKeyAttributes, PrimaryItemType, ContextType>
+public typealias StandardConditionalTransactWriteError<PrimaryItemType: Codable> =
+    ConditionalTransactWriteError<StandardPrimaryKeyAttributes, PrimaryItemType>
 
-public enum ConditionalTransactWriteError<PrimaryAttributesType: PrimaryKeyAttributes, PrimaryItemType: Codable, ContextType>: Error {
+public enum ConditionalTransactWriteError<PrimaryAttributesType: PrimaryKeyAttributes, PrimaryItemType: Codable>: Error {
     case transactionCanceled(primaryItem: TypedDatabaseItem<PrimaryAttributesType, PrimaryItemType>?,
-                             context: ContextType, reasons: [SmokeDynamoDBError])
+                             reasons: [SmokeDynamoDBError])
     
 }
 
@@ -290,7 +290,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     constraintsProvider: constraintsProvider)
             case .unknown, .additionalFailures:
                 // the transaction is going to fail anyway regardless of what happens with the primary item
-                throw ConditionalTransactWriteError.transactionCanceled(primaryItem: databaseItem, context: context, reasons: reasons)
+                throw ConditionalTransactWriteError.transactionCanceled(primaryItem: databaseItem, reasons: reasons)
             }
         }
     }
@@ -670,7 +670,7 @@ public extension DynamoDBCompositePrimaryKeyTable {
                     constraintsProvider: constraintsProvider)
             case .unknown, .additionalFailures:
                 // the transaction is going to fail anyway regardless of what happens with the primary item
-                throw ConditionalTransactWriteError.transactionCanceled(primaryItem: existingItemOptional, context: context, reasons: reasons)
+                throw ConditionalTransactWriteError.transactionCanceled(primaryItem: existingItemOptional, reasons: reasons)
             }
         }
     }

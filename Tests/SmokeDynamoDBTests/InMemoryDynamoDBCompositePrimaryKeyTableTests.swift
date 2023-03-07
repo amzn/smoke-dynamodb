@@ -999,7 +999,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
                 additionalEntriesProvider: additionalEntriesProvider)
             
             XCTFail()
-        } catch StandardConditionalTransactWriteError<TestTypeB, Void>.transactionCanceled(let primaryItem, _, reasons: let reasons) {
+        } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
             if insertPrimary {
                 XCTAssertEqual(databaseItem2.compositePrimaryKey.sortKey, primaryItem?.compositePrimaryKey.sortKey)
                 XCTAssertEqual(databaseItem2.rowValue.thirdly, primaryItem?.rowValue.thirdly)
@@ -1165,7 +1165,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
                 primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
-        } catch StandardConditionalTransactWriteError<TestTypeB, Void>.transactionCanceled(let primaryItem, _, reasons: let reasons) {
+        } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
             // the primary item row has been updated 6 times
             // 1 insert to simulate concurrency (outside any transaction), cancelling the transaction due to the primary item
             // 5 updates to simulate concurrency (outside any transaction), cancelling each transaction due to the primary item
@@ -1276,7 +1276,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
                 additionalEntriesProvider: additionalEntriesProvider)
             
             XCTFail()
-        } catch StandardConditionalTransactWriteError<TestTypeB, Void>.transactionCanceled(let primaryItem, _, reasons: let reasons) {
+        } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
             XCTAssertEqual(databaseItem2.compositePrimaryKey.sortKey, primaryItem?.compositePrimaryKey.sortKey)
             XCTAssertEqual(databaseItem2.rowValue.thirdly, primaryItem?.rowValue.thirdly)
             XCTAssertEqual(databaseItem2.rowValue.fourthly, primaryItem?.rowValue.fourthly)
@@ -1413,7 +1413,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
                 primaryDatabaseItem: databaseItem2, secondaryKey: key1)
             
             XCTFail()
-        } catch StandardConditionalTransactWriteError<TestTypeB, Void>.transactionCanceled(let primaryItem, _, reasons: let reasons) {
+        } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
             // the primary item row has been updated 6 times
             // 1 insert to simulate concurrency (outside any transaction), cancelling the transaction due to the primary item
             // 5 updates to simulate concurrency (outside any transaction), cancelling each transaction due to the primary item
