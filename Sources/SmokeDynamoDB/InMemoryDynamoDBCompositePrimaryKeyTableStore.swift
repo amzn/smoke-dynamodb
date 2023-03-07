@@ -21,6 +21,8 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+private let itemAlreadyExistsMessage = "Row already exists."
+
 private struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
     typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
 
@@ -120,7 +122,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
             if partition[item.compositePrimaryKey.sortKey] != nil {
                 throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
                                                                 sortKey: item.compositePrimaryKey.sortKey,
-                                                                message: "Row already exists.")
+                                                                message: itemAlreadyExistsMessage)
             }
             
             updatedPartition[item.compositePrimaryKey.sortKey] = item
@@ -263,8 +265,12 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 } catch let error {
                     if let typedError = error as? SmokeDynamoDBError {
                         if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
-                            return .transactionConditionalCheckFailed(partitionKey: partitionKey,
-                                                                      sortKey: sortKey, message: message)
+                            if message == itemAlreadyExistsMessage {
+                                return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
+                            } else {
+                                return .transactionConditionalCheckFailed(partitionKey: partitionKey,
+                                                                          sortKey: sortKey, message: message)
+                            }
                         }
                         return typedError
                     }
