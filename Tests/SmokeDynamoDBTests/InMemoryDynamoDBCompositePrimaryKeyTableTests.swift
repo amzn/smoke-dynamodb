@@ -874,9 +874,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         }
         
         let primaryItem = try await table.conditionallyInsertOrUpdateItemInTransaction(
-            forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntriesProvider: additionalEntriesProvider,
-            primaryItemProvider: primaryItemProvider)
+            forKey: key2, primaryItemProvider: primaryItemProvider,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
@@ -931,9 +931,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         }
         
         let primaryItem = try await table.conditionallyInsertOrUpdateItemInTransaction(
-            forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntriesProvider: additionalEntriesProvider,
-            primaryItemProvider: primaryItemProvider)
+            forKey: key2, primaryItemProvider: primaryItemProvider,
+            primaryWriteEntryProvider: primaryWriteEntryProvider,
+            additionalEntriesProvider: additionalEntriesProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
@@ -994,9 +994,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await table.conditionallyInsertOrUpdateItemInTransaction(
-                forKey: key2, primaryWriteEntryProvider: primaryWriteEntryProvider,
-                additionalEntriesProvider: additionalEntriesProvider,
-                primaryItemProvider: primaryItemProvider)
+                forKey: key2, primaryItemProvider: primaryItemProvider,
+                primaryWriteEntryProvider: primaryWriteEntryProvider,
+                additionalEntriesProvider: additionalEntriesProvider)
             
             XCTFail()
         } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
@@ -1082,9 +1082,8 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         }
         
         return try await table.conditionallyInsertOrUpdateItemInTransaction(
-            forKey: primaryDatabaseItem.compositePrimaryKey, primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntriesProvider: additionalEntriesProvider,
-            primaryItemProvider: primaryItemProvider)
+            forKey: primaryDatabaseItem.compositePrimaryKey, primaryItemProvider: primaryItemProvider,
+            primaryWriteEntryProvider: primaryWriteEntryProvider, additionalEntriesProvider: additionalEntriesProvider)
     }
     
     func testConditionallyInsertOrUpdateItemInTransaction_WithConcurrency() async throws {
@@ -1215,9 +1214,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         let primaryItem = try await table.conditionallyUpdateItemInTransaction(
             forKey: key2,
+            updatedItemProvider: updatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntriesProvider: additionalEntriesProvider,
-            updatedItemProvider: updatedItemProvider)
+            additionalEntriesProvider: additionalEntriesProvider)
         
         let retrievedItem: StandardTypedDatabaseItem<TestTypeA> = try await table.getItem(forKey: key1)!
         
@@ -1272,10 +1271,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         do {
             _ = try await table.conditionallyUpdateItemInTransaction(
-                forKey: key2,
+                forKey: key2, updatedItemProvider: updatedItemProvider,
                 primaryWriteEntryProvider: primaryWriteEntryProvider,
-                additionalEntriesProvider: additionalEntriesProvider,
-                updatedItemProvider: updatedItemProvider)
+                additionalEntriesProvider: additionalEntriesProvider)
             
             XCTFail()
         } catch StandardConditionalTransactWriteError<TestTypeB>.transactionCanceled(let primaryItem, reasons: let reasons) {
@@ -1328,9 +1326,9 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         
         return try await table.conditionallyUpdateItemInTransaction(
             forKey: primaryDatabaseItem.compositePrimaryKey,
+            updatedItemProvider: updatedItemProvider,
             primaryWriteEntryProvider: primaryWriteEntryProvider,
-            additionalEntriesProvider: additionalEntriesProvider,
-            updatedItemProvider: updatedItemProvider)
+            additionalEntriesProvider: additionalEntriesProvider)
     }
     
     func testConditionallyUpdateItemInTransaction_WithConcurrency() async throws {
