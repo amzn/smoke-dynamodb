@@ -770,6 +770,13 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         } catch SmokeDynamoDBError.transactionCanceled(reasons: let reasons) {
             // one required item exists, one already exists
             XCTAssertEqual(1, reasons.count)
+            
+            if let first = reasons.first {
+                guard case .duplicateItem = first else {
+                    XCTFail("Unexpected error")
+                    return
+                }
+            }
         } catch {
             XCTFail()
         }

@@ -332,7 +332,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     /**
      * Provides the ability to bulk write database rows in a transaction.
      * The transaction will comprise of the write entries specified in `entries`.
-     * The transaction will be cancelled if the contraints specified in `constraints` are not met (for example you can specify that an item
+     * The transaction will be cancelled if the constraints specified in `constraints` are not met (for example you can specify that an item
      * with a specified version must exist regardless of if it will be written to by the transaction).
      * The transaction will fail if the number of entries and constraints combined is greater than 100.
      */
