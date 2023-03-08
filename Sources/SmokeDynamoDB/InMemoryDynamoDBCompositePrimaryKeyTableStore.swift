@@ -237,9 +237,15 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
                 guard let partition = store[transform.partitionKey],
                         let item = partition[transform.sortKey],
                             item.rowStatus.rowVersion == transform.rowVersion else {
-                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
-                                                                     sortKey: transform.sortKey,
-                                                                     message: "Item doesn't exist or doesn't have correct version")
+                    if isTransaction {
+                        return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                                    sortKey: transform.sortKey,
+                                                                                    message: "Item doesn't exist or doesn't have correct version")
+                    } else {
+                        return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                         sortKey: transform.sortKey,
+                                                                         message: "Item doesn't exist or doesn't have correct version")
+                    }
                 }
                 
                 return nil

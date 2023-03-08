@@ -666,6 +666,58 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
         } catch SmokeDynamoDBError.transactionCanceled(reasons: let reasons) {
             // one required item exists, one has an incorrect version
             XCTAssertEqual(1, reasons.count)
+            
+            if let first = reasons.first {
+                guard case .transactionConditionalCheckFailed = first else {
+                    XCTFail("Unexpected error")
+                    return
+                }
+            }
+        } catch {
+            XCTFail()
+        }
+    }
+    
+    func testTransactWriteWithIncorrectVersionForUpdate() async throws {
+        let table: DynamoDBCompositePrimaryKeyTable = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: eventLoop)
+
+        let key1 = StandardCompositePrimaryKey(partitionKey: "partitionId1",
+                                               sortKey: "sortId1")
+        let payload1 = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let databaseItem1 = StandardTypedDatabaseItem.newItem(withKey: key1, andValue: payload1)
+        
+        let key2 = StandardCompositePrimaryKey(partitionKey: "partitionId2",
+                                               sortKey: "sortId2")
+        let payload2 = TestTypeB(thirdly: "thirdly", fourthly: "fourthly")
+        let databaseItem2 = StandardTypedDatabaseItem.newItem(withKey: key2, andValue: payload2)
+        try await table.insertItem(databaseItem2)
+        
+        let payload3 = TestTypeB(thirdly: "thirdlyC", fourthly: "fourthlyC")
+        let databaseItem3 = databaseItem2.createUpdatedItem(withValue: payload3)
+        try await table.updateItem(newItem: databaseItem3, existingItem: databaseItem2)
+        
+        let payload4 = TestTypeB(thirdly: "thirdlyD", fourthly: "fourthlyD")
+        let databaseItem4 = databaseItem2.createUpdatedItem(withValue: payload4)
+        
+        let entryList: [TestPolymorphicWriteEntry] = [
+            .testTypeA(.insert(new: databaseItem1)),
+            .testTypeB(.update(new: databaseItem4, existing: databaseItem2))
+        ]
+        
+        do {
+            try await table.transactWrite(entryList)
+            
+            XCTFail()
+        } catch SmokeDynamoDBError.transactionCanceled(reasons: let reasons) {
+            // one required item exists, one has an incorrect version
+            XCTAssertEqual(1, reasons.count)
+            
+            if let first = reasons.first {
+                guard case .transactionConditionalCheckFailed = first else {
+                    XCTFail("Unexpected error \(first)")
+                    return
+                }
+            }
         } catch {
             XCTFail()
         }
