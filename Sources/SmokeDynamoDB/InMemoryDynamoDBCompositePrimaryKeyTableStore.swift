@@ -207,6 +207,89 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         self.store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
     }
     
+    private func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        constraints: [TransactionConstraintEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let errors = constraints.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicTransactionConstraintTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            guard let partition = store[transform.partitionKey],
+                    let item = partition[transform.sortKey],
+                        item.rowStatus.rowVersion == transform.rowVersion else {
+                if isTransaction {
+                    return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                                sortKey: transform.sortKey,
+                                                                                message: "Item doesn't exist or doesn't have correct version")
+                } else {
+                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                     sortKey: transform.sortKey,
+                                                                     message: "Item doesn't exist or doesn't have correct version")
+                }
+            }
+            
+            return nil
+        }
+        
+        if !errors.isEmpty {
+            return SmokeDynamoDBError.transactionCanceled(reasons: errors)
+        }
+        
+        return nil
+    }
+    
+    private func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
+        entries: [WriteEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let writeErrors = entries.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicWriteEntryTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            do {
+                try transform.operation()
+            } catch let error {
+                if let typedError = error as? SmokeDynamoDBError {
+                    if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
+                        if message == itemAlreadyExistsMessage {
+                            return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
+                        } else {
+                            return .transactionConditionalCheckFailed(partitionKey: partitionKey,
+                                                                      sortKey: sortKey, message: message)
+                        }
+                    }
+                    return typedError
+                }
+                
+                // return unexpected error
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            return nil
+        }
+                                    
+        if writeErrors.count > 0 {
+            if isTransaction {
+                return SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
+            } else {
+                return SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
+            }
+        }
+        
+        return nil
+    }
+    
     func bulkWrite<WriteEntryType: PolymorphicWriteEntry,
                        TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
@@ -226,77 +309,16 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
             }
             
             let store = self.store
-            let errors = constraints.compactMap { entry -> SmokeDynamoDBError? in
-                let transform: InMemoryPolymorphicTransactionConstraintTransform
-                do {
-                    transform = try entry.handle(context: context)
-                } catch {
-                    return SmokeDynamoDBError.unexpectedError(cause: error)
-                }
-                
-                guard let partition = store[transform.partitionKey],
-                        let item = partition[transform.sortKey],
-                            item.rowStatus.rowVersion == transform.rowVersion else {
-                    if isTransaction {
-                        return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
-                                                                                    sortKey: transform.sortKey,
-                                                                                    message: "Item doesn't exist or doesn't have correct version")
-                    } else {
-                        return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
-                                                                         sortKey: transform.sortKey,
-                                                                         message: "Item doesn't exist or doesn't have correct version")
-                    }
-                }
-                
-                return nil
-            }
             
-            if !errors.isEmpty {
-                let error = SmokeDynamoDBError.transactionCanceled(reasons: errors)
-                
+            if let error = self.handleConstraints(constraints: constraints, isTransaction: isTransaction, context: context) {
                 promise.fail(error)
                 return
             }
-            
-            let writeErrors = entries.compactMap { entry -> SmokeDynamoDBError? in
-                let transform: InMemoryPolymorphicWriteEntryTransform
-                do {
-                    transform = try entry.handle(context: context)
-                } catch {
-                    return SmokeDynamoDBError.unexpectedError(cause: error)
-                }
-                
-                do {
-                    try transform.operation()
-                } catch let error {
-                    if let typedError = error as? SmokeDynamoDBError {
-                        if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
-                            if message == itemAlreadyExistsMessage {
-                                return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
-                            } else {
-                                return .transactionConditionalCheckFailed(partitionKey: partitionKey,
-                                                                          sortKey: sortKey, message: message)
-                            }
-                        }
-                        return typedError
-                    }
-                    
-                    // return unexpected error
-                    return SmokeDynamoDBError.unexpectedError(cause: error)
-                }
-                
-                return nil
-            }
                                         
-            if writeErrors.count > 0 {
-                let error: Swift.Error
+            if let error = self.handleEntries(entries: entries, isTransaction: isTransaction, context: context) {
                 if isTransaction {
                     // restore the state prior to the transaction
                     self.store = store
-                    
-                    error = SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
-                } else {
-                    error = SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
                 }
                 
                 promise.fail(error)
