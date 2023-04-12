@@ -21,6 +21,53 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+private let itemAlreadyExistsMessage = "Row already exists."
+
+private struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
+    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
+
+    let operation: () throws -> ()
+
+    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: WriteEntry<AttributesType, ItemType>, table: TableType) throws {
+        switch entry {
+        case .update(new: let new, existing: let existing):
+            operation = {
+                try table.updateItemInternal(newItem: new, existingItem: existing)
+            }
+        case .insert(new: let new):
+            operation = {
+                try table.insertItemInternal(new)
+            }
+        case .deleteAtKey(key: let key):
+            operation = {
+                table.deleteItemInternal(forKey: key)
+            }
+        case .deleteItem(existing: let existing):
+            operation = {
+                try table.deleteItemInternal(existingItem: existing)
+            }
+        }
+    }
+}
+
+private struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
+    
+    let partitionKey: String
+    let sortKey: String
+    let rowVersion: Int
+    
+    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: TransactionConstraintEntry<AttributesType, ItemType>,
+                                                                  table: TableType) throws {
+        switch entry {
+        case .required(existing: let existing):
+            self.partitionKey = existing.compositePrimaryKey.partitionKey
+            self.sortKey = existing.compositePrimaryKey.sortKey
+            self.rowVersion = existing.rowStatus.rowVersion
+        }
+    }
+}
+
 internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
     
     internal var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
@@ -52,33 +99,38 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
-            let partition = self.store[item.compositePrimaryKey.partitionKey]
-            
-            // if there is already a partition
-            var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-            if let partition = partition {
-                updatedPartition = partition
-                
-                // if the row already exists
-                if partition[item.compositePrimaryKey.sortKey] != nil {
-                    let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
-                                                                          sortKey: item.compositePrimaryKey.sortKey,
-                                                                          message: "Row already exists.")
-                    
-                    promise.fail(error)
-                    return
-                }
-                
-                updatedPartition[item.compositePrimaryKey.sortKey] = item
-            } else {
-                updatedPartition = [item.compositePrimaryKey.sortKey: item]
+            do {
+                try self.insertItemInternal(item)
+                promise.succeed(())
+            } catch {
+                promise.fail(error)
             }
-            
-            self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
-            promise.succeed(())
         }
         
         return promise.futureResult
+    }
+    
+    fileprivate func insertItemInternal<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        let partition = self.store[item.compositePrimaryKey.partitionKey]
+        
+        // if there is already a partition
+        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+        if let partition = partition {
+            updatedPartition = partition
+            
+            // if the row already exists
+            if partition[item.compositePrimaryKey.sortKey] != nil {
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
+                                                                sortKey: item.compositePrimaryKey.sortKey,
+                                                                message: itemAlreadyExistsMessage)
+            }
+            
+            updatedPartition[item.compositePrimaryKey.sortKey] = item
+        } else {
+            updatedPartition = [item.compositePrimaryKey.sortKey: item]
+        }
+        
+        self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
     }
     
     func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
@@ -111,42 +163,169 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
-            let partition = self.store[newItem.compositePrimaryKey.partitionKey]
+            do {
+                try self.updateItemInternal(newItem: newItem, existingItem: existingItem)
+                promise.succeed(())
+            } catch {
+                promise.fail(error)
+            }
+        }
+        
+        return promise.futureResult
+    }
+    
+    fileprivate func updateItemInternal<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        let partition = self.store[newItem.compositePrimaryKey.partitionKey]
+        
+        // if there is already a partition
+        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+        if let partition = partition {
+            updatedPartition = partition
             
-            // if there is already a partition
-            var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-            if let partition = partition {
-                updatedPartition = partition
-                
-                // if the row already exists
-                if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
-                    if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
-                        existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
-                        let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
-                                                                              sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                              message: "Trying to overwrite incorrect version.")
-                        promise.fail(error)
-                        return
-                    }
+            // if the row already exists
+            if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
+                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
+                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
+                                                                    sortKey: newItem.compositePrimaryKey.sortKey,
+                                                                    message: "Trying to overwrite incorrect version.")
+                }
+            } else {
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
+                                                                sortKey: newItem.compositePrimaryKey.sortKey,
+                                                                message: "Existing item does not exist.")
+            }
+            
+            updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
+        } else {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
+                                                            sortKey: newItem.compositePrimaryKey.sortKey,
+                                                            message: "Existing item does not exist.")
+        }
+        
+        self.store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
+    }
+    
+    private func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        constraints: [TransactionConstraintEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let errors = constraints.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicTransactionConstraintTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            guard let partition = store[transform.partitionKey],
+                    let item = partition[transform.sortKey],
+                        item.rowStatus.rowVersion == transform.rowVersion else {
+                if isTransaction {
+                    return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                                sortKey: transform.sortKey,
+                                                                                message: "Item doesn't exist or doesn't have correct version")
                 } else {
-                    let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
-                                                                          sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                          message: "Existing item does not exist.")
-                    promise.fail(error)
-                    return
+                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                     sortKey: transform.sortKey,
+                                                                     message: "Item doesn't exist or doesn't have correct version")
+                }
+            }
+            
+            return nil
+        }
+        
+        if !errors.isEmpty {
+            return SmokeDynamoDBError.transactionCanceled(reasons: errors)
+        }
+        
+        return nil
+    }
+    
+    private func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
+        entries: [WriteEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let writeErrors = entries.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicWriteEntryTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            do {
+                try transform.operation()
+            } catch let error {
+                if let typedError = error as? SmokeDynamoDBError {
+                    if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
+                        if message == itemAlreadyExistsMessage {
+                            return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
+                        } else {
+                            return .transactionConditionalCheckFailed(partitionKey: partitionKey,
+                                                                      sortKey: sortKey, message: message)
+                        }
+                    }
+                    return typedError
                 }
                 
-                updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
+                // return unexpected error
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            return nil
+        }
+                                    
+        if writeErrors.count > 0 {
+            if isTransaction {
+                return SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
             } else {
-                let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
-                                                                      sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                      message: "Existing item does not exist.")
+                return SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
+            }
+        }
+        
+        return nil
+    }
+    
+    func bulkWrite<WriteEntryType: PolymorphicWriteEntry,
+                       TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+                        isTransaction: Bool, eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let promise = eventLoop.makePromise(of: Void.self)
+        
+        accessQueue.async {
+            let entryCount = entries.count + constraints.count
+            let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                               InMemoryPolymorphicTransactionConstraintTransform>(table: self)
+                
+            if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
+                let error = SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
+                                                                       maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
                 promise.fail(error)
                 return
             }
             
-            self.store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
-            promise.succeed(())
+            let store = self.store
+            
+            if let error = self.handleConstraints(constraints: constraints, isTransaction: isTransaction, context: context) {
+                promise.fail(error)
+                return
+            }
+                                        
+            if let error = self.handleEntries(entries: entries, isTransaction: isTransaction, context: context) {
+                if isTransaction {
+                    // restore the state prior to the transaction
+                    self.store = store
+                }
+                
+                promise.fail(error)
+                return
+            }
+            
+            promise.succeed()
         }
         
         return promise.futureResult
@@ -300,11 +479,15 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
-            self.store[key.partitionKey]?[key.sortKey] = nil
+            self.deleteItemInternal(forKey: key)
             promise.succeed(())
         }
         
         return promise.futureResult
+    }
+    
+    fileprivate func deleteItemInternal<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) {
+        self.store[key.partitionKey]?[key.sortKey] = nil
     }
     
     func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType,
@@ -312,48 +495,47 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         let promise = eventLoop.makePromise(of: Void.self)
         
         accessQueue.async {
-            let partition = self.store[existingItem.compositePrimaryKey.partitionKey]
-            
-            // if there is already a partition
-            var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-            if let partition = partition {
-                updatedPartition = partition
-                
-                // if the row already exists
-                if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
-                    if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
-                        existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
-                        let error = SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                                              sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                                              message: "Trying to delete incorrect version.")
-                        
-                        promise.fail(error)
-                        return
-                    }
-                } else {
-                    let error =  SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                                           sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                                           message: "Existing item does not exist.")
-                    
-                    promise.fail(error)
-                    return
-                }
-                
-                updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
-            } else {
-                let error =  SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                                       sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                                       message: "Existing item does not exist.")
-                
+            do {
+                try self.deleteItemInternal(existingItem: existingItem)
+                promise.succeed(())
+            } catch {
                 promise.fail(error)
-                return
             }
-            
-            self.store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
-            promise.succeed(())
         }
         
         return promise.futureResult
+    }
+    
+    fileprivate func deleteItemInternal<ItemType: DatabaseItem>(existingItem: ItemType) throws {
+        let partition = self.store[existingItem.compositePrimaryKey.partitionKey]
+        
+        // if there is already a partition
+        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+        if let partition = partition {
+            updatedPartition = partition
+            
+            // if the row already exists
+            if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
+                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
+                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                                    sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                                    message: "Trying to delete incorrect version.")
+                }
+            } else {
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                                sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                                message: "Existing item does not exist.")
+            }
+            
+            updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
+        } else {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                            sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                            message: "Existing item does not exist.")
+        }
+        
+        self.store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
     }
     
     func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
