@@ -64,11 +64,11 @@ extension DynamoDBCompositePrimaryKeyTable {
         let elements = attributeDifferences.map { attributeDifference -> String in
             switch attributeDifference {
             case .update(path: let path, value: let value):
-                return "SET \"\(path)\"=\(value)"
+                return "SET \(path)=\(value)"
             case .remove(path: let path):
-                return "REMOVE \"\(path)\""
+                return "REMOVE \(path)"
             case .listAppend(path: let path, value: let value):
-                return "SET \"\(path)\"=list_append(\(path),\(value))"
+                return "SET \(path)=list_append(\(path),\(value))"
             }
         }
         
@@ -175,7 +175,7 @@ extension DynamoDBCompositePrimaryKeyTable {
         
         return try (0..<maxIndex).flatMap { index -> [AttributeDifference] in
             let newPath = "\(path)[\(index)]"
-            
+
             // if both new and existing attributes are present
             if index < newAttribute.count && index < existingAttribute.count {
                 return try diffAttribute(path: newPath, newAttribute: newAttribute[index], existingAttribute: existingAttribute[index])
@@ -234,9 +234,9 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     private func combinePath(basePath: String?, newComponent: String) -> String {
         if let basePath = basePath {
-            return "\(basePath).\(newComponent)"
+            return "\(basePath).\"\(newComponent)\""
         } else {
-            return newComponent
+            return "\"\(newComponent)\""
         }
     }
     
