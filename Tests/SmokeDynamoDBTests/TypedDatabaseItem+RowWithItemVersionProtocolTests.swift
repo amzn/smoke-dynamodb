@@ -138,8 +138,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theString"], .update(path: "theString", value: "'eigthly'"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theString\""], .update(path: "\"theString\"", value: "'eigthly'"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testStringFieldDifferenceWithEscapedQuotes() throws {
@@ -158,8 +158,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
 
-        XCTAssertEqual(pathMap["theString"], .update(path: "theString", value: "'e''ig''''thl''''''y'"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theString\""], .update(path: "\"theString\"", value: "'e''ig''''thl''''''y'"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testNumberFieldDifference() throws {
@@ -178,8 +178,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theNumber"], .update(path: "theNumber", value: "12"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theNumber\""], .update(path: "\"theNumber\"", value: "12"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testStructFieldDifference() throws {
@@ -198,9 +198,9 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
-        
-        XCTAssertEqual(pathMap["theStruct.firstly"], .update(path: "theStruct.firstly", value: "'eigthly'"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+
+        XCTAssertEqual(pathMap["\"theStruct\".\"firstly\""], .update(path: "\"theStruct\".\"firstly\"", value: "'eigthly'"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testStructFieldDifferenceWithEscapedQuotes() throws {
@@ -220,8 +220,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
 
-        XCTAssertEqual(pathMap["theStruct.firstly"], .update(path: "theStruct.firstly", value: "'e''ig''''thly'''''''"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theStruct\".\"firstly\""], .update(path: "\"theStruct\".\"firstly\"", value: "'e''ig''''thly'''''''"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testListFieldDifference() throws {
@@ -239,10 +239,35 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let differences = try table.diffItems(newItem: databaseItemB,
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
-        
-        XCTAssertEqual(pathMap["theList[1]"], .update(path: "theList[1]", value: "'eigthly'"))
-        XCTAssertEqual(pathMap["theList"], .listAppend(path: "theList", value: "['ninthly', 'tenthly']"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+
+        XCTAssertEqual(pathMap["\"theList\"[1]"], .update(path: "\"theList\"[1]", value: "'eigthly'"))
+        XCTAssertEqual(pathMap["\"theList\""], .listAppend(path: "\"theList\"", value: "['ninthly', 'tenthly']"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
+    }
+
+    func testNestedListFieldDifference() throws {
+        struct NestedLists: Codable {
+            let nestedList: [[String]]
+        }
+
+        let payloadA = NestedLists(nestedList: [["one", "two"], ["three", "four"]])
+        let payloadB = NestedLists(nestedList: [["one", "five"], ["three", "four", "eight"], ["six", "seven"]])
+
+        let compositeKey = StandardCompositePrimaryKey(partitionKey: "partitionKey",
+                                                                 sortKey: "sortKey")
+        let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
+        let databaseItemB = databaseItemA.createUpdatedItem(withValue: payloadB)
+
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+
+        let differences = try table.diffItems(newItem: databaseItemB,
+                                              existingItem: databaseItemA)
+        let pathMap = differences.pathMap
+
+        XCTAssertEqual(pathMap["\"nestedList\"[0][1]"], .update(path: "\"nestedList\"[0][1]", value: "'five'"))
+        XCTAssertEqual(pathMap["\"nestedList\"[1]"], .listAppend(path: "\"nestedList\"[1]", value: "['eight']"))
+        XCTAssertEqual(pathMap["\"nestedList\""], .listAppend(path: "\"nestedList\"", value: "[['six', 'seven']]"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testListFieldDifferenceWithEscapedQuotes() throws {
@@ -265,9 +290,9 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
 
-        XCTAssertEqual(pathMap["theList[1]"], .update(path: "theList[1]", value: "'eigth''''''ly'"))
-        XCTAssertEqual(pathMap["theList"], .listAppend(path: "theList", value: "['ni''n''''thly', 'ten''thly''']"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theList\"[1]"], .update(path: "\"theList\"[1]", value: "'eigth''''''ly'"))
+        XCTAssertEqual(pathMap["\"theList\""], .listAppend(path: "\"theList\"", value: "['ni''n''''thly', 'ten''thly''']"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testStringFieldAddition() throws {
@@ -286,8 +311,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theString"], .update(path: "theString", value: "'eigthly'"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theString\""], .update(path: "\"theString\"", value: "'eigthly'"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testNumberFieldAddition() throws {
@@ -306,8 +331,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theNumber"], .update(path: "theNumber", value: "12"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theNumber\""], .update(path: "\"theNumber\"", value: "12"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testStructFieldAddition() throws {
@@ -326,7 +351,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        guard case .update(_, let value) = pathMap["theStruct"] else {
+        guard case .update(_, let value) = pathMap["\"theStruct\""] else {
             XCTFail()
             return
         }
@@ -335,7 +360,7 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
             (value == "{'secondly': 'secondly', 'firstly': 'firstly'}")
         
         XCTAssertTrue(valueMatches)
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
     func testListFieldAddition() throws {
@@ -354,8 +379,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theList"], .update(path: "theList", value: "['thirdly', 'eigthly', 'ninthly', 'tenthly']"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theList\""], .update(path: "\"theList\"", value: "['thirdly', 'eigthly', 'ninthly', 'tenthly']"))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testStringFieldRemoval() throws {
@@ -374,8 +399,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theString"], .remove(path: "theString"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theString\""], .remove(path: "\"theString\""))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testNumberFieldRemoval() throws {
@@ -394,8 +419,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theNumber"], .remove(path: "theNumber"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theNumber\""], .remove(path: "\"theNumber\""))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testStructFieldRemoval() throws {
@@ -414,8 +439,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theStruct"], .remove(path: "theStruct"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theStruct\""], .remove(path: "\"theStruct\""))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testListFieldRemoval() throws {
@@ -434,8 +459,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                               existingItem: databaseItemA)
         let pathMap = differences.pathMap
         
-        XCTAssertEqual(pathMap["theList"], .remove(path: "theList"))
-        XCTAssertEqual(pathMap["RowVersion"], .update(path: "RowVersion", value: "2"))
+        XCTAssertEqual(pathMap["\"theList\""], .remove(path: "\"theList\""))
+        XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
     
     func testListFieldDifferenceExpression() throws {
@@ -455,8 +480,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
-                                 + "SET \"theList[1]\"='eigthly' "
-                                 + "SET \"theList\"=list_append(theList,['ninthly', 'tenthly']) "
+                                 + "SET \"theList\"[1]='eigthly' "
+                                 + "SET \"theList\"=list_append(\"theList\",['ninthly', 'tenthly']) "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
@@ -480,8 +505,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        newItem: databaseItemB,
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
-                                 + "SET \"theList[1]\"='eigth''''ly' "
-                                 + "SET \"theList\"=list_append(theList,['n''inthly', 'tenth''''''ly']) "
+                                 + "SET \"theList\"[1]='eigth''''ly' "
+                                 + "SET \"theList\"=list_append(\"theList\",['n''inthly', 'tenth''''''ly']) "
                                  + "WHERE PK='pa''rtition''''Key' AND SK='so''rt''''Key' "
                                  + "AND RowVersion=1")
     }
