@@ -2,9 +2,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "smoke-dynamodb-3.x" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "smoke-dynamodb-3.x" ]
 
 jobs:
   run-codeql-linux:
