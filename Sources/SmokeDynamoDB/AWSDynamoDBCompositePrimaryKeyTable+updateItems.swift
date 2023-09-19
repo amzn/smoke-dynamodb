@@ -203,6 +203,44 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
     
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void> {
+        // fall back to singel operation if the write entry exceeds the statement length limitation
+        var nonBulkWriteEntries: [WriteEntry<AttributesType, ItemType>] = []
+        let bulkWriteEntries: [WriteEntry<AttributesType, ItemType>]
+        do {
+            bulkWriteEntries = try entries.compactMap { entry in
+                do {
+                    try self.validateEntry(entry: entry)
+                    return entry
+                } catch SmokeDynamoDBError.statementLengthExceeded {
+                    nonBulkWriteEntries.append(entry)
+                    return nil
+                }
+            }
+        } catch {
+            let promise = self.eventLoop.makePromise(of: Void.self)
+            promise.fail(error)
+            return promise.futureResult
+        }
+            
+        var futures = nonBulkWriteEntries.map { nonBulkWriteEntry -> EventLoopFuture<Void> in
+            switch nonBulkWriteEntry {
+            case .update(new: let new, existing: let existing):
+                return self.updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                return self.insertItem(new)
+            case .deleteAtKey(key: let key):
+                return self.deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                return self.deleteItem(existingItem: existing)
+            }
+        }
+        
+        futures.append(self.monomorphicBulkWrite(bulkWriteEntries))
+        
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+    }
+    
     func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         // if there are no items, there is nothing to update
@@ -485,6 +523,30 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         try await chunkedEntries.concurrentForEach { chunk in
             try await self.writeChunkedItems(chunk)
         }
+    }
+    
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+        // fall back to singel operation if the write entry exceeds the statement length limitation
+        var bulkWriteEntries: [WriteEntry<AttributesType, ItemType>] = []
+        try await entries.concurrentForEach { entry in
+            do {
+                try self.validateEntry(entry: entry)
+                bulkWriteEntries.append(entry)
+            } catch SmokeDynamoDBError.statementLengthExceeded {
+                switch entry {
+                case .update(new: let new, existing: let existing):
+                    try await self.updateItem(newItem: new, existingItem: existing)
+                case .insert(new: let new):
+                    try await self.insertItem(new)
+                case .deleteAtKey(key: let key):
+                    try await self.deleteItem(forKey: key)
+                case .deleteItem(existing: let existing):
+                    try await self.deleteItem(existingItem: existing)
+                }
+            }
+        }
+
+        return try await monomorphicBulkWrite(bulkWriteEntries)
     }
     
     func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws

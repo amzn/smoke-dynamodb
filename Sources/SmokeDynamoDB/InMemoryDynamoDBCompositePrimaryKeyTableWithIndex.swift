@@ -108,6 +108,44 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
     }
     
+    public func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void> {
+        // fall back to singel operation if the write entry exceeds the statement length limitation
+        var nonBulkWriteEntries: [WriteEntry<AttributesType, ItemType>] = []
+        var bulkWriteEntries: [WriteEntry<AttributesType, ItemType>] = []
+        do {
+            bulkWriteEntries = try entries.compactMap { entry in
+                do {
+                    try self.validateEntry(entry: entry)
+                    return entry
+                } catch SmokeDynamoDBError.statementLengthExceeded {
+                    nonBulkWriteEntries.append(entry)
+                    return nil
+                }
+            }
+        } catch {
+            let promise = self.eventLoop.makePromise(of: Void.self)
+            promise.fail(error)
+            return promise.futureResult
+        }
+            
+        var futures = nonBulkWriteEntries.map { nonBulkWriteEntry -> EventLoopFuture<Void> in
+            switch nonBulkWriteEntry {
+            case .update(new: let new, existing: let existing):
+                return self.updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                return self.insertItem(new)
+            case .deleteAtKey(key: let key):
+                return self.deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                return self.deleteItem(existingItem: existing)
+            }
+        }
+        
+        futures.append(self.monomorphicBulkWrite(bulkWriteEntries))
+        
+        return EventLoopFuture.andAllSucceed(futures, on: self.eventLoop)
+    }
+    
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
         let futures = entries.map { entry -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
