@@ -137,6 +137,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
     
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) -> EventLoopFuture<Void>
+
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>])
     -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>>
 
@@ -345,6 +347,8 @@ public protocol DynamoDBCompositePrimaryKeyTable {
      * Provides the ability to bulk write database rows
      */
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
+    
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
 
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
     -> Set<BatchStatementErrorCodeEnum>
@@ -523,15 +527,15 @@ public extension DynamoDBCompositePrimaryKeyTable {
 // For async/await APIs, simply delegate to the EventLoopFuture implementation until support is dropped for Swift <5.5
 public extension DynamoDBCompositePrimaryKeyTable {
 #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
-
+    
     func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await insertItem(item).get()
     }
-
+    
     func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await clobberItem(item).get()
     }
-
+    
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>) async throws {
         return try await updateItem(newItem: newItem, existingItem: existingItem).get()
@@ -544,8 +548,8 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func transactWrite<WriteEntryType: PolymorphicWriteEntry,
                        TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
-        fatalError("Not implemented")
-    }
+                            fatalError("Not implemented")
+                        }
     
     func bulkWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
         fatalError("Not implemented")
@@ -554,6 +558,11 @@ public extension DynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
         return try await monomorphicBulkWrite(entries).get()
     }
+    
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws {
+        return try await monomorphicBulkWriteWithFallback(entries).get()
+    }
+
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
     -> Set<BatchStatementErrorCodeEnum>{
         return try await monomorphicBulkWriteWithoutThrowing(entries).get()

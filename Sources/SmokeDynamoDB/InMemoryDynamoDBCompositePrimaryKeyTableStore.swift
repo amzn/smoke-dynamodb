@@ -93,7 +93,6 @@ internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
 }
 
 extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
-    
     func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let promise = eventLoop.makePromise(of: Void.self)
@@ -348,7 +347,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         
         return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
     }
-    
+
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
         _ entries: [WriteEntry<AttributesType, ItemType>],
         eventLoop: EventLoop) -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
