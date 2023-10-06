@@ -20,6 +20,8 @@ import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
 
+// MARK: - Store implementation
+
 internal actor InMemoryDynamoDBCompositePrimaryKeysProjectionStore {
     public var keys: [Any] = []
 

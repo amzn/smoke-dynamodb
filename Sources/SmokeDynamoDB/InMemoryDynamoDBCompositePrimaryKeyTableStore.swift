@@ -22,6 +22,8 @@ import DynamoDBModel
 
 private let itemAlreadyExistsMessage = "Row already exists."
 
+// MARK: - Transforms
+
 internal struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
     typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
 
@@ -48,6 +50,27 @@ internal struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTra
         }
     }
 }
+
+internal struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
+
+    let partitionKey: String
+    let sortKey: String
+    let rowVersion: Int
+    
+    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: TransactionConstraintEntry<AttributesType, ItemType>,
+                                                                  table: TableType) throws {
+        switch entry {
+        case .required(existing: let existing):
+            self.partitionKey = existing.compositePrimaryKey.partitionKey
+            self.sortKey = existing.compositePrimaryKey.sortKey
+            self.rowVersion = existing.rowStatus.rowVersion
+        }
+    }
+}
+
+// MARK: - Shared implementations
+// Can be used directly by `InMemoryPolymorphicTransactionConstraintTransform` or through the `InMemoryPolymorphicWriteEntryTransform`
 
 private func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                                   existingItem: TypedDatabaseItem<AttributesType, ItemType>,
@@ -145,23 +168,7 @@ private func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType,
     store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
 }
 
-internal struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
-    typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
-
-    let partitionKey: String
-    let sortKey: String
-    let rowVersion: Int
-    
-    init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: TransactionConstraintEntry<AttributesType, ItemType>,
-                                                                  table: TableType) throws {
-        switch entry {
-        case .required(existing: let existing):
-            self.partitionKey = existing.compositePrimaryKey.partitionKey
-            self.sortKey = existing.compositePrimaryKey.sortKey
-            self.rowVersion = existing.rowStatus.rowVersion
-        }
-    }
-}
+// MARK: - Store implementation
 
 internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
     typealias StoreType = [String: [String: PolymorphicOperationReturnTypeConvertable]]
@@ -205,89 +212,6 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
     func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
                                               existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
         try SmokeDynamoDB.updateItem(newItem: newItem, existingItem: existingItem, store: &self.store)
-    }
-    
-    private func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
-        constraints: [TransactionConstraintEntryType], isTransaction: Bool,
-        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
-                                                      InMemoryPolymorphicTransactionConstraintTransform>)
-    -> SmokeDynamoDBError? {
-        let errors = constraints.compactMap { entry -> SmokeDynamoDBError? in
-            let transform: InMemoryPolymorphicTransactionConstraintTransform
-            do {
-                transform = try entry.handle(context: context)
-            } catch {
-                return SmokeDynamoDBError.unexpectedError(cause: error)
-            }
-            
-            guard let partition = store[transform.partitionKey],
-                    let item = partition[transform.sortKey],
-                        item.rowStatus.rowVersion == transform.rowVersion else {
-                if isTransaction {
-                    return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
-                                                                                sortKey: transform.sortKey,
-                                                                                message: "Item doesn't exist or doesn't have correct version")
-                } else {
-                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
-                                                                     sortKey: transform.sortKey,
-                                                                     message: "Item doesn't exist or doesn't have correct version")
-                }
-            }
-            
-            return nil
-        }
-        
-        if !errors.isEmpty {
-            return SmokeDynamoDBError.transactionCanceled(reasons: errors)
-        }
-        
-        return nil
-    }
-    
-    private func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
-        entries: [WriteEntryType], isTransaction: Bool,
-        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
-                                                      InMemoryPolymorphicTransactionConstraintTransform>)
-    -> SmokeDynamoDBError? {
-        let writeErrors = entries.compactMap { entry -> SmokeDynamoDBError? in
-            let transform: InMemoryPolymorphicWriteEntryTransform
-            do {
-                transform = try entry.handle(context: context)
-            } catch {
-                return SmokeDynamoDBError.unexpectedError(cause: error)
-            }
-            
-            do {
-                try transform.operation(&self.store)
-            } catch let error {
-                if let typedError = error as? SmokeDynamoDBError {
-                    if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
-                        if message == itemAlreadyExistsMessage {
-                            return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
-                        } else {
-                            return .transactionConditionalCheckFailed(partitionKey: partitionKey,
-                                                                      sortKey: sortKey, message: message)
-                        }
-                    }
-                    return typedError
-                }
-                
-                // return unexpected error
-                return SmokeDynamoDBError.unexpectedError(cause: error)
-            }
-            
-            return nil
-        }
-                                    
-        if writeErrors.count > 0 {
-            if isTransaction {
-                return SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
-            } else {
-                return SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
-            }
-        }
-        
-        return nil
     }
     
     func bulkWrite<WriteEntryType: PolymorphicWriteEntry,
@@ -536,36 +460,6 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
 
         return items
     }
-    
-    internal func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
-        let storedRowTypeName = input.rowTypeIdentifier
-        
-        var queryableTypeProviders: [String: PolymorphicOperationReturnOption<ReturnedType.AttributesType, ReturnedType>] = [:]
-        ReturnedType.types.forEach { (type, provider) in
-            queryableTypeProviders[getTypeRowIdentifier(type: type)] = provider
-        }
-
-        if let provider = queryableTypeProviders[storedRowTypeName] {
-            return try provider.getReturnType(input: input)
-        } else {
-            // throw an exception, we don't know what this type is
-            throw SmokeDynamoDBError.unexpectedType(provided: storedRowTypeName)
-        }
-    }
-    
-    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                             sortKeyCondition: AttributeCondition?,
-                                                             limit: Int?,
-                                                             exclusiveStartKey: String?,
-                                                             consistentRead: Bool) throws
-    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
-        return try query(forPartitionKey: partitionKey,
-                         sortKeyCondition: sortKeyCondition,
-                         limit: limit,
-                         scanIndexForward: true,
-                         exclusiveStartKey: exclusiveStartKey,
-                         consistentRead: consistentRead)
-    }
 
     func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
                                                              sortKeyCondition: AttributeCondition?,
@@ -609,5 +503,122 @@ internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
         }
 
         return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
+    }
+}
+
+// MARK: - Internal helper functions
+
+extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
+    func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+        constraints: [TransactionConstraintEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let errors = constraints.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicTransactionConstraintTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            guard let partition = store[transform.partitionKey],
+                    let item = partition[transform.sortKey],
+                        item.rowStatus.rowVersion == transform.rowVersion else {
+                if isTransaction {
+                    return SmokeDynamoDBError.transactionConditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                                sortKey: transform.sortKey,
+                                                                                message: "Item doesn't exist or doesn't have correct version")
+                } else {
+                    return SmokeDynamoDBError.conditionalCheckFailed(partitionKey: transform.partitionKey,
+                                                                     sortKey: transform.sortKey,
+                                                                     message: "Item doesn't exist or doesn't have correct version")
+                }
+            }
+            
+            return nil
+        }
+        
+        if !errors.isEmpty {
+            return SmokeDynamoDBError.transactionCanceled(reasons: errors)
+        }
+        
+        return nil
+    }
+    
+    func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
+        entries: [WriteEntryType], isTransaction: Bool,
+        context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                      InMemoryPolymorphicTransactionConstraintTransform>)
+    -> SmokeDynamoDBError? {
+        let writeErrors = entries.compactMap { entry -> SmokeDynamoDBError? in
+            let transform: InMemoryPolymorphicWriteEntryTransform
+            do {
+                transform = try entry.handle(context: context)
+            } catch {
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            do {
+                try transform.operation(&self.store)
+            } catch let error {
+                if let typedError = error as? SmokeDynamoDBError {
+                    if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
+                        if message == itemAlreadyExistsMessage {
+                            return .duplicateItem(partitionKey: partitionKey, sortKey: sortKey, message: message)
+                        } else {
+                            return .transactionConditionalCheckFailed(partitionKey: partitionKey,
+                                                                      sortKey: sortKey, message: message)
+                        }
+                    }
+                    return typedError
+                }
+                
+                // return unexpected error
+                return SmokeDynamoDBError.unexpectedError(cause: error)
+            }
+            
+            return nil
+        }
+                                    
+        if writeErrors.count > 0 {
+            if isTransaction {
+                return SmokeDynamoDBError.transactionCanceled(reasons: writeErrors)
+            } else {
+                return SmokeDynamoDBError.batchErrorsReturned(errorCount: writeErrors.count, messageMap: [:])
+            }
+        }
+        
+        return nil
+    }
+    
+    func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
+        let storedRowTypeName = input.rowTypeIdentifier
+        
+        var queryableTypeProviders: [String: PolymorphicOperationReturnOption<ReturnedType.AttributesType, ReturnedType>] = [:]
+        ReturnedType.types.forEach { (type, provider) in
+            queryableTypeProviders[getTypeRowIdentifier(type: type)] = provider
+        }
+
+        if let provider = queryableTypeProviders[storedRowTypeName] {
+            return try provider.getReturnType(input: input)
+        } else {
+            // throw an exception, we don't know what this type is
+            throw SmokeDynamoDBError.unexpectedType(provided: storedRowTypeName)
+        }
+    }
+    
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) throws
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
+        return try query(forPartitionKey: partitionKey,
+                         sortKeyCondition: sortKeyCondition,
+                         limit: limit,
+                         scanIndexForward: true,
+                         exclusiveStartKey: exclusiveStartKey,
+                         consistentRead: consistentRead)
     }
 }
