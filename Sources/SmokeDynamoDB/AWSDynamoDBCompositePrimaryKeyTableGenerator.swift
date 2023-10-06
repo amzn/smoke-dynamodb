@@ -36,7 +36,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 requiresTLS: Bool? = nil, tableName: String,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
                     = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
                 escapeSingleQuoteInPartiQL: Bool = false) {
@@ -62,7 +62,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 requiresTLS: Bool? = nil, tableName: String,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
                     = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
                 escapeSingleQuoteInPartiQL: Bool = false) {
@@ -96,11 +96,9 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
-    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await self.dynamodbGenerator.shutdown()
     }
-    #endif
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType,
