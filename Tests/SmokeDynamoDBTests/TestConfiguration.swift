@@ -66,3 +66,36 @@ extension TestQueryableTypes: BatchCapableReturnType {
         }
     }
 }
+
+typealias TestTypeAWriteEntry = StandardWriteEntry<TestTypeA>
+typealias TestTypeBWriteEntry = StandardWriteEntry<TestTypeB>
+typealias TestTypeAStandardTransactionConstraintEntry = StandardTransactionConstraintEntry<TestTypeA>
+typealias TestTypeBStandardTransactionConstraintEntry = StandardTransactionConstraintEntry<TestTypeB>
+
+enum TestPolymorphicWriteEntry: PolymorphicWriteEntry {
+    case testTypeA(TestTypeAWriteEntry)
+    case testTypeB(TestTypeBWriteEntry)
+
+    func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteEntryTransformType {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return try context.transform(writeEntry)
+        case .testTypeB(let writeEntry):
+            return try context.transform(writeEntry)
+        }
+    }
+}
+
+enum TestPolymorphicTransactionConstraintEntry: PolymorphicTransactionConstraintEntry {
+    case testTypeA(TestTypeAStandardTransactionConstraintEntry)
+    case testTypeB(TestTypeBStandardTransactionConstraintEntry)
+
+    func handle<Context: PolymorphicWriteEntryContext>(context: Context) throws -> Context.WriteTransactionConstraintType {
+        switch self {
+        case .testTypeA(let writeEntry):
+            return try context.transform(writeEntry)
+        case .testTypeB(let writeEntry):
+            return try context.transform(writeEntry)
+        }
+    }
+}

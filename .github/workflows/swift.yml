@@ -2,20 +2,20 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ smoke-dynamodb-3.x ]
   pull_request:
-    branches: [ main ]
+    branches: [ smoke-dynamodb-3.x ]
       
 jobs:
   LatestVersionBuild:
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-18.04]
-        swift: ["5.6.1"]
+        os: [ubuntu-22.04, ubuntu-20.04]
+        swift: ["5.8"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: fwal/setup-swift@v1.15.0
+      - uses: swift-actions/setup-swift@v1.23.0
         with:
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v2
@@ -28,10 +28,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04]
-        swift: ["5.5.3"]
+        swift: ["5.7.3", "5.6.3"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: fwal/setup-swift@v1.15.0
+      - uses: swift-actions/setup-swift@v1.23.0
         with:
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v2

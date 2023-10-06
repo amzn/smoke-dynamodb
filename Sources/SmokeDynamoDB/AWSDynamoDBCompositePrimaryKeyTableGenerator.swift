@@ -23,10 +23,12 @@ import SmokeAWSCore
 import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
+import NIO
 
 public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
     internal let dynamodbGenerator: _AWSDynamoDBClientGenerator
     internal let targetTableName: String
+    internal let escapeSingleQuoteInPartiQL: Bool
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion,
@@ -36,7 +38,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -50,6 +53,7 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                                                              eventLoopProvider: eventLoopProvider,
                                                              reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
     }
 
     public init(credentialsProvider: CredentialsProvider,
@@ -60,7 +64,8 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                escapeSingleQuoteInPartiQL: Bool = false) {
         self.dynamodbGenerator = _AWSDynamoDBClientGenerator(credentialsProvider: credentialsProvider,
                                                              awsRegion: region,
                                                              endpointHostName: endpointHostName,
@@ -70,46 +75,73 @@ public class AWSDynamoDBCompositePrimaryKeyTableGenerator {
                                                              eventLoopProvider: eventLoopProvider,
                                                              reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+    }
+
+    /**
+     Gracefully shuts down the client behind this table. This function is idempotent and
+     will handle being called multiple times. Will block until shutdown is complete.
+     */
+    public func syncShutdown() throws {
+        try self.dynamodbGenerator.syncShutdown()
+    }
+
+    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
+    @available(*, deprecated, renamed: "syncShutdown")
+    public func close() throws {
+        try self.dynamodbGenerator.close()
     }
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
+    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await self.dynamodbGenerator.shutdown()
     }
+    #endif
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
-            reporting: NewInvocationReportingType) -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
+            reporting: NewInvocationReportingType,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
+    -> AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType> {
         return AWSDynamoDBCompositePrimaryKeyTable<NewInvocationReportingType>(
             dynamodb: self.dynamodbGenerator.with(reporting: reporting),
             targetTableName: self.targetTableName,
-            logger: reporting.logger)
+            escapeSingleQuoteInPartiQL: self.escapeSingleQuoteInPartiQL,
+            logger: reporting.logger,
+            tableMetrics: tableMetrics)
     }
     
     public func with<NewTraceContextType: InvocationTraceContext>(
             logger: Logging.Logger,
             internalRequestId: String = "none",
-            traceContext: NewTraceContextType)
+            traceContext: NewTraceContextType,
+            eventLoop: EventLoop? = nil,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
     -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: traceContext)
+            traceContext: traceContext,
+            eventLoop: eventLoop)
 
-        return with(reporting: reporting)
+        return with(reporting: reporting, tableMetrics: tableMetrics)
     }
 
     public func with(
             logger: Logging.Logger,
-            internalRequestId: String = "none")
+            internalRequestId: String = "none",
+            eventLoop: EventLoop? = nil,
+            tableMetrics: AWSDynamoDBTableMetrics = .init())
     -> AWSDynamoDBCompositePrimaryKeyTable<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: AWSClientInvocationTraceContext())
+            traceContext: AWSClientInvocationTraceContext(),
+            eventLoop: eventLoop)
 
-        return with(reporting: reporting)
+        return with(reporting: reporting, tableMetrics: tableMetrics)
     }
 }

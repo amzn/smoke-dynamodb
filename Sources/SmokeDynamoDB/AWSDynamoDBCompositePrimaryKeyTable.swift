@@ -20,23 +20,41 @@ import Logging
 import DynamoDBClient
 import DynamoDBModel
 import SmokeAWSCore
+import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
+import NIO
+import Metrics
+
+public struct AWSDynamoDBTableMetrics {
+    // metric to record if the `TransactWrite` API is retried
+    let transactWriteRetryCountRecorder: Metrics.Recorder?
+    
+    public init(transactWriteRetryCountRecorder: Metrics.Recorder? = nil) {
+        self.transactWriteRetryCountRecorder = transactWriteRetryCountRecorder
+    }
+}
 
 public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
     internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
     internal let targetTableName: String
+    public let consistentRead: Bool
+    public let escapeSingleQuoteInPartiQL: Bool
+    public let tableMetrics: AWSDynamoDBTableMetrics
     internal let logger: Logger
 
     public init(accessKeyId: String, secretAccessKey: String,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
         let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
                                                   secretAccessKey: secretAccessKey,
                                                   sessionToken: nil)
@@ -51,19 +69,25 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
 
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
     }
 
     public init(credentialsProvider: CredentialsProvider,
                 region: AWSRegion, reporting: InvocationReportingType,
                 endpointHostName: String, endpointPort: Int = 443,
                 requiresTLS: Bool? = nil, tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
                 eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
                 reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>()) {
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
         self.logger = reporting.logger
         self.dynamodb = _AWSDynamoDBClient(credentialsProvider: credentialsProvider,
                                            awsRegion: region, reporting: reporting,
@@ -74,26 +98,226 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                            eventLoopProvider: eventLoopProvider,
                                            reportingConfiguration: reportingConfiguration)
         self.targetTableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
 
-        self.logger.info("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
+    }
+    
+    public init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,
+                reporting: InvocationReportingType,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                httpClient: HTTPOperationsClient? = nil,
+                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
+        self.logger = reporting.logger
+        self.dynamodb = config.createAWSClient(reporting: reporting,
+                                               httpClientOverride: httpClient)
+        self.targetTableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
+        
+        let endpointHostName = self.dynamodb.httpClient.endpointHostName
+        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
+    }
+    
+    // This initialiser is generic with respect to the reporting type from the operations client
+    // As we are using the providing reporting instance and not creating a reporting instance from
+    // the operations client, this generic type can be ignored.
+    public init<OperationsClientInvocationReportingType: HTTPClientCoreInvocationReporting>(
+                operationsClient: AWSGenericDynamoDBTableOperationsClient<OperationsClientInvocationReportingType>,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                reporting: InvocationReportingType,
+                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
+        self.logger = reporting.logger
+        self.dynamodb = operationsClient.config.createAWSClient(reporting: reporting,
+                                                                httpClientOverride: operationsClient.httpClient)
+        self.targetTableName = operationsClient.tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
+        
+        let endpointHostName = self.dynamodb.httpClient.endpointHostName
+        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
+    }
+    
+    public init<TraceContextType: InvocationTraceContext>(
+                config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+                tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
+                internalRequestId: String = "none",
+                eventLoop: EventLoop? = nil,
+                httpClient: HTTPOperationsClient? = nil,
+                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
+                tableMetrics: AWSDynamoDBTableMetrics = .init())
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
+        self.logger = logger
+        self.dynamodb = config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
+                                               eventLoopOverride: eventLoop, httpClientOverride: httpClient,
+                                               outwardsRequestAggregator: outwardsRequestAggregator)
+        self.targetTableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
+        
+        let endpointHostName = self.dynamodb.httpClient.endpointHostName
+        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
+    }
+    
+    public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
+        config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+        tableName: String,
+        consistentRead: Bool = true,
+        escapeSingleQuoteInPartiQL: Bool = false,
+        invocationAttributes: InvocationAttributesType,
+        httpClient: HTTPOperationsClient? = nil,
+        tableMetrics: AWSDynamoDBTableMetrics = .init())
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
+        self.init(config: config, tableName: tableName,
+                  consistentRead: consistentRead,
+                  logger: invocationAttributes.logger,
+                  internalRequestId: invocationAttributes.internalRequestId,
+                  eventLoop: !config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
+                  httpClient: httpClient,
+                  outwardsRequestAggregator: invocationAttributes.outwardsRequestAggregator,
+                  tableMetrics: tableMetrics)
+    }
+    
+    public init<TraceContextType: InvocationTraceContext>(
+                operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
+                internalRequestId: String = "none",
+                eventLoop: EventLoop? = nil,
+                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
+                tableMetrics: AWSDynamoDBTableMetrics = .init())
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
+        self.logger = logger
+        self.dynamodb = operationsClient.config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
+                                                                eventLoopOverride: eventLoop, httpClientOverride: operationsClient.httpClient,
+                                                                outwardsRequestAggregator: outwardsRequestAggregator)
+        self.targetTableName = operationsClient.tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
+        
+        let endpointHostName = self.dynamodb.httpClient.endpointHostName
+        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
+    }
+    
+    public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
+        operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
+        consistentRead: Bool = true,
+        escapeSingleQuoteInPartiQL: Bool = false,
+        invocationAttributes: InvocationAttributesType,
+        tableMetrics: AWSDynamoDBTableMetrics = .init())
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
+        self.init(operationsClient: operationsClient,
+                  consistentRead: consistentRead,
+                  escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
+                  logger: invocationAttributes.logger,
+                  internalRequestId: invocationAttributes.internalRequestId,
+                  eventLoop: !operationsClient.config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
+                  outwardsRequestAggregator: invocationAttributes.outwardsRequestAggregator,
+                  tableMetrics: tableMetrics)
+    }
+    
+    public init(tableName: String,
+                consistentRead: Bool = true,
+                escapeSingleQuoteInPartiQL: Bool = false,
+                credentialsProvider: CredentialsProvider,
+                awsRegion: AWSRegion,
+                endpointHostName endpointHostNameOptional: String? = nil,
+                endpointPort: Int = 443,
+                requiresTLS: Bool? = nil,
+                service: String = "dynamodb",
+                contentType: String = "application/x-amz-json-1.0",
+                target: String? = "DynamoDB_20120810",
+                timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
+                retryConfiguration: HTTPClientRetryConfiguration = .default,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
+                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
+                connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
+                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
+                internalRequestId: String = "none",
+                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
+                tableMetrics: AWSDynamoDBTableMetrics = .init())
+    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
+        let config = AWSGenericDynamoDBClientConfiguration(
+            credentialsProvider: credentialsProvider,
+            awsRegion: awsRegion,
+            endpointHostName: endpointHostNameOptional,
+            endpointPort: endpointPort,
+            requiresTLS: requiresTLS,
+            service: service,
+            contentType: contentType,
+            target: target,
+            timeoutConfiguration: timeoutConfiguration,
+            retryConfiguration: retryConfiguration,
+            eventLoopProvider: eventLoopProvider,
+            reportingConfiguration: reportingConfiguration,
+            connectionPoolConfiguration: connectionPoolConfiguration)
+        self.logger = logger
+        self.dynamodb = config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
+                                               eventLoopOverride: nil, httpClientOverride: nil,
+                                               outwardsRequestAggregator: outwardsRequestAggregator)
+        self.targetTableName = tableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
+        self.tableMetrics = tableMetrics
+        
+        let endpointHostName = self.dynamodb.httpClient.endpointHostName
+        self.logger.trace("AWSDynamoDBTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
     }
     
     internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
                   targetTableName: String,
-                  logger: Logger) {
+                  consistentRead: Bool = true,
+                  escapeSingleQuoteInPartiQL: Bool = false,
+                  logger: Logger,
+                  tableMetrics: AWSDynamoDBTableMetrics = .init()) {
         self.dynamodb = dynamodb
         self.targetTableName = targetTableName
+        self.consistentRead = consistentRead
+        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
         self.logger = logger
+        self.tableMetrics = tableMetrics
+    }
+
+    /**
+     Gracefully shuts down the client behind this table. This function is idempotent and
+     will handle being called multiple times. Will block until shutdown is complete.
+     */
+    public func syncShutdown() throws {
+        try self.dynamodb.syncShutdown()
+    }
+
+    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
+    @available(*, deprecated, renamed: "syncShutdown")
+    public func close() throws {
+        try self.dynamodb.close()
     }
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
+    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await self.dynamodb.shutdown()
     }
+    #endif
+}
 
+extension AWSDynamoDBCompositePrimaryKeyTable {
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
         -> DynamoDBModel.PutItemInput {
             let attributes = try getAttributes(forItem: item)
@@ -132,7 +356,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
         let attributeValue = try DynamoDBEncoder().encode(key)
 
         if let keyAttributes = attributeValue.M {
-            return DynamoDBModel.GetItemInput(consistentRead: true,
+            return DynamoDBModel.GetItemInput(consistentRead: self.consistentRead,
                                               key: keyAttributes,
                                               tableName: targetTableName)
         } else {
@@ -152,7 +376,7 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
             }
         }
 
-        let keysAndAttributes = KeysAndAttributes(consistentRead: true,
+        let keysAndAttributes = KeysAndAttributes(consistentRead: self.consistentRead,
                                                   keys: keys)
         
         return DynamoDBModel.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])
@@ -191,6 +415,10 @@ public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPCl
                                              expressionAttributeValues: expressionAttributeValues,
                                              key: keyAttributes,
                                              tableName: targetTableName)
+    }
+
+    public var eventLoop: EventLoop {
+        return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }
 }
 

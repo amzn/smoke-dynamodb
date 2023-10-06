@@ -32,16 +32,6 @@ import NIOHTTP1
 import AsyncHTTPClient
 import Logging
 
-private extension SmokeHTTPClient.HTTPClientError {
-    func isRetriable() -> Bool {
-        if let typedError = self.cause as? DynamoDBError, let isRetriable = typedError.isRetriable() {
-            return isRetriable
-        } else {
-            return self.isRetriableAccordingToCategory
-        }
-    }
-}
-
 /**
  AWS Client for the DynamoDB service.
  */
@@ -93,6 +83,29 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
         self.retryConfiguration = retryConfiguration
         self.reporting = reporting
         self.retryOnErrorProvider = { error in error.isRetriable() }
+        self.operationsReporting = DynamoDBOperationsReporting(clientName: "AWSDynamoDBClient", reportingConfiguration: reportingConfiguration)
+        self.invocationsReporting = DynamoDBInvocationsReporting(reporting: reporting, operationsReporting: self.operationsReporting)
+    }
+    
+    init(credentialsProvider: CredentialsProvider, awsRegion: AWSRegion,
+         reporting: InvocationReportingType,
+         service: String = "dynamodb",
+         target: String? = "DynamoDB_20120810",
+         httpClient: HTTPOperationsClient,
+         ownsHttpClient: Bool,
+         retryConfiguration: HTTPClientRetryConfiguration,
+         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>,
+         retryOnErrorProvider: @escaping (SmokeHTTPClient.HTTPClientError) -> Bool) {
+        self.httpClient = httpClient
+        self.ownsHttpClients = ownsHttpClient
+        self.eventLoopGroup = httpClient.eventLoopGroup
+        self.awsRegion = awsRegion
+        self.service = service
+        self.target = target
+        self.credentialsProvider = credentialsProvider
+        self.retryConfiguration = retryConfiguration
+        self.reporting = reporting
+        self.retryOnErrorProvider = retryOnErrorProvider
         self.operationsReporting = DynamoDBOperationsReporting(clientName: "AWSDynamoDBClient", reportingConfiguration: reportingConfiguration)
         self.invocationsReporting = DynamoDBInvocationsReporting(reporting: reporting, operationsReporting: self.operationsReporting)
     }
