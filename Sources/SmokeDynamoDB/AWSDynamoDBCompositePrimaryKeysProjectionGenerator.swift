@@ -23,6 +23,7 @@ import SmokeAWSCore
 import SmokeAWSHttp
 import SmokeHTTPClient
 import AsyncHTTPClient
+import NIO
 
 public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
     internal let dynamodbGenerator: _AWSDynamoDBClientGenerator
@@ -74,11 +75,27 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
 
     /**
      Gracefully shuts down the client behind this table. This function is idempotent and
+     will handle being called multiple times. Will block until shutdown is complete.
+     */
+    public func syncShutdown() throws {
+        try self.dynamodbGenerator.syncShutdown()
+    }
+
+    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
+    @available(*, deprecated, renamed: "syncShutdown")
+    public func close() throws {
+        try self.dynamodbGenerator.close()
+    }
+
+    /**
+     Gracefully shuts down the client behind this table. This function is idempotent and
      will handle being called multiple times. Will return when shutdown is complete.
      */
+    #if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await self.dynamodbGenerator.shutdown()
     }
+    #endif
     
     public func with<NewInvocationReportingType: HTTPClientCoreInvocationReporting>(
             reporting: NewInvocationReportingType) -> AWSDynamoDBCompositePrimaryKeysProjection<NewInvocationReportingType> {
@@ -91,24 +108,26 @@ public class AWSDynamoDBCompositePrimaryKeysProjectionGenerator {
     public func with<NewTraceContextType: InvocationTraceContext>(
             logger: Logging.Logger,
             internalRequestId: String = "none",
-            traceContext: NewTraceContextType)
-    -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
+            traceContext: NewTraceContextType,
+            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<NewTraceContextType>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: traceContext)
+            traceContext: traceContext,
+            eventLoop: eventLoop)
 
         return with(reporting: reporting)
     }
 
     public func with(
             logger: Logging.Logger,
-            internalRequestId: String = "none")
-    -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
+            internalRequestId: String = "none",
+            eventLoop: EventLoop? = nil) -> AWSDynamoDBCompositePrimaryKeysProjection<StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext>> {
         let reporting = StandardHTTPClientCoreInvocationReporting(
             logger: logger,
             internalRequestId: internalRequestId,
-            traceContext: AWSClientInvocationTraceContext())
+            traceContext: AWSClientInvocationTraceContext(),
+            eventLoop: eventLoop)
 
         return with(reporting: reporting)
     }

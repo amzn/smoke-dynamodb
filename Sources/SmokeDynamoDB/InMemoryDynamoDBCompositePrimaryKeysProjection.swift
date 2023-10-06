@@ -19,47 +19,62 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 public class InMemoryDynamoDBCompositePrimaryKeysProjection: DynamoDBCompositePrimaryKeysProjection {
-    internal let keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore
+    public var eventLoop: EventLoop
 
-    public init(keys: [Any] = []) {
-        self.keysWrapper = InMemoryDynamoDBCompositePrimaryKeysProjectionStore(keys: keys)
-    }
-    
-    internal init(keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
-        self.keysWrapper = keysWrapper
-    }
+    internal let keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore
     
     public var keys: [Any] {
-        get async {
-            return await self.keysWrapper.keys
+        do {
+            return try keysWrapper.getKeys(eventLoop: self.eventLoop).wait()
+        } catch {
+            fatalError("Unable to retrieve InMemoryDynamoDBCompositePrimaryKeysProjection keys.")
         }
     }
 
+    public init(keys: [Any] = [], eventLoop: EventLoop) {
+        self.keysWrapper = InMemoryDynamoDBCompositePrimaryKeysProjectionStore(keys: keys)
+        self.eventLoop = eventLoop
+    }
+    
+    internal init(eventLoop: EventLoop,
+                  keysWrapper: InMemoryDynamoDBCompositePrimaryKeysProjectionStore) {
+        self.eventLoop = eventLoop
+        self.keysWrapper = keysWrapper
+    }
+    
+    public func on(eventLoop: EventLoop) -> InMemoryDynamoDBCompositePrimaryKeysProjection {
+        return InMemoryDynamoDBCompositePrimaryKeysProjection(eventLoop: eventLoop,
+                                                              keysWrapper: self.keysWrapper)
+    }
+
     public func query<AttributesType>(forPartitionKey partitionKey: String,
-                                      sortKeyCondition: AttributeCondition?) async throws
-    -> [CompositePrimaryKey<AttributesType>] {
-        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition)
+                                      sortKeyCondition: AttributeCondition?)
+    -> EventLoopFuture<[CompositePrimaryKey<AttributesType>]> {
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition, eventLoop: self.eventLoop)
     }
     
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
-                                      exclusiveStartKey: String?) async throws
-    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
-        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                           limit: limit, exclusiveStartKey: exclusiveStartKey)
+                                      exclusiveStartKey: String?)
+    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+            where AttributesType: PrimaryKeyAttributes {
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                 limit: limit, exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
     }
 
     public func query<AttributesType>(forPartitionKey partitionKey: String,
                                       sortKeyCondition: AttributeCondition?,
                                       limit: Int?,
                                       scanIndexForward: Bool,
-                                      exclusiveStartKey: String?) async throws
-    -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
-        return try await keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
-                                           limit: limit, scanIndexForward: scanIndexForward,
-                                           exclusiveStartKey: exclusiveStartKey)
+                                      exclusiveStartKey: String?)
+    -> EventLoopFuture<([CompositePrimaryKey<AttributesType>], String?)>
+    where AttributesType: PrimaryKeyAttributes {
+        return keysWrapper.query(forPartitionKey: partitionKey, sortKeyCondition: sortKeyCondition,
+                                 limit: limit, scanIndexForward: scanIndexForward,
+                                 exclusiveStartKey: exclusiveStartKey, eventLoop: self.eventLoop)
     }
 }

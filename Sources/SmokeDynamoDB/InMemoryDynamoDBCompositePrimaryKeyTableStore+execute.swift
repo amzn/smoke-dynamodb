@@ -19,81 +19,134 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
+import NIO
 
 extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
             attributesFilter: [String]?,
-            additionalWhereClause: String?) throws
-    -> [ReturnedType] {
-        let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
-           
-        let returnedItems: [ReturnedType] = try items.map { item in
-            return try self.convertToQueryableType(input: item)
+            additionalWhereClause: String?,
+            eventLoop: EventLoop) -> EventLoopFuture<[ReturnedType]> {
+        let promise = eventLoop.makePromise(of: [ReturnedType].self)
+        
+        accessQueue.async {
+            let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
+               
+            let returnedItems: [ReturnedType]
+            do {
+                returnedItems = try items.map { item in
+                    return try self.convertToQueryableType(input: item)
+                }
+            } catch {
+                promise.fail(error)
+                return
+            }
+            
+            promise.succeed(returnedItems)
         }
         
-        return returnedItems
+        return promise.futureResult
     }
     
     func execute<ReturnedType: PolymorphicOperationReturnType>(
             partitionKeys: [String],
             attributesFilter: [String]?,
-            additionalWhereClause: String?, nextToken: String?) throws
-    -> (items: [ReturnedType], lastEvaluatedKey: String?)  {
-        let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
-           
-        let returnedItems: [ReturnedType] = try items.map { item in
-            return try self.convertToQueryableType(input: item)
+            additionalWhereClause: String?,
+            nextToken: String?,
+            eventLoop: EventLoop) -> EventLoopFuture<([ReturnedType], String?)> {
+        let promise = eventLoop.makePromise(of: ([ReturnedType], String?).self)
+        
+        accessQueue.async {
+            let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
+               
+            let returnedItems: [ReturnedType]
+            do {
+                returnedItems = try items.map { item in
+                    return try self.convertToQueryableType(input: item)
+                }
+            } catch {
+                promise.fail(error)
+                return
+            }
+            
+            promise.succeed((returnedItems, nil))
         }
         
-        return (returnedItems, nil)
+        return promise.futureResult
     }
     
     func monomorphicExecute<AttributesType, ItemType>(
             partitionKeys: [String],
             attributesFilter: [String]?,
-            additionalWhereClause: String?) throws
-    -> [TypedDatabaseItem<AttributesType, ItemType>] {
-        let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
-           
-        let returnedItems: [TypedDatabaseItem<AttributesType, ItemType>] = try items.map { item in
-            guard let typedItem = item as? TypedDatabaseItem<AttributesType, ItemType> else {
-                let foundType = type(of: item)
-                let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
-                let context = DecodingError.Context(codingPath: [], debugDescription: description)
-                let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+            additionalWhereClause: String?,
+            eventLoop: EventLoop)
+    -> EventLoopFuture<[TypedDatabaseItem<AttributesType, ItemType>]> {
+        let promise = eventLoop.makePromise(of: [TypedDatabaseItem<AttributesType, ItemType>].self)
+        
+        accessQueue.async {
+            let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
+               
+            let returnedItems: [TypedDatabaseItem<AttributesType, ItemType>]
+            do {
+                returnedItems = try items.map { item in
+                    guard let typedItem = item as? TypedDatabaseItem<AttributesType, ItemType> else {
+                        let foundType = type(of: item)
+                        let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
+                        let context = DecodingError.Context(codingPath: [], debugDescription: description)
+                        let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+                        
+                        throw error
+                    }
                     
-                throw error
+                    return typedItem
+                }
+            } catch {
+                promise.fail(error)
+                return
             }
-                
-            return typedItem
+            
+            promise.succeed(returnedItems)
         }
         
-        return returnedItems
+        return promise.futureResult
     }
     
     func monomorphicExecute<AttributesType, ItemType>(
-        partitionKeys: [String],
-        attributesFilter: [String]?,
-        additionalWhereClause: String?, nextToken: String?) throws
-    -> (items: [TypedDatabaseItem<AttributesType, ItemType>], lastEvaluatedKey: String?) {
-        let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
-           
-        let returnedItems: [TypedDatabaseItem<AttributesType, ItemType>] = try items.map { item in
-            guard let typedItem = item as? TypedDatabaseItem<AttributesType, ItemType> else {
-                let foundType = type(of: item)
-                let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
-                let context = DecodingError.Context(codingPath: [], debugDescription: description)
-                let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+            partitionKeys: [String],
+            attributesFilter: [String]?,
+            additionalWhereClause: String?,
+            nextToken: String?,
+            eventLoop: EventLoop)
+    -> EventLoopFuture<([TypedDatabaseItem<AttributesType, ItemType>], String?)> {
+        let promise = eventLoop.makePromise(of: ([TypedDatabaseItem<AttributesType, ItemType>], String?).self)
+        
+        accessQueue.async {
+            let items = self.getExecuteItems(partitionKeys: partitionKeys, additionalWhereClause: additionalWhereClause)
+               
+            let returnedItems: [TypedDatabaseItem<AttributesType, ItemType>]
+            do {
+                returnedItems = try items.map { item in
+                    guard let typedItem = item as? TypedDatabaseItem<AttributesType, ItemType> else {
+                        let foundType = type(of: item)
+                        let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
+                        let context = DecodingError.Context(codingPath: [], debugDescription: description)
+                        let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+                        
+                        throw error
+                    }
                     
-                throw error
+                    return typedItem
+                }
+            } catch {
+                promise.fail(error)
+                return
             }
-                
-            return typedItem
+            
+            promise.succeed((returnedItems, nil))
         }
         
-        return (returnedItems, nil)
+        return promise.futureResult
     }
     
     func getExecuteItems(partitionKeys: [String],

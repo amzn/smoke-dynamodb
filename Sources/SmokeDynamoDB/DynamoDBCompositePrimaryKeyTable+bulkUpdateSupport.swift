@@ -19,6 +19,7 @@ import Foundation
 import SmokeHTTPClient
 import Logging
 import DynamoDBModel
+import NIO
 
 internal enum AttributeDifference: Equatable {
     case update(path: String, value: String)
@@ -63,19 +64,19 @@ extension DynamoDBCompositePrimaryKeyTable {
         let elements = attributeDifferences.map { attributeDifference -> String in
             switch attributeDifference {
             case .update(path: let path, value: let value):
-                return "SET \"\(path)\"=\(value)"
+                return "SET \(path)=\(value)"
             case .remove(path: let path):
-                return "REMOVE \"\(path)\""
+                return "REMOVE \(path)"
             case .listAppend(path: let path, value: let value):
-                return "SET \"\(path)\"=list_append(\(path),\(value))"
+                return "SET \(path)=list_append(\(path),\(value))"
             }
         }
         
         let combinedElements = elements.joined(separator: " ")
         
         return "UPDATE \"\(tableName)\" \(combinedElements) "
-            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(newItem.compositePrimaryKey.partitionKey)' "
-            + "AND \(AttributesType.sortKeyAttributeName)='\(newItem.compositePrimaryKey.sortKey)' "
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(newItem.compositePrimaryKey.partitionKey))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(newItem.compositePrimaryKey.sortKey))' "
             + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
@@ -91,16 +92,27 @@ extension DynamoDBCompositePrimaryKeyTable {
     func getDeleteExpression<ItemType: DatabaseItem>(tableName: String,
                                                      existingItem: ItemType) throws -> String {
         return "DELETE FROM \"\(tableName)\" "
-            + "WHERE \(ItemType.AttributesType.partitionKeyAttributeName)='\(existingItem.compositePrimaryKey.partitionKey)' "
-            + "AND \(ItemType.AttributesType.sortKeyAttributeName)='\(existingItem.compositePrimaryKey.sortKey)' "
+            + "WHERE \(ItemType.AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.partitionKey))' "
+            + "AND \(ItemType.AttributesType.sortKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.sortKey))' "
             + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
     }
     
     func getDeleteExpression<AttributesType>(tableName: String,
                                              existingKey: CompositePrimaryKey<AttributesType>) throws -> String {
         return "DELETE FROM \"\(tableName)\" "
-            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(existingKey.partitionKey)' "
-            + "AND \(AttributesType.sortKeyAttributeName)='\(existingKey.sortKey)'"
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingKey.partitionKey))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(existingKey.sortKey))'"
+    }
+    
+    func getExistsExpression<AttributesType, ItemType>(tableName: String,
+                                                       existingItem: TypedDatabaseItem<AttributesType, ItemType>) -> String {
+        // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html
+        return "EXISTS("
+            + "SELECT * FROM \"\(tableName)\" "
+            + "WHERE \(AttributesType.partitionKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.partitionKey))' "
+            + "AND \(AttributesType.sortKeyAttributeName)='\(sanitizeString(existingItem.compositePrimaryKey.sortKey))' "
+            + "AND \(RowStatus.CodingKeys.rowVersion.rawValue)=\(existingItem.rowStatus.rowVersion)"
+            + ")"
     }
     
     /*
@@ -142,7 +154,7 @@ extension DynamoDBCompositePrimaryKeyTable {
             return []
         } else if let newTypedAttribute = newAttribute.S, let existingTypedAttribute = existingAttribute.S {
             if newTypedAttribute != existingTypedAttribute {
-                return [.update(path: path, value: "'\(newTypedAttribute)'")]
+                return [.update(path: path, value: "'\(sanitizeString(newTypedAttribute))'")]
             }
         } else if newAttribute.SS != nil || existingAttribute.SS  != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
@@ -163,7 +175,7 @@ extension DynamoDBCompositePrimaryKeyTable {
         
         return try (0..<maxIndex).flatMap { index -> [AttributeDifference] in
             let newPath = "\(path)[\(index)]"
-            
+
             // if both new and existing attributes are present
             if index < newAttribute.count && index < existingAttribute.count {
                 return try diffAttribute(path: newPath, newAttribute: newAttribute[index], existingAttribute: existingAttribute[index])
@@ -222,9 +234,9 @@ extension DynamoDBCompositePrimaryKeyTable {
     
     private func combinePath(basePath: String?, newComponent: String) -> String {
         if let basePath = basePath {
-            return "\(basePath).\(newComponent)"
+            return "\(basePath).\"\(newComponent)\""
         } else {
-            return newComponent
+            return "\"\(newComponent)\""
         }
     }
     
@@ -254,7 +266,7 @@ extension DynamoDBCompositePrimaryKeyTable {
         } else if attribute.NULL != nil {
             return nil
         } else if let typedAttribute = attribute.S {
-            return "'\(typedAttribute)'"
+            return "'\(sanitizeString(typedAttribute))'"
         } else if attribute.SS != nil {
             throw SmokeDynamoDBError.unableToUpdateError(reason: "Unable to handle String Set types.")
         }
@@ -282,5 +294,17 @@ extension DynamoDBCompositePrimaryKeyTable {
         
         let joinedElements = elements.joined(separator: ", ")
         return "{\(joinedElements)}"
+    }
+
+    /// In PartiQL single quotes indicate start and end of a string attribute.
+    /// If, however, the string itself contains a single quote then the database
+    /// does not know where the string should end. Therefore, need to escape
+    /// single quote by doubling it. E.g. 'foo'bar' becomes 'foo''bar'.
+    private func sanitizeString(_ string: String) -> String {
+        if self.escapeSingleQuoteInPartiQL {
+            return string.replacingOccurrences(of: "'", with: "''")
+        } else {
+            return string
+        }
     }
 }
