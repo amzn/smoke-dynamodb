@@ -19,40 +19,41 @@
 import Foundation
 import SmokeHTTPClient
 import DynamoDBModel
-import NIO
 
 private let itemAlreadyExistsMessage = "Row already exists."
 
-private struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
+// MARK: - Transforms
+
+internal struct InMemoryPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
     typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
 
-    let operation: () throws -> ()
+    let operation: (inout TableType.StoreType) throws -> ()
 
     init<AttributesType: PrimaryKeyAttributes, ItemType: Codable>(_ entry: WriteEntry<AttributesType, ItemType>, table: TableType) throws {
         switch entry {
         case .update(new: let new, existing: let existing):
-            operation = {
-                try table.updateItemInternal(newItem: new, existingItem: existing)
+            operation = { store in
+                try updateItem(newItem: new, existingItem: existing, store: &store)
             }
         case .insert(new: let new):
-            operation = {
-                try table.insertItemInternal(new)
+            operation = { store in
+                try insertItem(new, store: &store)
             }
         case .deleteAtKey(key: let key):
-            operation = {
-                table.deleteItemInternal(forKey: key)
+            operation = { store in
+                try deleteItem(forKey: key, store: &store)
             }
         case .deleteItem(existing: let existing):
-            operation = {
-                try table.deleteItemInternal(existingItem: existing)
+            operation = { store in
+                try deleteItem(existingItem: existing, store: &store)
             }
         }
     }
 }
 
-private struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+internal struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
     typealias TableType = InMemoryDynamoDBCompositePrimaryKeyTableStore
-    
+
     let partitionKey: String
     let sortKey: String
     let rowVersion: Int
@@ -68,145 +69,447 @@ private struct InMemoryPolymorphicTransactionConstraintTransform: PolymorphicTra
     }
 }
 
-internal class InMemoryDynamoDBCompositePrimaryKeyTableStore {
-    
-    internal var store: [String: [String: PolymorphicOperationReturnTypeConvertable]] = [:]
-    internal let accessQueue = DispatchQueue(
-        label: "com.amazon.SmokeDynamoDB.InMemoryDynamoDBCompositePrimaryKeyTable.accessQueue",
-        target: DispatchQueue.global())
-    
-    internal let executeItemFilter: ExecuteItemFilterType?
-    
-    init(executeItemFilter: ExecuteItemFilterType? = nil) {
-        self.executeItemFilter = executeItemFilter
-    }
-    
-    func getStore(eventLoop: EventLoop) -> EventLoopFuture<[String: [String: PolymorphicOperationReturnTypeConvertable]]> {
-        let promise = eventLoop.makePromise(of: [String: [String: PolymorphicOperationReturnTypeConvertable]].self)
-        
-        accessQueue.async {
-            promise.succeed(self.store)
-        }
-        
-        return promise.futureResult
-    }
-}
+// MARK: - Shared implementations
+// Can be used directly by `InMemoryPolymorphicTransactionConstraintTransform` or through the `InMemoryPolymorphicWriteEntryTransform`
 
-extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
-    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                              eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            do {
-                try self.insertItemInternal(item)
-                promise.succeed(())
-            } catch {
-                promise.fail(error)
-            }
-        }
-        
-        return promise.futureResult
-    }
-    
-    fileprivate func insertItemInternal<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
-        let partition = self.store[item.compositePrimaryKey.partitionKey]
-        
-        // if there is already a partition
-        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-        if let partition = partition {
-            updatedPartition = partition
-            
-            // if the row already exists
-            if partition[item.compositePrimaryKey.sortKey] != nil {
-                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
-                                                                sortKey: item.compositePrimaryKey.sortKey,
-                                                                message: itemAlreadyExistsMessage)
-            }
-            
-            updatedPartition[item.compositePrimaryKey.sortKey] = item
-        } else {
-            updatedPartition = [item.compositePrimaryKey.sortKey: item]
-        }
-        
-        self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
-    }
-    
-    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
-                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            let partition = self.store[item.compositePrimaryKey.partitionKey]
-            
-            // if there is already a partition
-            var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-            if let partition = partition {
-                updatedPartition = partition
-                
-                updatedPartition[item.compositePrimaryKey.sortKey] = item
-            } else {
-                updatedPartition = [item.compositePrimaryKey.sortKey: item]
-            }
-            
-            self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
-            promise.succeed(())
-        }
-        
-        return promise.futureResult
-    }
-    
-    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                              eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            do {
-                try self.updateItemInternal(newItem: newItem, existingItem: existingItem)
-                promise.succeed(())
-            } catch {
-                promise.fail(error)
-            }
-        }
-        
-        return promise.futureResult
-    }
-    
-    fileprivate func updateItemInternal<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
-                                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
-        let partition = self.store[newItem.compositePrimaryKey.partitionKey]
-        
-        // if there is already a partition
-        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-        if let partition = partition {
-            updatedPartition = partition
-            
-            // if the row already exists
-            if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
-                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
-                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
-                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
-                                                                    sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                    message: "Trying to overwrite incorrect version.")
-                }
-            } else {
+private func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                  existingItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                                  store: inout [String: [String: PolymorphicOperationReturnTypeConvertable]]) throws {
+    let partition = store[newItem.compositePrimaryKey.partitionKey]
+
+    // if there is already a partition
+    var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+    if let partition = partition {
+        updatedPartition = partition
+
+        // if the row already exists
+        if let actuallyExistingItem = partition[newItem.compositePrimaryKey.sortKey] {
+            if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+                existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
                 throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                                 sortKey: newItem.compositePrimaryKey.sortKey,
-                                                                message: "Existing item does not exist.")
+                                                                message: "Trying to overwrite incorrect version.")
             }
-            
-            updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
         } else {
             throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
                                                             sortKey: newItem.compositePrimaryKey.sortKey,
                                                             message: "Existing item does not exist.")
         }
-        
-        self.store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
+
+        updatedPartition[newItem.compositePrimaryKey.sortKey] = newItem
+    } else {
+        throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: newItem.compositePrimaryKey.partitionKey,
+                                                        sortKey: newItem.compositePrimaryKey.sortKey,
+                                                        message: "Existing item does not exist.")
+    }
+
+    store[newItem.compositePrimaryKey.partitionKey] = updatedPartition
+}
+
+private func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>,
+                                                  store: inout [String: [String: PolymorphicOperationReturnTypeConvertable]]) throws {
+    let partition = store[item.compositePrimaryKey.partitionKey]
+
+    // if there is already a partition
+    var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+    if let partition = partition {
+        updatedPartition = partition
+
+        // if the row already exists
+        if partition[item.compositePrimaryKey.sortKey] != nil {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: item.compositePrimaryKey.partitionKey,
+                                                            sortKey: item.compositePrimaryKey.sortKey,
+                                                            message: "Row already exists.")
+        }
+
+        updatedPartition[item.compositePrimaryKey.sortKey] = item
+    } else {
+        updatedPartition = [item.compositePrimaryKey.sortKey: item]
+    }
+
+    store[item.compositePrimaryKey.partitionKey] = updatedPartition
+}
+
+private func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
+                                        store: inout [String: [String: PolymorphicOperationReturnTypeConvertable]]) throws {
+    store[key.partitionKey]?[key.sortKey] = nil
+}
+
+private func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType,
+                                                store: inout [String: [String: PolymorphicOperationReturnTypeConvertable]]) throws {
+    let partition = store[existingItem.compositePrimaryKey.partitionKey]
+
+    // if there is already a partition
+    var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+    if let partition = partition {
+        updatedPartition = partition
+
+        // if the row already exists
+        if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
+            if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
+            existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
+                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                                sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                                message: "Trying to delete incorrect version.")
+            }
+        } else {
+            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                            sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                            message: "Existing item does not exist.")
+        }
+
+        updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
+    } else {
+        throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
+                                                        sortKey: existingItem.compositePrimaryKey.sortKey,
+                                                        message: "Existing item does not exist.")
+    }
+
+    store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
+}
+
+// MARK: - Store implementation
+
+internal actor InMemoryDynamoDBCompositePrimaryKeyTableStore {
+    typealias StoreType = [String: [String: PolymorphicOperationReturnTypeConvertable]]
+    
+    internal var store: StoreType = [:]
+    internal let executeItemFilter: ExecuteItemFilterType?
+
+    init(executeItemFilter: ExecuteItemFilterType? = nil) {
+        self.executeItemFilter = executeItemFilter
     }
     
-    private func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+    nonisolated func validateEntry<AttributesType, ItemType>(entry: WriteEntry<AttributesType, ItemType>) throws {
+        let entryString = "\(entry)"
+        if entryString.count > AWSDynamoDBLimits.maxStatementLength {
+            throw SmokeDynamoDBError.statementLengthExceeded(
+                reason: "failed to satisfy constraint: Member must have length less than or equal to "
+                    + "\(AWSDynamoDBLimits.maxStatementLength). Actual length \(entryString.count)")
+        }
+    }
+
+    func insertItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        try SmokeDynamoDB.insertItem(item, store: &self.store)
+    }
+
+    func clobberItem<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        let partition = self.store[item.compositePrimaryKey.partitionKey]
+
+        // if there is already a partition
+        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
+        if let partition = partition {
+            updatedPartition = partition
+
+            updatedPartition[item.compositePrimaryKey.sortKey] = item
+        } else {
+            updatedPartition = [item.compositePrimaryKey.sortKey: item]
+        }
+
+        self.store[item.compositePrimaryKey.partitionKey] = updatedPartition
+    }
+
+    func updateItem<AttributesType, ItemType>(newItem: TypedDatabaseItem<AttributesType, ItemType>,
+                                              existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws {
+        try SmokeDynamoDB.updateItem(newItem: newItem, existingItem: existingItem, store: &self.store)
+    }
+    
+    func bulkWrite<WriteEntryType: PolymorphicWriteEntry,
+                   TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
+                    _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
+                    isTransaction: Bool) throws
+    {
+        let entryCount = entries.count + constraints.count
+        let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
+                                                           InMemoryPolymorphicTransactionConstraintTransform>(table: self)
+            
+        if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
+            throw SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
+                                                             maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
+        }
+        
+        let store = self.store
+        
+        if let error = self.handleConstraints(constraints: constraints, isTransaction: isTransaction, context: context) {
+            throw error
+        }
+                                    
+        if let error = self.handleEntries(entries: entries, isTransaction: isTransaction, context: context) {
+            if isTransaction {
+                // restore the state prior to the transaction
+                self.store = store
+            }
+            
+            throw error
+        }
+    }
+    
+    func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) throws {
+        try entries.forEach { entry in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                return try self.updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                return try self.insertItem(new)
+            case .deleteAtKey(key: let key):
+                return try deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                return try deleteItem(existingItem: existing)
+            }
+        }
+    }
+    
+    func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) throws {
+        // fall back to single operation if the write entry exceeds the statement length limitation
+        var nonBulkWriteEntries: [WriteEntry<AttributesType, ItemType>] = []
+        
+        let bulkWriteEntries = try entries.compactMap { entry in
+            do {
+                try self.validateEntry(entry: entry)
+                return entry
+            } catch SmokeDynamoDBError.statementLengthExceeded {
+                nonBulkWriteEntries.append(entry)
+                return nil
+            }
+        }
+        
+        try self.monomorphicBulkWrite(bulkWriteEntries)
+            
+        try nonBulkWriteEntries.forEach { nonBulkWriteEntry in
+            switch nonBulkWriteEntry {
+            case .update(new: let new, existing: let existing):
+                try self.updateItem(newItem: new, existingItem: existing)
+            case .insert(new: let new):
+                try self.insertItem(new)
+            case .deleteAtKey(key: let key):
+                try self.deleteItem(forKey: key)
+            case .deleteItem(existing: let existing):
+                try self.deleteItem(existingItem: existing)
+            }
+        }
+    }
+    
+    func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
+        _ entries: [WriteEntry<AttributesType, ItemType>]) throws
+    -> Set<BatchStatementErrorCodeEnum> {
+        let results = entries.map { entry -> BatchStatementErrorCodeEnum? in
+            switch entry {
+            case .update(new: let new, existing: let existing):
+                do {
+                    try updateItem(newItem: new, existingItem: existing)
+                    
+                    return nil
+                } catch {
+                    return BatchStatementErrorCodeEnum.duplicateitem
+                }
+            case .insert(new: let new):
+                do {
+                    try insertItem(new)
+                    
+                    return nil
+                } catch {
+                    return BatchStatementErrorCodeEnum.duplicateitem
+                }
+            case .deleteAtKey(key: let key):
+                do {
+                    try deleteItem(forKey: key)
+                    
+                    return nil
+                } catch {
+                    return BatchStatementErrorCodeEnum.duplicateitem
+                }
+            case .deleteItem(existing: let existing):
+                do {
+                    try deleteItem(existingItem: existing)
+                    
+                    return nil
+                } catch {
+                    return BatchStatementErrorCodeEnum.duplicateitem
+                }
+            }
+        }
+        
+        var errors: Set<BatchStatementErrorCodeEnum> = Set()
+        results.forEach { result in
+            if let result {
+                errors.insert(result)
+            }
+        }
+        return errors
+    }
+
+    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>) throws
+    -> TypedDatabaseItem<AttributesType, ItemType>? {
+        if let partition = self.store[key.partitionKey] {
+
+            guard let value = partition[key.sortKey] else {
+                return nil
+            }
+
+            guard let item = value as? TypedDatabaseItem<AttributesType, ItemType> else {
+                let foundType = type(of: value)
+                let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
+                let context = DecodingError.Context(codingPath: [], debugDescription: description)
+                
+                throw DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
+            }
+
+            return item
+        }
+
+        return nil
+    }
+    
+    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
+        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>]) throws
+    -> [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] {
+        var map: [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] = [:]
+        
+        try keys.forEach { key in
+            if let partition = self.store[key.partitionKey] {
+
+                guard let value = partition[key.sortKey] else {
+                    return
+                }
+                
+                let itemAsReturnedType: ReturnedType = try self.convertToQueryableType(input: value)
+                
+                map[key] = itemAsReturnedType
+            }
+        }
+        
+        return map
+    }
+
+    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws {
+        try SmokeDynamoDB.deleteItem(forKey: key, store: &self.store)
+    }
+    
+    func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType) throws {
+        try SmokeDynamoDB.deleteItem(existingItem: existingItem, store: &self.store)
+    }
+    
+    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) throws {
+        try keys.forEach { key in
+            try deleteItem(forKey: key)
+        }
+    }
+    
+    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType]) throws {
+        try existingItems.forEach { (existingItem: ItemType) in
+            try deleteItem(existingItem: existingItem)
+        }
+    }
+
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             consistentRead: Bool) throws
+    -> [ReturnedType] {
+        var items: [ReturnedType] = []
+
+        if let partition = self.store[partitionKey] {
+            let sortedPartition = partition.sorted(by: { (left, right) -> Bool in
+                return left.key < right.key
+            })
+            
+            sortKeyIteration: for (sortKey, value) in sortedPartition {
+
+                if let currentSortKeyCondition = sortKeyCondition {
+                    switch currentSortKeyCondition {
+                    case .equals(let value):
+                        if !(value == sortKey) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .lessThan(let value):
+                        if !(sortKey < value) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .lessThanOrEqual(let value):
+                        if !(sortKey <= value) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .greaterThan(let value):
+                        if !(sortKey > value) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .greaterThanOrEqual(let value):
+                        if !(sortKey >= value) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .between(let value1, let value2):
+                        if !(sortKey > value1 && sortKey < value2) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    case .beginsWith(let value):
+                        if !(sortKey.hasPrefix(value)) {
+                            // don't include this in the results
+                            continue sortKeyIteration
+                        }
+                    }
+                }
+
+                items.append(try self.convertToQueryableType(input: value))
+            }
+        }
+
+        return items
+    }
+
+    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
+                                                             sortKeyCondition: AttributeCondition?,
+                                                             limit: Int?,
+                                                             scanIndexForward: Bool,
+                                                             exclusiveStartKey: String?,
+                                                             consistentRead: Bool) throws
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
+        // get all the results
+        let rawItems: [ReturnedType] = try query(forPartitionKey: partitionKey,
+                                                 sortKeyCondition: sortKeyCondition,
+                                                 consistentRead: consistentRead)
+        
+        let items: [ReturnedType]
+        if !scanIndexForward {
+            items = rawItems.reversed()
+        } else {
+            items = rawItems
+        }
+
+        let startIndex: Int
+        // if there is an exclusiveStartKey
+        if let exclusiveStartKey = exclusiveStartKey {
+            guard let storedStartIndex = Int(exclusiveStartKey) else {
+                fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
+            }
+
+            startIndex = storedStartIndex
+        } else {
+            startIndex = 0
+        }
+
+        let endIndex: Int
+        let lastEvaluatedKey: String?
+        if let limit = limit, startIndex + limit < items.count {
+            endIndex = startIndex + limit
+            lastEvaluatedKey = String(endIndex)
+        } else {
+            endIndex = items.count
+            lastEvaluatedKey = nil
+        }
+
+        return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
+    }
+}
+
+// MARK: - Internal helper functions
+
+extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
+    func handleConstraints<TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
         constraints: [TransactionConstraintEntryType], isTransaction: Bool,
         context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
                                                       InMemoryPolymorphicTransactionConstraintTransform>)
@@ -243,7 +546,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return nil
     }
     
-    private func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
+    func handleEntries<WriteEntryType: PolymorphicWriteEntry>(
         entries: [WriteEntryType], isTransaction: Bool,
         context: StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
                                                       InMemoryPolymorphicTransactionConstraintTransform>)
@@ -257,7 +560,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
             }
             
             do {
-                try transform.operation()
+                try transform.operation(&self.store)
             } catch let error {
                 if let typedError = error as? SmokeDynamoDBError {
                     if case .conditionalCheckFailed(let partitionKey, let sortKey, let message) = typedError, isTransaction {
@@ -289,344 +592,7 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
         return nil
     }
     
-    func bulkWrite<WriteEntryType: PolymorphicWriteEntry,
-                       TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
-                        _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
-                        isTransaction: Bool, eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            let entryCount = entries.count + constraints.count
-            let context = StandardPolymorphicWriteEntryContext<InMemoryPolymorphicWriteEntryTransform,
-                                                               InMemoryPolymorphicTransactionConstraintTransform>(table: self)
-                
-            if entryCount > AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement {
-                let error = SmokeDynamoDBError.transactionSizeExceeded(attemptedSize: entryCount,
-                                                                       maximumSize: AWSDynamoDBLimits.maximumUpdatesPerTransactionStatement)
-                promise.fail(error)
-                return
-            }
-            
-            let store = self.store
-            
-            if let error = self.handleConstraints(constraints: constraints, isTransaction: isTransaction, context: context) {
-                promise.fail(error)
-                return
-            }
-                                        
-            if let error = self.handleEntries(entries: entries, isTransaction: isTransaction, context: context) {
-                if isTransaction {
-                    // restore the state prior to the transaction
-                    self.store = store
-                }
-                
-                promise.fail(error)
-                return
-            }
-            
-            promise.succeed()
-        }
-        
-        return promise.futureResult
-    }
-    
-    public func monomorphicBulkWrite<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>],
-                                                               eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let futures = entries.map { entry -> EventLoopFuture<Void> in
-            switch entry {
-            case .update(new: let new, existing: let existing):
-                return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
-            case .insert(new: let new):
-                return insertItem(new, eventLoop: eventLoop)
-            case .deleteAtKey(key: let key):
-                return deleteItem(forKey: key, eventLoop: eventLoop)
-            case .deleteItem(existing: let existing):
-                return deleteItem(existingItem: existing, eventLoop: eventLoop)
-            }
-        }
-        
-        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
-    }
-
-    public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
-        _ entries: [WriteEntry<AttributesType, ItemType>],
-        eventLoop: EventLoop) -> EventLoopFuture<Set<BatchStatementErrorCodeEnum>> {
-            
-            let futures = entries.map { entry -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
-                switch entry {
-                case .update(new: let new, existing: let existing):
-                    return updateItem(newItem: new, existingItem: existing, eventLoop: eventLoop)
-                        .map { () -> BatchStatementErrorCodeEnum? in
-                            return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
-                            let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
-                            promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
-                            return promise.futureResult
-                        }
-                case .insert(new: let new):
-                    return insertItem(new, eventLoop: eventLoop)
-                        .map { () -> BatchStatementErrorCodeEnum? in
-                            return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
-                            let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
-                            promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
-                            return promise.futureResult
-                        }
-                case .deleteAtKey(key: let key):
-                    return deleteItem(forKey: key, eventLoop: eventLoop)
-                        .map { () -> BatchStatementErrorCodeEnum? in
-                            return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
-                            let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
-                            promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
-                            return promise.futureResult
-                        }
-                case .deleteItem(existing: let existing):
-                    return deleteItem(existingItem: existing, eventLoop: eventLoop)
-                        .map { () -> BatchStatementErrorCodeEnum? in
-                            return nil
-                        }.flatMapError { error -> EventLoopFuture<BatchStatementErrorCodeEnum?> in
-                            let promise = eventLoop.makePromise(of: BatchStatementErrorCodeEnum?.self)
-                            promise.succeed(BatchStatementErrorCodeEnum.duplicateitem)
-                            return promise.futureResult
-                        }
-                }
-            }
-            
-            return EventLoopFuture.whenAllComplete(futures, on: eventLoop)
-                .flatMapThrowing { results in
-                    var errors: Set<BatchStatementErrorCodeEnum> = Set()
-                    try results.forEach { result in
-                        if let error = try result.get() {
-                            errors.insert(error)
-                        }
-                    }
-                    return errors
-                }
-        }
-    
-    func getItem<AttributesType, ItemType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                           eventLoop: EventLoop)
-    -> EventLoopFuture<TypedDatabaseItem<AttributesType, ItemType>?> {
-        let promise = eventLoop.makePromise(of: TypedDatabaseItem<AttributesType, ItemType>?.self)
-        
-        accessQueue.async {
-            if let partition = self.store[key.partitionKey] {
-                
-                guard let value = partition[key.sortKey] else {
-                    promise.succeed(nil)
-                    return
-                }
-                
-                guard let item = value as? TypedDatabaseItem<AttributesType, ItemType> else {
-                    let foundType = type(of: value)
-                    let description = "Expected to decode \(TypedDatabaseItem<AttributesType, ItemType>.self). Instead found \(foundType)."
-                    let context = DecodingError.Context(codingPath: [], debugDescription: description)
-                    let error = DecodingError.typeMismatch(TypedDatabaseItem<AttributesType, ItemType>.self, context)
-                    
-                    promise.fail(error)
-                    return
-                }
-                
-                promise.succeed(item)
-                return
-            }
-            
-            promise.succeed(nil)
-        }
-        
-        return promise.futureResult
-    }
-    
-    func getItems<ReturnedType: PolymorphicOperationReturnType & BatchCapableReturnType>(
-        forKeys keys: [CompositePrimaryKey<ReturnedType.AttributesType>],
-        eventLoop: EventLoop)
-    -> EventLoopFuture<[CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType]> {
-        let promise = eventLoop.makePromise(of: [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType].self)
-        
-        accessQueue.async {
-            var map: [CompositePrimaryKey<ReturnedType.AttributesType>: ReturnedType] = [:]
-            
-            keys.forEach { key in
-                if let partition = self.store[key.partitionKey] {
-                    
-                    guard let value = partition[key.sortKey] else {
-                        return
-                    }
-                    
-                    let itemAsReturnedType: ReturnedType
-                    
-                    do {
-                        itemAsReturnedType = try self.convertToQueryableType(input: value)
-                    } catch {
-                        promise.fail(error)
-                        return
-                    }
-                    
-                    map[key] = itemAsReturnedType
-                }
-            }
-            
-            promise.succeed(map)
-        }
-        
-        return promise.futureResult
-    }
-    
-    func deleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
-                                    eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            self.deleteItemInternal(forKey: key)
-            promise.succeed(())
-        }
-        
-        return promise.futureResult
-    }
-    
-    fileprivate func deleteItemInternal<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) {
-        self.store[key.partitionKey]?[key.sortKey] = nil
-    }
-    
-    func deleteItem<ItemType: DatabaseItem>(existingItem: ItemType,
-                                            eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let promise = eventLoop.makePromise(of: Void.self)
-        
-        accessQueue.async {
-            do {
-                try self.deleteItemInternal(existingItem: existingItem)
-                promise.succeed(())
-            } catch {
-                promise.fail(error)
-            }
-        }
-        
-        return promise.futureResult
-    }
-    
-    fileprivate func deleteItemInternal<ItemType: DatabaseItem>(existingItem: ItemType) throws {
-        let partition = self.store[existingItem.compositePrimaryKey.partitionKey]
-        
-        // if there is already a partition
-        var updatedPartition: [String: PolymorphicOperationReturnTypeConvertable]
-        if let partition = partition {
-            updatedPartition = partition
-            
-            // if the row already exists
-            if let actuallyExistingItem = partition[existingItem.compositePrimaryKey.sortKey] {
-                if existingItem.rowStatus.rowVersion != actuallyExistingItem.rowStatus.rowVersion ||
-                    existingItem.createDate.iso8601 != actuallyExistingItem.createDate.iso8601 {
-                    throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                                    sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                                    message: "Trying to delete incorrect version.")
-                }
-            } else {
-                throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                                sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                                message: "Existing item does not exist.")
-            }
-            
-            updatedPartition[existingItem.compositePrimaryKey.sortKey] = nil
-        } else {
-            throw SmokeDynamoDBError.conditionalCheckFailed(partitionKey: existingItem.compositePrimaryKey.partitionKey,
-                                                            sortKey: existingItem.compositePrimaryKey.sortKey,
-                                                            message: "Existing item does not exist.")
-        }
-        
-        self.store[existingItem.compositePrimaryKey.partitionKey] = updatedPartition
-    }
-    
-    func deleteItems<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>],
-                                     eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let futures = keys.map { key in
-            return deleteItem(forKey: key, eventLoop: eventLoop)
-        }
-        
-        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
-    }
-    
-    func deleteItems<ItemType: DatabaseItem>(existingItems: [ItemType],
-                                             eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        let futures = existingItems.map { existingItem in
-            return deleteItem(existingItem: existingItem, eventLoop: eventLoop)
-        }
-        
-        return EventLoopFuture.andAllSucceed(futures, on: eventLoop)
-    }
-
-    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                             sortKeyCondition: AttributeCondition?,
-                                                             eventLoop: EventLoop)
-        -> EventLoopFuture<[ReturnedType]> {
-        let promise = eventLoop.makePromise(of: [ReturnedType].self)
-        
-        accessQueue.async {
-            var items: [ReturnedType] = []
-
-            if let partition = self.store[partitionKey] {
-                let sortedPartition = partition.sorted(by: { (left, right) -> Bool in
-                    return left.key < right.key
-                })
-                
-                sortKeyIteration: for (sortKey, value) in sortedPartition {
-
-                    if let currentSortKeyCondition = sortKeyCondition {
-                        switch currentSortKeyCondition {
-                        case .equals(let value):
-                            if !(value == sortKey) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .lessThan(let value):
-                            if !(sortKey < value) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .lessThanOrEqual(let value):
-                            if !(sortKey <= value) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .greaterThan(let value):
-                            if !(sortKey > value) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .greaterThanOrEqual(let value):
-                            if !(sortKey >= value) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .between(let value1, let value2):
-                            if !(sortKey > value1 && sortKey < value2) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        case .beginsWith(let value):
-                            if !(sortKey.hasPrefix(value)) {
-                                // don't include this in the results
-                                continue sortKeyIteration
-                            }
-                        }
-                    }
-
-                    do {
-                        items.append(try self.convertToQueryableType(input: value))
-                    } catch {
-                        promise.fail(error)
-                        return
-                    }
-                }
-            }
-
-            promise.succeed(items)
-        }
-        
-        return promise.futureResult
-    }
-    
-    internal func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
+    func convertToQueryableType<ReturnedType: PolymorphicOperationReturnType>(input: PolymorphicOperationReturnTypeConvertable) throws -> ReturnedType {
         let storedRowTypeName = input.rowTypeIdentifier
         
         var queryableTypeProviders: [String: PolymorphicOperationReturnOption<ReturnedType.AttributesType, ReturnedType>] = [:]
@@ -646,58 +612,13 @@ extension InMemoryDynamoDBCompositePrimaryKeyTableStore {
                                                              sortKeyCondition: AttributeCondition?,
                                                              limit: Int?,
                                                              exclusiveStartKey: String?,
-                                                             eventLoop: EventLoop)
-            -> EventLoopFuture<([ReturnedType], String?)> {
-        return query(forPartitionKey: partitionKey,
-                     sortKeyCondition: sortKeyCondition,
-                     limit: limit,
-                     scanIndexForward: true,
-                     exclusiveStartKey: exclusiveStartKey,
-                     eventLoop: eventLoop)
-    }
-
-    func query<ReturnedType: PolymorphicOperationReturnType>(forPartitionKey partitionKey: String,
-                                                             sortKeyCondition: AttributeCondition?,
-                                                             limit: Int?,
-                                                             scanIndexForward: Bool,
-                                                             exclusiveStartKey: String?,
-                                                             eventLoop: EventLoop)
-            -> EventLoopFuture<([ReturnedType], String?)> {
-        // get all the results
-        return query(forPartitionKey: partitionKey,
-                     sortKeyCondition: sortKeyCondition,
-                     eventLoop: eventLoop)
-            .map { (rawItems: [ReturnedType]) in
-                let items: [ReturnedType]
-                if !scanIndexForward {
-                    items = rawItems.reversed()
-                } else {
-                    items = rawItems
-                }
-
-                let startIndex: Int
-                // if there is an exclusiveStartKey
-                if let exclusiveStartKey = exclusiveStartKey {
-                    guard let storedStartIndex = Int(exclusiveStartKey) else {
-                        fatalError("Unexpectedly encoded exclusiveStartKey '\(exclusiveStartKey)'")
-                    }
-
-                    startIndex = storedStartIndex
-                } else {
-                    startIndex = 0
-                }
-
-                let endIndex: Int
-                let lastEvaluatedKey: String?
-                if let limit = limit, startIndex + limit < items.count {
-                    endIndex = startIndex + limit
-                    lastEvaluatedKey = String(endIndex)
-                } else {
-                    endIndex = items.count
-                    lastEvaluatedKey = nil
-                }
-
-                return (Array(items[startIndex..<endIndex]), lastEvaluatedKey)
-            }
+                                                             consistentRead: Bool) throws
+    -> (items: [ReturnedType], lastEvaluatedKey: String?) {
+        return try query(forPartitionKey: partitionKey,
+                         sortKeyCondition: sortKeyCondition,
+                         limit: limit,
+                         scanIndexForward: true,
+                         exclusiveStartKey: exclusiveStartKey,
+                         consistentRead: consistentRead)
     }
 }

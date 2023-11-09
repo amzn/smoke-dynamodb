@@ -73,7 +73,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         traceContext: TraceContextType,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
@@ -120,7 +120,7 @@ public struct AWSGenericDynamoDBClientConfiguration<InvocationReportingType: HTT
         ignoreInvocationEventLoop: Bool = false,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,

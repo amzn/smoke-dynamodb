@@ -43,7 +43,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         traceContext: TraceContextType,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
@@ -83,7 +83,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
         ignoreInvocationEventLoop: Bool = false,
         timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
         retryConfiguration: HTTPClientRetryConfiguration = .default,
-        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+        eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
         reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
             = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
         connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
@@ -129,9 +129,7 @@ public struct AWSGenericDynamoDBTableOperationsClient<InvocationReportingType: H
      This function is idempotent and will handle being called multiple
      times. Will return when shutdown is complete.
      */
-#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
     public func shutdown() async throws {
         try await httpClient.shutdown()
     }
-#endif
 }

@@ -61,7 +61,7 @@ struct _AWSDynamoDBClient<InvocationReportingType: HTTPClientCoreInvocationRepor
                 target: String? = "DynamoDB_20120810",
                 connectionTimeoutSeconds: Int64 = 10,
                 retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .createNew,
+                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
                 reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
                     = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>() ) {
         self.eventLoopGroup = AWSClientHelper.getEventLoop(eventLoopGroupProvider: eventLoopProvider)
