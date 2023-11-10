@@ -16,9 +16,7 @@
 //
 
 import Foundation
-import SmokeAWSCore
-import DynamoDBModel
-import SmokeHTTPClient
+import AWSDynamoDB
 import Logging
 
 // BatchExecuteStatement has a maximum of 25 statements
@@ -32,11 +30,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return
         }
         
-        let statements: [BatchStatementRequest] = try keys.map { existingKey -> BatchStatementRequest in
+        let statements = try keys.map { existingKey -> DynamoDBClientTypes.BatchStatementRequest in
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingKey: existingKey)
                 
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            return DynamoDBClientTypes.BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
@@ -51,11 +49,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return
         }
         
-        let statements: [BatchStatementRequest] = try existingItems.map { existingItem -> BatchStatementRequest in
+        let statements = try existingItems.map { existingItem -> DynamoDBClientTypes.BatchStatementRequest in
             let statement = try getDeleteExpression(tableName: self.targetTableName,
                                                     existingItem: existingItem)
                 
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            return DynamoDBClientTypes.BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)

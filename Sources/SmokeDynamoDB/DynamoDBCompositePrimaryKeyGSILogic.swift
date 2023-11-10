@@ -16,8 +16,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 /**
   A protocol that simulates the logic of a GSI reacting to events on the main table.

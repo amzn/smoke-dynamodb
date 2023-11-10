@@ -15,8 +15,7 @@
 //  SmokeDynamoDB
 //
 
-import Foundation
-import DynamoDBModel
+import AWSDynamoDB
 
 internal struct InternalUnkeyedEncodingContainer: UnkeyedEncodingContainer {
     private let enclosingContainer: InternalSingleValueEncodingContainer
@@ -26,7 +25,6 @@ internal struct InternalUnkeyedEncodingContainer: UnkeyedEncodingContainer {
     }
 
     // MARK: - Swift.UnkeyedEncodingContainer Methods
-
     var codingPath: [CodingKey] {
         return enclosingContainer.codingPath
     }
@@ -34,61 +32,61 @@ internal struct InternalUnkeyedEncodingContainer: UnkeyedEncodingContainer {
     var count: Int { return enclosingContainer.unkeyedContainerCount }
     
     func encodeNil() throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(NULL: true)) }
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.null(true)) }
     
     func encode(_ value: Bool) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(BOOL: value)) }
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.bool(value)) }
     
     func encode(_ value: Int) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Int8) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Int16) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Int32) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Int64) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: UInt) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: UInt8) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: UInt16) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: UInt32) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: UInt64) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Float) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: Double) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(N: String(value)))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.n(String(value)))
     }
     
     func encode(_ value: String) throws {
-        enclosingContainer.addToUnkeyedContainer(value: DynamoDBModel.AttributeValue(S: value))
+        enclosingContainer.addToUnkeyedContainer(value: DynamoDBClientTypes.AttributeValue.s(value))
     }
     
     func encode<T>(_ value: T) throws where T: Encodable {

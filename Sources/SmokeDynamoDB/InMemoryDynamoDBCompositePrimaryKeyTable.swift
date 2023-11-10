@@ -17,8 +17,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 public protocol PolymorphicOperationReturnTypeConvertable {
     var createDate: Foundation.Date { get }
@@ -117,7 +116,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimary
     }
 
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum> {
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> {
         return try await storeWrapper.monomorphicBulkWriteWithoutThrowing(entries)
     }
     

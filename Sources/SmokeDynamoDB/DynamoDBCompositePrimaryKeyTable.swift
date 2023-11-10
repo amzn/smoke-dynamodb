@@ -16,8 +16,8 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
+import ClientRuntime
 
 /**
  Enumeration of the errors that can be thrown by a DynamoDBTable.
@@ -25,7 +25,6 @@ import DynamoDBModel
 public enum SmokeDynamoDBError: Error {
     case databaseError(reason: String)
     case unexpectedError(cause: Swift.Error)
-    case dynamoDBError(cause: DynamoDBError)
     case unexpectedResponse(reason: String)
     case conditionalCheckFailed(partitionKey: String, sortKey: String, message: String?)
     case duplicateItem(partitionKey: String?, sortKey: String?, message: String?)
@@ -56,12 +55,6 @@ public extension Swift.Error {
         let errorType = String(describing: type(of: self))
         let errorDescription = String(describing: self)
         return .unrecognizedError(errorType, errorDescription)
-    }
-}
-
-public extension DynamoDBError {
-    func asSmokeDynamoDBError() -> SmokeDynamoDBError {
-        return .dynamoDBError(cause: self)
     }
 }
 
@@ -138,7 +131,7 @@ public protocol DynamoDBCompositePrimaryKeyTable {
     func monomorphicBulkWriteWithFallback<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
     
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum>
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum>
 
     /**
      * Retrieves an item from the database table. Returns nil if the item doesn't exist.

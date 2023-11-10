@@ -16,8 +16,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 /**
  Protocol presenting a Keys Only projection of a DynamoDB table such as a Keys Only GSI projection.

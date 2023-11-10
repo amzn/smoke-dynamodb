@@ -16,9 +16,7 @@
 //
 
 import Foundation
-import SmokeAWSCore
-import DynamoDBModel
-import SmokeHTTPClient
+import AWSDynamoDB
 import Logging
 import CollectionConcurrencyKit
 
@@ -31,8 +29,8 @@ public struct AWSDynamoDBLimits {
     public static let maxStatementLength = 8192
 }
 
-private struct AWSDynamoDBPolymorphicWriteEntryTransform<InvocationReportingType: HTTPClientCoreInvocationReporting>: PolymorphicWriteEntryTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType>
+private struct AWSDynamoDBPolymorphicWriteEntryTransform: PolymorphicWriteEntryTransform {
+    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
 
     let statement: String
 
@@ -41,9 +39,8 @@ private struct AWSDynamoDBPolymorphicWriteEntryTransform<InvocationReportingType
     }
 }
 
-private struct AWSDynamoDBPolymorphicTransactionConstraintTransform<
-        InvocationReportingType: HTTPClientCoreInvocationReporting>: PolymorphicTransactionConstraintTransform {
-    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType>
+private struct AWSDynamoDBPolymorphicTransactionConstraintTransform: PolymorphicTransactionConstraintTransform {
+    typealias TableType = AWSDynamoDBCompositePrimaryKeyTable
 
     let statement: String
     
@@ -104,15 +101,15 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
 
     private func entryToBatchStatementRequest<AttributesType, ItemType>(
-        _ entry: WriteEntry<AttributesType, ItemType>) throws -> BatchStatementRequest {
+        _ entry: WriteEntry<AttributesType, ItemType>) throws -> DynamoDBClientTypes.BatchStatementRequest {
         
         let statement: String = try entryToStatement(entry)
         
         // doesn't require read consistency as no items are being read
-        return BatchStatementRequest(consistentRead: false, statement: statement)
+        return DynamoDBClientTypes.BatchStatementRequest(consistentRead: false, statement: statement)
     }
     
-    func throwOnBatchExecuteStatementErrors(response: DynamoDBModel.BatchExecuteStatementOutput) throws {
+    func throwOnBatchExecuteStatementErrors(response: AWSDynamoDB.BatchExecuteStatementOutput) throws {
         var errorMap: [String: Int] = [:]
         var errorCount = 0
         response.responses?.forEach { response in
@@ -156,18 +153,18 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let context = StandardPolymorphicWriteEntryContext<AWSDynamoDBPolymorphicWriteEntryTransform,
                                                            AWSDynamoDBPolymorphicTransactionConstraintTransform>(table: self)
-        let entryStatements: [ParameterizedStatement] = try entries.map { entry -> ParameterizedStatement in
+        let entryStatements = try entries.map { entry -> DynamoDBClientTypes.ParameterizedStatement in
             let transform: AWSDynamoDBPolymorphicWriteEntryTransform = try entry.handle(context: context)
             let statement = transform.statement
             
-            return ParameterizedStatement(statement: statement)
+            return DynamoDBClientTypes.ParameterizedStatement(statement: statement)
         }
         
-        let requiredItemsStatements: [ParameterizedStatement] = try constraints.map { entry -> ParameterizedStatement in
+        let requiredItemsStatements = try constraints.map { entry -> DynamoDBClientTypes.ParameterizedStatement in
             let transform: AWSDynamoDBPolymorphicTransactionConstraintTransform = try entry.handle(context: context)
             let statement = transform.statement
             
-            return ParameterizedStatement(statement: statement)
+            return DynamoDBClientTypes.ParameterizedStatement(statement: statement)
         }
         
         let transactionInput = ExecuteTransactionInput(transactStatements: entryStatements + requiredItemsStatements)
@@ -178,14 +175,14 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
         let noConstraints: [EmptyPolymorphicTransactionConstraintEntry] = []
         return try await transactWrite(entries, constraints: noConstraints,
-                                       retriesRemaining: self.dynamodb.retryConfiguration.numRetries)
+                                       retriesRemaining: self.retryConfiguration.numRetries)
     }
     
     func transactWrite<WriteEntryType: PolymorphicWriteEntry,
                        TransactionConstraintEntryType: PolymorphicTransactionConstraintEntry>(
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType]) async throws {
         return try await transactWrite(entries, constraints: constraints,
-                                       retriesRemaining: self.dynamodb.retryConfiguration.numRetries)
+                                       retriesRemaining: self.retryConfiguration.numRetries)
     }
     
     private func transactWrite<WriteEntryType: PolymorphicWriteEntry,
@@ -204,8 +201,8 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             try await self.writeTransactionItems(entries, constraints: constraints)
             
             result = .success(())
-        } catch DynamoDBError.transactionCanceled(let exception) {
-            guard let cancellationReasons = exception.cancellationReasons else {
+        } catch let exception as TransactionCanceledException {
+            guard let cancellationReasons = exception.properties.cancellationReasons else {
                 throw SmokeDynamoDBError.transactionCanceled(reasons: [])
             }
             
@@ -215,7 +212,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             let reasons = try zip(cancellationReasons, keys).compactMap { (cancellationReason, entryKey) -> SmokeDynamoDBError? in
                 let key: StandardCompositePrimaryKey?
                 if let item = cancellationReason.item {
-                    key = try DynamoDBDecoder().decode(.init(M: item))
+                    key = try DynamoDBDecoder().decode(.m(item))
                 } else {
                     key = nil
                 }
@@ -260,7 +257,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             }
             
             result = .failure(SmokeDynamoDBError.transactionCanceled(reasons: reasons))
-        } catch DynamoDBError.transactionConflict(let exception) {
+        } catch let exception as TransactionConflictException {
             if retriesRemaining > 0 {
                 return try await retryTransactWrite(entries, constraints: constraints, retriesRemaining: retriesRemaining)
             }
@@ -270,7 +267,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             result = .failure(SmokeDynamoDBError.transactionCanceled(reasons: [reason]))
         }
                             
-        let retryCount = self.dynamodb.retryConfiguration.numRetries - retriesRemaining
+        let retryCount = self.retryConfiguration.numRetries - retriesRemaining
         self.tableMetrics.transactWriteRetryCountRecorder?.record(retryCount)
                             
         switch result {
@@ -286,7 +283,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                         _ entries: [WriteEntryType], constraints: [TransactionConstraintEntryType],
                         retriesRemaining: Int) async throws {
         // determine the required interval
-        let retryInterval = Int(self.dynamodb.retryConfiguration.getRetryInterval(retriesRemaining: retriesRemaining))
+        let retryInterval = Int(self.retryConfiguration.getRetryInterval(retriesRemaining: retriesRemaining))
                 
         logger.warning(
             "Transaction retried due to conflict. Remaining retries: \(retriesRemaining). Retrying in \(retryInterval) ms.")
@@ -305,11 +302,11 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
         
         let context = StandardPolymorphicWriteEntryContext<AWSDynamoDBPolymorphicWriteEntryTransform,
                                                            AWSDynamoDBPolymorphicTransactionConstraintTransform>(table: self)
-        let statements: [BatchStatementRequest] = try entries.map { entry -> BatchStatementRequest in
+        let statements = try entries.map { entry -> DynamoDBClientTypes.BatchStatementRequest in
             let transform: AWSDynamoDBPolymorphicWriteEntryTransform = try entry.handle(context: context)
             let statement = transform.statement
             
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            return DynamoDBClientTypes.BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
@@ -333,7 +330,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return
         }
         
-        let statements: [BatchStatementRequest] = try entries.map { entry -> BatchStatementRequest in
+        let statements = try entries.map { entry -> DynamoDBClientTypes.BatchStatementRequest in
             let statement: String
             switch entry {
             case .update(new: let new, existing: let existing):
@@ -351,7 +348,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
                                                     existingItem: existing)
             }
             
-            return BatchStatementRequest(consistentRead: true, statement: statement)
+            return DynamoDBClientTypes.BatchStatementRequest(consistentRead: true, statement: statement)
         }
         
         let executeInput = BatchExecuteStatementInput(statements: statements)
@@ -394,7 +391,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func writeChunkedItemsWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum> {
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> {
         // if there are no items, there is nothing to update
         
         guard entries.count > 0 else {
@@ -403,13 +400,13 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
             return []
         }
         
-        let statements: [BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
+        let statements: [DynamoDBClientTypes.BatchStatementRequest] = try entries.map { try entryToBatchStatementRequest( $0 ) }
         let executeInput = BatchExecuteStatementInput(statements: statements)
         let result = try await dynamodb.batchExecuteStatement(input: executeInput)
         
-        var errorCodeSet: Set<BatchStatementErrorCodeEnum> = Set()
+        var errorCodeSet: Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> = Set()
         // TODO: Remove errorCodeSet and return errorSet instead
-        var errorSet: Set<BatchStatementError> = Set()
+        var errorSet: Set<DynamoDBClientTypes.BatchStatementError> = Set()
         result.responses?.forEach { response in
             if let error = response.error, let code = error.code {
                 errorCodeSet.insert(code)
@@ -425,7 +422,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(_ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum> {
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> {
         // BatchExecuteStatement has a maximum of 25 statements
         // This function handles pagination internally.
         let chunkedEntries = entries.chunked(by: AWSDynamoDBLimits.maximumUpdatesPerExecuteStatement)
@@ -440,7 +437,7 @@ public extension AWSDynamoDBCompositePrimaryKeyTable {
     }
 }
 
-extension BatchStatementError: Hashable {
+extension DynamoDBClientTypes.BatchStatementError: Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.code)

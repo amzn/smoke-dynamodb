@@ -16,7 +16,7 @@
 //
 
 import Foundation
-import DynamoDBModel
+import AWSDynamoDB
 
 extension QueryInput {
         internal static func forSortKeyCondition<AttributesType>(partitionKey: String,
@@ -27,37 +27,37 @@ extension QueryInput {
                                                                  scanIndexForward: Bool,
                                                                  exclusiveStartKey: String?,
                                                                  consistentRead: Bool?) throws
-        -> DynamoDBModel.QueryInput where AttributesType: PrimaryKeyAttributes {
-        let expressionAttributeValues: [String: DynamoDBModel.AttributeValue]
+        -> AWSDynamoDB.QueryInput where AttributesType: PrimaryKeyAttributes {
+        let expressionAttributeValues: [String: DynamoDBClientTypes.AttributeValue]
         let expressionAttributeNames: [String: String]
         let keyConditionExpression: String
         if let currentSortKeyCondition = sortKeyCondition {
-            var withSortConditionAttributeValues: [String: DynamoDBModel.AttributeValue] = [
-                ":pk": DynamoDBModel.AttributeValue(S: partitionKey)]
+            var withSortConditionAttributeValues: [String: DynamoDBClientTypes.AttributeValue] = [
+                ":pk": DynamoDBClientTypes.AttributeValue.s(partitionKey)]
 
             let sortKeyExpression: String
             switch currentSortKeyCondition {
             case .equals(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "#sk = :sortkeyval"
             case .lessThan(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "#sk < :sortkeyval"
             case .lessThanOrEqual(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "#sk <= :sortkeyval"
             case .greaterThan(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "#sk > :sortkeyval"
             case .greaterThanOrEqual(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "#sk >= :sortkeyval"
             case .between(let value1, let value2):
-                withSortConditionAttributeValues[":sortkeyval1"] = DynamoDBModel.AttributeValue(S: value1)
-                withSortConditionAttributeValues[":sortkeyval2"] = DynamoDBModel.AttributeValue(S: value2)
+                withSortConditionAttributeValues[":sortkeyval1"] = DynamoDBClientTypes.AttributeValue.s(value1)
+                withSortConditionAttributeValues[":sortkeyval2"] = DynamoDBClientTypes.AttributeValue.s(value2)
                 sortKeyExpression = "#sk BETWEEN :sortkeyval1 AND :sortkeyval2"
             case .beginsWith(let value):
-                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBModel.AttributeValue(S: value)
+                withSortConditionAttributeValues[":sortkeyval"] = DynamoDBClientTypes.AttributeValue.s(value)
                 sortKeyExpression = "begins_with ( #sk, :sortkeyval )"
             }
 
@@ -70,25 +70,25 @@ extension QueryInput {
             keyConditionExpression = "#pk= :pk"
 
             expressionAttributeNames = ["#pk": AttributesType.partitionKeyAttributeName]
-            expressionAttributeValues = [":pk": DynamoDBModel.AttributeValue(S: partitionKey)]
+            expressionAttributeValues = [":pk": DynamoDBClientTypes.AttributeValue.s(partitionKey)]
         }
 
-        let inputExclusiveStartKey: [String: DynamoDBModel.AttributeValue]?
+        let inputExclusiveStartKey: [String: DynamoDBClientTypes.AttributeValue]?
         if let exclusiveStartKey = exclusiveStartKey?.data(using: .utf8) {
-            inputExclusiveStartKey = try JSONDecoder().decode([String: DynamoDBModel.AttributeValue].self,
+            inputExclusiveStartKey = try JSONDecoder().decode([String: DynamoDBClientTypes.AttributeValue].self,
                                                               from: exclusiveStartKey)
         } else {
             inputExclusiveStartKey = nil
         }
 
-        return DynamoDBModel.QueryInput(consistentRead: consistentRead,
-                                        exclusiveStartKey: inputExclusiveStartKey,
-                                        expressionAttributeNames: expressionAttributeNames,
-                                        expressionAttributeValues: expressionAttributeValues,
-                                        indexName: primaryKeyType.indexName,
-                                        keyConditionExpression: keyConditionExpression,
-                                        limit: limit,
-                                        scanIndexForward: scanIndexForward,
-                                        tableName: targetTableName)
+        return AWSDynamoDB.QueryInput(consistentRead: consistentRead,
+                                      exclusiveStartKey: inputExclusiveStartKey,
+                                      expressionAttributeNames: expressionAttributeNames,
+                                      expressionAttributeValues: expressionAttributeValues,
+                                      indexName: primaryKeyType.indexName,
+                                      keyConditionExpression: keyConditionExpression,
+                                      limit: limit,
+                                      scanIndexForward: scanIndexForward,
+                                      tableName: targetTableName)
     }
 }

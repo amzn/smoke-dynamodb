@@ -18,8 +18,7 @@
 
 import XCTest
 @testable import SmokeDynamoDB
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 private typealias DatabaseRowType =
     TypedDatabaseItem<StandardPrimaryKeyAttributes, RowWithItemVersion<TestTypeA>>

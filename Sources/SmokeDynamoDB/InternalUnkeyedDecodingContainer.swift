@@ -97,7 +97,7 @@ internal struct InternalUnkeyedDecodingContainer: UnkeyedDecodingContainer {
     }
     
     var count: Int? {
-        guard let values = decodingContainer.attributeValue.L else {
+        guard case .l(let values) = decodingContainer.attributeValue else {
             return nil
         }
         
@@ -105,7 +105,7 @@ internal struct InternalUnkeyedDecodingContainer: UnkeyedDecodingContainer {
     }
     
     var isAtEnd: Bool {
-        guard let values = decodingContainer.attributeValue.L else {
+        guard case .l(let values) = decodingContainer.attributeValue else {
             return true
         }
         
@@ -131,7 +131,7 @@ internal struct InternalUnkeyedDecodingContainer: UnkeyedDecodingContainer {
         let index = currentIndex
         currentIndex += 1
         
-        guard let values = decodingContainer.attributeValue.L else {
+        guard case .l(let values) = decodingContainer.attributeValue else {
             let description = "Expected to decode a list."
             let context = DecodingError.Context(codingPath: codingPath, debugDescription: description)
             throw DecodingError.dataCorrupted(context)

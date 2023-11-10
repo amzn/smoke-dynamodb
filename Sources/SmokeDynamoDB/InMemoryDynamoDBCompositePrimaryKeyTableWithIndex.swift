@@ -17,8 +17,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 private let maxStatementLength = 8192
 
@@ -127,8 +126,8 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
         _ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum> {
-        let results = await entries.asyncMap { entry -> BatchStatementErrorCodeEnum? in
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> {
+        let results = await entries.asyncMap { entry -> DynamoDBClientTypes.BatchStatementErrorCodeEnum? in
             switch entry {
             case .update(new: let new, existing: let existing):
                 do {
@@ -136,7 +135,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                     
                     return nil
                 } catch {
-                    return BatchStatementErrorCodeEnum.duplicateitem
+                    return DynamoDBClientTypes.BatchStatementErrorCodeEnum.duplicateitem
                 }
             case .insert(new: let new):
                 do {
@@ -144,7 +143,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                     
                     return nil
                 } catch {
-                    return BatchStatementErrorCodeEnum.duplicateitem
+                    return DynamoDBClientTypes.BatchStatementErrorCodeEnum.duplicateitem
                 }
             case .deleteAtKey(key: let key):
                 do {
@@ -152,7 +151,7 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                     
                     return nil
                 } catch {
-                    return BatchStatementErrorCodeEnum.duplicateitem
+                    return DynamoDBClientTypes.BatchStatementErrorCodeEnum.duplicateitem
                 }
             case .deleteItem(existing: let existing):
                 do {
@@ -160,12 +159,12 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
                     
                     return nil
                 } catch {
-                    return BatchStatementErrorCodeEnum.duplicateitem
+                    return DynamoDBClientTypes.BatchStatementErrorCodeEnum.duplicateitem
                 }
             }
         }
         
-        var errors: Set<BatchStatementErrorCodeEnum> = Set()
+        var errors: Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> = Set()
         results.forEach { result in
             if let result {
                 errors.insert(result)

@@ -17,13 +17,9 @@
 
 import Foundation
 import Logging
-import DynamoDBClient
-import DynamoDBModel
-import SmokeAWSCore
-import SmokeAWSHttp
-import SmokeHTTPClient
-import AsyncHTTPClient
-import NIO
+import AWSDynamoDB
+import AWSClientRuntime
+import AwsCommonRuntimeKit
 import Metrics
 
 public struct AWSDynamoDBTableMetrics {
@@ -35,295 +31,65 @@ public struct AWSDynamoDBTableMetrics {
     }
 }
 
-public class AWSDynamoDBCompositePrimaryKeyTable<InvocationReportingType: HTTPClientCoreInvocationReporting>: DynamoDBCompositePrimaryKeyTable {
-    internal let dynamodb: _AWSDynamoDBClient<InvocationReportingType>
+public struct AWSDynamoDBCompositePrimaryKeyTable: DynamoDBCompositePrimaryKeyTable {
+    internal let dynamodb: AWSDynamoDB.DynamoDBClient
     internal let targetTableName: String
     public let consistentRead: Bool
     public let escapeSingleQuoteInPartiQL: Bool
     public let tableMetrics: AWSDynamoDBTableMetrics
-    internal let logger: Logger
-
-    public init(accessKeyId: String, secretAccessKey: String,
-                region: AWSRegion, reporting: InvocationReportingType,
-                endpointHostName: String, endpointPort: Int = 443,
-                requiresTLS: Bool? = nil, tableName: String,
+    internal let retryConfiguration: RetryConfiguration
+    internal let logger: Logging.Logger
+    
+    public init(tableName: String, region: Swift.String,
+                credentialsProvider: AWSClientRuntime.CredentialsProviding? = nil,
+                connectTimeoutMs: UInt32? = nil,
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
-                connectionTimeoutSeconds: Int64 = 10,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
-                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
-        let staticCredentials = StaticCredentials(accessKeyId: accessKeyId,
-                                                  secretAccessKey: secretAccessKey,
-                                                  sessionToken: nil)
-
-        self.logger = reporting.logger
-        self.dynamodb = _AWSDynamoDBClient(credentialsProvider: staticCredentials,
-                                           awsRegion: region, reporting: reporting,
-                                           endpointHostName: endpointHostName,
-                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                           connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                           retryConfiguration: retryConfiguration,
-                                           eventLoopProvider: eventLoopProvider,
-                                           reportingConfiguration: reportingConfiguration)
+                tableMetrics: AWSDynamoDBTableMetrics = .init(),
+                retryConfiguration: RetryConfiguration = .default,
+                logger: Logging.Logger? = nil) throws {
+        self.logger = logger ?? Logging.Logger(label: "AWSDynamoDBCompositePrimaryKeyTable")
+        let config = try DynamoDBClient.DynamoDBClientConfiguration(region: region,
+                                                                    credentialsProvider: credentialsProvider,
+                                                                    connectTimeoutMs: connectTimeoutMs)
+        self.dynamodb = AWSDynamoDB.DynamoDBClient(config: config)
         self.targetTableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
         self.tableMetrics = tableMetrics
+        self.retryConfiguration = retryConfiguration
 
-        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
-    }
-
-    public init(credentialsProvider: CredentialsProvider,
-                region: AWSRegion, reporting: InvocationReportingType,
-                endpointHostName: String, endpointPort: Int = 443,
-                requiresTLS: Bool? = nil, tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                connectionTimeoutSeconds: Int64 = 10,
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
-                reportingConfiguration: SmokeAWSCore.SmokeAWSClientReportingConfiguration<DynamoDBModel.DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
-        self.logger = reporting.logger
-        self.dynamodb = _AWSDynamoDBClient(credentialsProvider: credentialsProvider,
-                                           awsRegion: region, reporting: reporting,
-                                           endpointHostName: endpointHostName,
-                                           endpointPort: endpointPort, requiresTLS: requiresTLS,
-                                           connectionTimeoutSeconds: connectionTimeoutSeconds,
-                                           retryConfiguration: retryConfiguration,
-                                           eventLoopProvider: eventLoopProvider,
-                                           reportingConfiguration: reportingConfiguration)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.tableMetrics = tableMetrics
-
-        self.logger.trace("AWSDynamoDBTable created with region '\(region)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public init(config: AWSGenericDynamoDBClientConfiguration<InvocationReportingType>,
-                reporting: InvocationReportingType,
-                tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                httpClient: HTTPOperationsClient? = nil,
-                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
-        self.logger = reporting.logger
-        self.dynamodb = config.createAWSClient(reporting: reporting,
-                                               httpClientOverride: httpClient)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.tableMetrics = tableMetrics
-        
-        let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    // This initialiser is generic with respect to the reporting type from the operations client
-    // As we are using the providing reporting instance and not creating a reporting instance from
-    // the operations client, this generic type can be ignored.
-    public init<OperationsClientInvocationReportingType: HTTPClientCoreInvocationReporting>(
-                operationsClient: AWSGenericDynamoDBTableOperationsClient<OperationsClientInvocationReportingType>,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                reporting: InvocationReportingType,
-                tableMetrics: AWSDynamoDBTableMetrics = .init()) {
-        self.logger = reporting.logger
-        self.dynamodb = operationsClient.config.createAWSClient(reporting: reporting,
-                                                                httpClientOverride: operationsClient.httpClient)
-        self.targetTableName = operationsClient.tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.tableMetrics = tableMetrics
-        
-        let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public init<TraceContextType: InvocationTraceContext>(
-                config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-                tableName: String,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
-                internalRequestId: String = "none",
-                eventLoop: EventLoop? = nil,
-                httpClient: HTTPOperationsClient? = nil,
-                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
-                tableMetrics: AWSDynamoDBTableMetrics = .init())
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = logger
-        self.dynamodb = config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
-                                               eventLoopOverride: eventLoop, httpClientOverride: httpClient,
-                                               outwardsRequestAggregator: outwardsRequestAggregator)
-        self.targetTableName = tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.tableMetrics = tableMetrics
-        
-        let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.trace("AWSDynamoDBTable created with region '\(config.awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
-        config: AWSGenericDynamoDBClientConfiguration<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        tableName: String,
-        consistentRead: Bool = true,
-        escapeSingleQuoteInPartiQL: Bool = false,
-        invocationAttributes: InvocationAttributesType,
-        httpClient: HTTPOperationsClient? = nil,
-        tableMetrics: AWSDynamoDBTableMetrics = .init())
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.init(config: config, tableName: tableName,
-                  consistentRead: consistentRead,
-                  logger: invocationAttributes.logger,
-                  internalRequestId: invocationAttributes.internalRequestId,
-                  eventLoop: !config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
-                  httpClient: httpClient,
-                  outwardsRequestAggregator: invocationAttributes.outwardsRequestAggregator,
-                  tableMetrics: tableMetrics)
-    }
-    
-    public init<TraceContextType: InvocationTraceContext>(
-                operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-                consistentRead: Bool = true,
-                escapeSingleQuoteInPartiQL: Bool = false,
-                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
-                internalRequestId: String = "none",
-                eventLoop: EventLoop? = nil,
-                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
-                tableMetrics: AWSDynamoDBTableMetrics = .init())
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.logger = logger
-        self.dynamodb = operationsClient.config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
-                                                                eventLoopOverride: eventLoop, httpClientOverride: operationsClient.httpClient,
-                                                                outwardsRequestAggregator: outwardsRequestAggregator)
-        self.targetTableName = operationsClient.tableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.tableMetrics = tableMetrics
-        
-        let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.trace("AWSDynamoDBTable created with region '\(operationsClient.config.awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    public convenience init<TraceContextType: InvocationTraceContext, InvocationAttributesType: HTTPClientInvocationAttributes>(
-        operationsClient: AWSGenericDynamoDBTableOperationsClient<StandardHTTPClientCoreInvocationReporting<TraceContextType>>,
-        consistentRead: Bool = true,
-        escapeSingleQuoteInPartiQL: Bool = false,
-        invocationAttributes: InvocationAttributesType,
-        tableMetrics: AWSDynamoDBTableMetrics = .init())
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<TraceContextType> {
-        self.init(operationsClient: operationsClient,
-                  consistentRead: consistentRead,
-                  escapeSingleQuoteInPartiQL: escapeSingleQuoteInPartiQL,
-                  logger: invocationAttributes.logger,
-                  internalRequestId: invocationAttributes.internalRequestId,
-                  eventLoop: !operationsClient.config.ignoreInvocationEventLoop ? invocationAttributes.eventLoop : nil,
-                  outwardsRequestAggregator: invocationAttributes.outwardsRequestAggregator,
-                  tableMetrics: tableMetrics)
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeyTable created with region '\(region)'")
     }
     
     public init(tableName: String,
+                client: AWSDynamoDB.DynamoDBClient,
                 consistentRead: Bool = true,
                 escapeSingleQuoteInPartiQL: Bool = false,
-                credentialsProvider: CredentialsProvider,
-                awsRegion: AWSRegion,
-                endpointHostName endpointHostNameOptional: String? = nil,
-                endpointPort: Int = 443,
-                requiresTLS: Bool? = nil,
-                service: String = "dynamodb",
-                contentType: String = "application/x-amz-json-1.0",
-                target: String? = "DynamoDB_20120810",
-                timeoutConfiguration: HTTPClient.Configuration.Timeout = .init(),
-                retryConfiguration: HTTPClientRetryConfiguration = .default,
-                eventLoopProvider: HTTPClient.EventLoopGroupProvider = .singleton,
-                reportingConfiguration: SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>
-                    = SmokeAWSClientReportingConfiguration<DynamoDBModelOperations>(),
-                connectionPoolConfiguration: HTTPClient.Configuration.ConnectionPool? = nil,
-                logger: Logging.Logger = Logger(label: "AWSDynamoDBTable"),
-                internalRequestId: String = "none",
-                outwardsRequestAggregator: OutwardsRequestAggregator? = nil,
-                tableMetrics: AWSDynamoDBTableMetrics = .init())
-    where InvocationReportingType == StandardHTTPClientCoreInvocationReporting<AWSClientInvocationTraceContext> {
-        let config = AWSGenericDynamoDBClientConfiguration(
-            credentialsProvider: credentialsProvider,
-            awsRegion: awsRegion,
-            endpointHostName: endpointHostNameOptional,
-            endpointPort: endpointPort,
-            requiresTLS: requiresTLS,
-            service: service,
-            contentType: contentType,
-            target: target,
-            timeoutConfiguration: timeoutConfiguration,
-            retryConfiguration: retryConfiguration,
-            eventLoopProvider: eventLoopProvider,
-            reportingConfiguration: reportingConfiguration,
-            connectionPoolConfiguration: connectionPoolConfiguration)
-        self.logger = logger
-        self.dynamodb = config.createAWSClient(logger: logger, internalRequestId: internalRequestId,
-                                               eventLoopOverride: nil, httpClientOverride: nil,
-                                               outwardsRequestAggregator: outwardsRequestAggregator)
+                tableMetrics: AWSDynamoDBTableMetrics = .init(),
+                retryConfiguration: RetryConfiguration = .default,
+                logger: Logging.Logger? = nil) {
+        self.logger = logger ?? Logging.Logger(label: "AWSDynamoDBCompositePrimaryKeyTable")
+        self.dynamodb = client
         self.targetTableName = tableName
         self.consistentRead = consistentRead
         self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
         self.tableMetrics = tableMetrics
-        
-        let endpointHostName = self.dynamodb.httpClient.endpointHostName
-        self.logger.trace("AWSDynamoDBTable created with region '\(awsRegion)' and hostname: '\(endpointHostName)'")
-    }
-    
-    internal init(dynamodb: _AWSDynamoDBClient<InvocationReportingType>,
-                  targetTableName: String,
-                  consistentRead: Bool = true,
-                  escapeSingleQuoteInPartiQL: Bool = false,
-                  logger: Logger,
-                  tableMetrics: AWSDynamoDBTableMetrics = .init()) {
-        self.dynamodb = dynamodb
-        self.targetTableName = targetTableName
-        self.consistentRead = consistentRead
-        self.escapeSingleQuoteInPartiQL = escapeSingleQuoteInPartiQL
-        self.logger = logger
-        self.tableMetrics = tableMetrics
-    }
+        self.retryConfiguration = retryConfiguration
 
-    /**
-     Gracefully shuts down the client behind this table. This function is idempotent and
-     will handle being called multiple times. Will block until shutdown is complete.
-     */
-    public func syncShutdown() throws {
-        try self.dynamodb.syncShutdown()
-    }
-
-    // renamed `syncShutdown` to make it clearer this version of shutdown will block.
-    @available(*, deprecated, renamed: "syncShutdown")
-    public func close() throws {
-        try self.dynamodb.close()
-    }
-
-    /**
-     Gracefully shuts down the client behind this table. This function is idempotent and
-     will handle being called multiple times. Will return when shutdown is complete.
-     */
-    public func shutdown() async throws {
-        try await self.dynamodb.shutdown()
+        self.logger.trace("AWSDynamoDBCompositePrimaryKeyTable created existing client")
     }
 }
 
 extension AWSDynamoDBCompositePrimaryKeyTable {
     internal func getInputForInsert<AttributesType, ItemType>(_ item: TypedDatabaseItem<AttributesType, ItemType>) throws
-        -> DynamoDBModel.PutItemInput {
+        -> AWSDynamoDB.PutItemInput {
             let attributes = try getAttributes(forItem: item)
 
             let expressionAttributeNames = ["#pk": AttributesType.partitionKeyAttributeName, "#sk": AttributesType.sortKeyAttributeName]
             let conditionExpression = "attribute_not_exists (#pk) AND attribute_not_exists (#sk)"
 
-            return DynamoDBModel.PutItemInput(conditionExpression: conditionExpression,
+            return AWSDynamoDB.PutItemInput(conditionExpression: conditionExpression,
                                               expressionAttributeNames: expressionAttributeNames,
                                               item: attributes,
                                               tableName: targetTableName)
@@ -331,30 +97,30 @@ extension AWSDynamoDBCompositePrimaryKeyTable {
 
     internal func getInputForUpdateItem<AttributesType, ItemType>(
             newItem: TypedDatabaseItem<AttributesType, ItemType>,
-            existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> DynamoDBModel.PutItemInput {
+            existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> AWSDynamoDB.PutItemInput {
         let attributes = try getAttributes(forItem: newItem)
 
         let expressionAttributeNames = [
             "#rowversion": RowStatus.CodingKeys.rowVersion.stringValue,
             "#createdate": TypedDatabaseItem<AttributesType, ItemType>.CodingKeys.createDate.stringValue]
         let expressionAttributeValues = [
-            ":versionnumber": DynamoDBModel.AttributeValue(N: String(existingItem.rowStatus.rowVersion)),
-            ":creationdate": DynamoDBModel.AttributeValue(S: existingItem.createDate.iso8601)]
+            ":versionnumber": DynamoDBClientTypes.AttributeValue.n(String(existingItem.rowStatus.rowVersion)),
+            ":creationdate": DynamoDBClientTypes.AttributeValue.s(existingItem.createDate.iso8601)]
 
         let conditionExpression = "#rowversion = :versionnumber AND #createdate = :creationdate"
 
-        return DynamoDBModel.PutItemInput(conditionExpression: conditionExpression,
-                                          expressionAttributeNames: expressionAttributeNames,
-                                          expressionAttributeValues: expressionAttributeValues,
-                                          item: attributes,
+        return AWSDynamoDB.PutItemInput(conditionExpression: conditionExpression,
+                                        expressionAttributeNames: expressionAttributeNames,
+                                        expressionAttributeValues: expressionAttributeValues,
+                                        item: attributes,
                                           tableName: targetTableName)
     }
 
-    internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.GetItemInput {
+    internal func getInputForGetItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> AWSDynamoDB.GetItemInput {
         let attributeValue = try DynamoDBEncoder().encode(key)
 
-        if let keyAttributes = attributeValue.M {
-            return DynamoDBModel.GetItemInput(consistentRead: self.consistentRead,
+        if case .m(let keyAttributes) = attributeValue {
+            return AWSDynamoDB.GetItemInput(consistentRead: self.consistentRead,
                                               key: keyAttributes,
                                               tableName: targetTableName)
         } else {
@@ -363,28 +129,28 @@ extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     internal func getInputForBatchGetItem<AttributesType>(forKeys keys: [CompositePrimaryKey<AttributesType>]) throws
-    -> DynamoDBModel.BatchGetItemInput {
-        let keys = try keys.map { key -> DynamoDBModel.Key in
+    -> AWSDynamoDB.BatchGetItemInput {
+        let keys = try keys.map { key -> [String: DynamoDBClientTypes.AttributeValue] in
             let attributeValue = try DynamoDBEncoder().encode(key)
             
-            if let keyAttributes = attributeValue.M {
+            if case .m(let keyAttributes) = attributeValue {
                return keyAttributes
             } else {
                 throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
             }
         }
 
-        let keysAndAttributes = KeysAndAttributes(consistentRead: self.consistentRead,
-                                                  keys: keys)
+        let keysAndAttributes = DynamoDBClientTypes.KeysAndAttributes(consistentRead: self.consistentRead,
+                                                                      keys: keys)
         
-        return DynamoDBModel.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])
+        return AWSDynamoDB.BatchGetItemInput(requestItems: [self.targetTableName: keysAndAttributes])
     }
 
-    internal func getInputForDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> DynamoDBModel.DeleteItemInput {
+    internal func getInputForDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>) throws -> AWSDynamoDB.DeleteItemInput {
         let attributeValue = try DynamoDBEncoder().encode(key)
 
-        if let keyAttributes = attributeValue.M {
-            return DynamoDBModel.DeleteItemInput(key: keyAttributes,
+        if case .m(let keyAttributes) = attributeValue {
+            return AWSDynamoDB.DeleteItemInput(key: keyAttributes,
                                                  tableName: targetTableName)
         } else {
             throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
@@ -392,10 +158,10 @@ extension AWSDynamoDBCompositePrimaryKeyTable {
     }
     
     internal func getInputForDeleteItem<AttributesType, ItemType>(
-            existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> DynamoDBModel.DeleteItemInput {
+            existingItem: TypedDatabaseItem<AttributesType, ItemType>) throws -> AWSDynamoDB.DeleteItemInput {
         let attributeValue = try DynamoDBEncoder().encode(existingItem.compositePrimaryKey)
         
-        guard let keyAttributes = attributeValue.M else {
+        guard case .m(let keyAttributes) = attributeValue else {
             throw SmokeDynamoDBError.unexpectedResponse(reason: "Expected a structure.")
         }
 
@@ -403,20 +169,16 @@ extension AWSDynamoDBCompositePrimaryKeyTable {
             "#rowversion": RowStatus.CodingKeys.rowVersion.stringValue,
             "#createdate": TypedDatabaseItem<AttributesType, ItemType>.CodingKeys.createDate.stringValue]
         let expressionAttributeValues = [
-            ":versionnumber": DynamoDBModel.AttributeValue(N: String(existingItem.rowStatus.rowVersion)),
-            ":creationdate": DynamoDBModel.AttributeValue(S: existingItem.createDate.iso8601)]
+            ":versionnumber": DynamoDBClientTypes.AttributeValue.n(String(existingItem.rowStatus.rowVersion)),
+            ":creationdate": DynamoDBClientTypes.AttributeValue.s(existingItem.createDate.iso8601)]
 
         let conditionExpression = "#rowversion = :versionnumber AND #createdate = :creationdate"
 
-        return DynamoDBModel.DeleteItemInput(conditionExpression: conditionExpression,
+        return AWSDynamoDB.DeleteItemInput(conditionExpression: conditionExpression,
                                              expressionAttributeNames: expressionAttributeNames,
                                              expressionAttributeValues: expressionAttributeValues,
                                              key: keyAttributes,
                                              tableName: targetTableName)
-    }
-
-    public var eventLoop: EventLoop {
-        return self.dynamodb.reporting.eventLoop ?? self.dynamodb.eventLoopGroup.next()
     }
 }
 

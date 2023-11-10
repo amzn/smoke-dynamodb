@@ -16,9 +16,7 @@
 //
 
 import Foundation
-import SmokeAWSCore
-import DynamoDBModel
-import SmokeHTTPClient
+import AWSDynamoDB
 import Logging
 
 /// DynamoDBKeysProjection conformance async functions
@@ -80,7 +78,7 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
                                       scanIndexForward: Bool,
                                       exclusiveStartKey: String?) async throws
     -> (keys: [CompositePrimaryKey<AttributesType>], lastEvaluatedKey: String?) {
-        let queryInput = try DynamoDBModel.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
+        let queryInput = try AWSDynamoDB.QueryInput.forSortKeyCondition(partitionKey: partitionKey, targetTableName: targetTableName,
                                                                           primaryKeyType: AttributesType.self,
                                                                           sortKeyCondition: sortKeyCondition, limit: limit,
                                                                           scanIndexForward: scanIndexForward, exclusiveStartKey: exclusiveStartKey,
@@ -90,47 +88,39 @@ public extension AWSDynamoDBCompositePrimaryKeysProjection {
             "sortKeyCondition: \(sortKeyCondition.debugDescription), and table name \(targetTableName)."
         self.logger.trace("\(logMessage)")
         
-        do {
-            let queryOutput = try await self.dynamodb.query(input: queryInput)
+        let queryOutput = try await self.dynamodb.query(input: queryInput)
+        
+        let lastEvaluatedKey: String?
+        if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
+            let encodedLastEvaluatedKey: Data
             
-            let lastEvaluatedKey: String?
-            if let returnedLastEvaluatedKey = queryOutput.lastEvaluatedKey {
-                let encodedLastEvaluatedKey: Data
-                
-                do {
-                    encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
-                } catch {
-                    throw error.asUnrecognizedSmokeDynamoDBError()
+            do {
+                encodedLastEvaluatedKey = try JSONEncoder().encode(returnedLastEvaluatedKey)
+            } catch {
+                throw error.asUnrecognizedSmokeDynamoDBError()
+            }
+            
+            lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
+        } else {
+            lastEvaluatedKey = nil
+        }
+        
+        if let outputAttributeValues = queryOutput.items {
+            let items: [CompositePrimaryKey<AttributesType>]
+            
+            do {
+                items = try outputAttributeValues.map { values in
+                    let attributeValue: DynamoDBClientTypes.AttributeValue = .m(values)
+                    
+                    return try DynamoDBDecoder().decode(attributeValue)
                 }
-                
-                lastEvaluatedKey = String(data: encodedLastEvaluatedKey, encoding: .utf8)
-            } else {
-                lastEvaluatedKey = nil
+            } catch {
+                throw error.asUnrecognizedSmokeDynamoDBError()
             }
             
-            if let outputAttributeValues = queryOutput.items {
-                let items: [CompositePrimaryKey<AttributesType>]
-                
-                do {
-                    items = try outputAttributeValues.map { values in
-                        let attributeValue = DynamoDBModel.AttributeValue(M: values)
-                        
-                        return try DynamoDBDecoder().decode(attributeValue)
-                    }
-                } catch {
-                    throw error.asUnrecognizedSmokeDynamoDBError()
-                }
-                
-                return (items, lastEvaluatedKey)
-            } else {
-                return ([], lastEvaluatedKey)
-            }
-        } catch {
-            if let typedError = error as? DynamoDBError {
-                throw typedError.asSmokeDynamoDBError()
-            }
-            
-            throw error.asUnrecognizedSmokeDynamoDBError()
+            return (items, lastEvaluatedKey)
+        } else {
+            return ([], lastEvaluatedKey)
         }
     }
 }

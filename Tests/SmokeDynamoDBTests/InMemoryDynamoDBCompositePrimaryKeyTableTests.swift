@@ -17,8 +17,7 @@
 
 import XCTest
 @testable import SmokeDynamoDB
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 enum TestPolymorphicOperationReturnType: PolymorphicOperationReturnType {
     typealias AttributesType = StandardPrimaryKeyAttributes
@@ -465,7 +464,7 @@ class InMemoryDynamoDBCompositePrimaryKeyTableTests: XCTestCase {
 
         let result1 = try await table.monomorphicBulkWriteWithoutThrowing(entryList)
         XCTAssertEqual(result1.count, 1)
-        if result1.contains(BatchStatementErrorCodeEnum.duplicateitem) {
+        if result1.contains(DynamoDBClientTypes.BatchStatementErrorCodeEnum.duplicateitem) {
             return
         } else {
             XCTFail("should contain duplicateitem error")

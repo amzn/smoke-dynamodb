@@ -15,8 +15,7 @@
 //  SmokeDynamoDB
 //
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 public protocol BatchCapableReturnType {
     associatedtype AttributesType: PrimaryKeyAttributes

@@ -16,7 +16,7 @@
 //
 
 import Foundation
-import DynamoDBModel
+import AWSDynamoDB
 
 public class DynamoDBDecoder {
     internal let attributeNameTransform: ((String) -> String)?
@@ -25,7 +25,7 @@ public class DynamoDBDecoder {
         self.attributeNameTransform = attributeNameTransform
     }
     
-    public func decode<T: Swift.Decodable>(_ value: DynamoDBModel.AttributeValue, userInfo: [CodingUserInfoKey: Any] = [:]) throws -> T {
+    public func decode<T: Swift.Decodable>(_ value: DynamoDBClientTypes.AttributeValue, userInfo: [CodingUserInfoKey: Any] = [:]) throws -> T {
         let container = InternalSingleValueDecodingContainer(attributeValue: value,
                                                              codingPath: [],
                                                              userInfo: userInfo,

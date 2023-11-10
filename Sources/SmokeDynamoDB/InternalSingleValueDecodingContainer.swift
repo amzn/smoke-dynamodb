@@ -16,15 +16,15 @@
 //
 
 import Foundation
-import DynamoDBModel
+import AWSDynamoDB
 
 internal struct InternalSingleValueDecodingContainer {
     internal let codingPath: [CodingKey]
     internal let userInfo: [CodingUserInfoKey: Any]
-    internal let attributeValue: DynamoDBModel.AttributeValue
+    internal let attributeValue: DynamoDBClientTypes.AttributeValue
     internal let attributeNameTransform: ((String) -> String)?
     
-    init(attributeValue: DynamoDBModel.AttributeValue,
+    init(attributeValue: DynamoDBClientTypes.AttributeValue,
          codingPath: [CodingKey],
          userInfo: [CodingUserInfoKey: Any],
          attributeNameTransform: ((String) -> String)?) {
@@ -37,11 +37,15 @@ internal struct InternalSingleValueDecodingContainer {
 
 extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     func decodeNil() -> Bool {
-        return attributeValue.NULL ?? false
+        guard case .null(let value) = attributeValue else {
+            return false
+        }
+                
+        return value
     }
     
     func decode(_ type: Bool.Type)   throws -> Bool {
-        guard let value = attributeValue.BOOL else {
+        guard case .bool(let value) = attributeValue else {
             throw getTypeMismatchError(expectation: Bool.self)
         }
         
@@ -49,7 +53,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Int.Type)    throws -> Int {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Int(valueAsString) else {
             throw getTypeMismatchError(expectation: Int.self)
         }
@@ -58,7 +62,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Int8.Type)   throws -> Int8 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Int8(valueAsString) else {
             throw getTypeMismatchError(expectation: Int8.self)
         }
@@ -67,7 +71,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Int16.Type)  throws -> Int16 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Int16(valueAsString) else {
             throw getTypeMismatchError(expectation: Int16.self)
         }
@@ -76,7 +80,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Int32.Type)  throws -> Int32 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Int32(valueAsString) else {
             throw getTypeMismatchError(expectation: Int32.self)
         }
@@ -85,7 +89,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Int64.Type)  throws -> Int64 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Int64(valueAsString) else {
             throw getTypeMismatchError(expectation: Int64.self)
         }
@@ -94,7 +98,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: UInt.Type)   throws -> UInt {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = UInt(valueAsString) else {
             throw getTypeMismatchError(expectation: UInt.self)
         }
@@ -103,7 +107,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: UInt8.Type)  throws -> UInt8 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = UInt8(valueAsString) else {
             throw getTypeMismatchError(expectation: UInt8.self)
         }
@@ -112,7 +116,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: UInt16.Type) throws -> UInt16 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = UInt16(valueAsString) else {
             throw getTypeMismatchError(expectation: UInt16.self)
         }
@@ -121,7 +125,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: UInt32.Type) throws -> UInt32 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = UInt32(valueAsString) else {
             throw getTypeMismatchError(expectation: UInt32.self)
         }
@@ -130,7 +134,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: UInt64.Type) throws -> UInt64 {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = UInt64(valueAsString) else {
             throw getTypeMismatchError(expectation: UInt64.self)
         }
@@ -139,7 +143,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Float.Type)  throws -> Float {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Float(valueAsString) else {
             throw getTypeMismatchError(expectation: Float.self)
         }
@@ -148,7 +152,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: Double.Type) throws -> Double {
-        guard let valueAsString = attributeValue.N,
+        guard case .n(let valueAsString) = attributeValue,
             let value = Double(valueAsString) else {
             throw getTypeMismatchError(expectation: Double.self)
         }
@@ -157,7 +161,7 @@ extension InternalSingleValueDecodingContainer: SingleValueDecodingContainer {
     }
     
     func decode(_ type: String.Type) throws -> String {
-        guard let value = attributeValue.S else {
+        guard case .s(let value) = attributeValue else {
             throw getTypeMismatchError(expectation: String.self)
         }
         

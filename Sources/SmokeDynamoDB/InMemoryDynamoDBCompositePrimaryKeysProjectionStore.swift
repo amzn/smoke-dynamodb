@@ -17,8 +17,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 // MARK: - Store implementation
 

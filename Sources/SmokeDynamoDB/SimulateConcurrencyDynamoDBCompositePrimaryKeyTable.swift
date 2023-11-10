@@ -16,8 +16,7 @@
 //
 
 import Foundation
-import SmokeHTTPClient
-import DynamoDBModel
+import AWSDynamoDB
 
 private let maxStatementLength = 8192
 
@@ -132,7 +131,7 @@ public class SimulateConcurrencyDynamoDBCompositePrimaryKeyTable: DynamoDBCompos
     
     public func monomorphicBulkWriteWithoutThrowing<AttributesType, ItemType>(
         _ entries: [WriteEntry<AttributesType, ItemType>]) async throws
-    -> Set<BatchStatementErrorCodeEnum> {
+    -> Set<DynamoDBClientTypes.BatchStatementErrorCodeEnum> {
         return try await self.wrappedDynamoDBTable.monomorphicBulkWriteWithoutThrowing(entries)
     }
     
