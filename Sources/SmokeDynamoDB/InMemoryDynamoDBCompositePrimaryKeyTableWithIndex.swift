@@ -1,4 +1,4 @@
-// swiftlint:disable cyclomatic_complexity
+// swiftlint:disable cyclomatic_complexity type_body_length
 // Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License").
@@ -76,8 +76,17 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         }
     }
     
-    public func transactWrite<WriteEntryType: PolymorphicWriteEntry>(_ entries: [WriteEntryType]) async throws {
-        return try await self.primaryTable.transactWrite(entries)
+    public func transactWrite<WriteEntryType>(_ entries: [WriteEntryType]) async throws where WriteEntryType : PolymorphicWriteEntry {
+        let transformedEntries = entries.map { entry -> GSILogic.WriteEntryType in
+            guard let transformedEntry = entry as? GSILogic.WriteEntryType else {
+                fatalError("Unable to transform transactWrite of type \(type(of: entry)) to \(GSILogic.WriteEntryType.self)")
+            }
+            
+            return transformedEntry
+        }
+        
+        try await self.primaryTable.transactWrite(transformedEntries)
+        try await self.gsiLogic.onTransactWrite(transformedEntries, gsiDataStore: self.gsiDataStore)
     }
     
     public func transactWrite<WriteEntryType: PolymorphicWriteEntry,
