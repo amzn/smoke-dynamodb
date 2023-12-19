@@ -24,6 +24,7 @@ import DynamoDBModel
  */
 public protocol DynamoDBCompositePrimaryKeyGSILogic {
     associatedtype GSIAttributesType: PrimaryKeyAttributes
+    associatedtype WriteEntryType: PolymorphicWriteEntry
     
     /**
      * Called when an item is inserted on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
@@ -50,5 +51,13 @@ public protocol DynamoDBCompositePrimaryKeyGSILogic {
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                       gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+
+ 
+    /**
+     * Called when an transact write in the main table. Can be used to also transact write the corresponding item on the GSI.
+
+     */
+    func onTransactWrite(_ entries: [WriteEntryType],
+                         gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
 }
 
