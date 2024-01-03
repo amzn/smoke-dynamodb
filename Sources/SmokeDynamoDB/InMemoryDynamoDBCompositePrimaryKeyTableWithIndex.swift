@@ -66,9 +66,17 @@ public struct InMemoryDynamoDBCompositePrimaryKeyTableWithIndex<GSILogic: Dynamo
         try await self.gsiLogic.onUpdateItem(newItem: newItem, existingItem: existingItem, gsiDataStore: self.gsiDataStore)
     }
     
-    public func transactWrite(_ entries: [GSILogic.WriteEntryType]) async throws {
-        try await self.primaryTable.transactWrite(entries)
-        try await self.gsiLogic.onTransactWrite(entries, gsiDataStore: self.gsiDataStore)
+    public func transactWrite<WriteEntryType>(_ entries: [WriteEntryType]) async throws where WriteEntryType : PolymorphicWriteEntry {
+        let transformedEntries = entries.map { entry in
+            guard let transformedEntry = entry as? GSILogic.WriteEntryType else {
+                fatalError("Unable to transform transactWrite of type \(type(of: entry)) to \(GSILogic.WriteEntryType.self)")
+            }
+            
+            return transformedEntry
+        }
+        
+        try await self.primaryTable.transactWrite(transformedEntries)
+        try await self.gsiLogic.onTransactWrite(transformedEntries, gsiDataStore: self.gsiDataStore)
     }
     
     public func transactWrite<WriteEntryType: PolymorphicWriteEntry,
