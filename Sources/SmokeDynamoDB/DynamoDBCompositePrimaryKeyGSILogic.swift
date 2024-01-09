@@ -20,12 +20,19 @@ import SmokeHTTPClient
 import DynamoDBModel
 import NIO
 
+// Provide a default `PolymorphicWriteEntry` for the `DynamoDBCompositePrimaryKeyGSILogic` for backwards compatibility
+public struct NoOpPolymorphicWriteEntry: PolymorphicWriteEntry {
+    public func handle<Context>(context: Context) throws -> Context.WriteEntryTransformType where Context : PolymorphicWriteEntryContext {
+        fatalError("Unimplemented")
+    }
+}
+
 /**
   A protocol that simulates the logic of a GSI reacting to events on the main table.
  */
 public protocol DynamoDBCompositePrimaryKeyGSILogic {
     associatedtype GSIAttributesType: PrimaryKeyAttributes
-
+    associatedtype WriteEntryType: PolymorphicWriteEntry = NoOpPolymorphicWriteEntry
     /**
      * Called when an item is inserted on the main table. Can be used to transform the provided item to the item that would be made available on the GSI.
      */
@@ -78,6 +85,13 @@ public protocol DynamoDBCompositePrimaryKeyGSILogic {
      */
     func onDeleteItem<AttributesType>(forKey key: CompositePrimaryKey<AttributesType>,
                                       gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
+
+    /**
+     * Called when an transact write in the main table. Can be used to also transact write the corresponding item on the GSI.
+
+     */
+    func onTransactWrite(_ entries: [WriteEntryType],
+                         gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws
 #endif
 }
 
@@ -114,6 +128,11 @@ public extension DynamoDBCompositePrimaryKeyGSILogic {
                                       gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
         try await onDeleteItem(forKey: key, gsiDataStore: gsiDataStore).get()
     }
+
+    // provide default for backwards compatibility
+    func onTransactWrite(_ entries: [WriteEntryType],
+                         gsiDataStore: InMemoryDynamoDBCompositePrimaryKeyTable) async throws {
+        // do nothing
+    }
 #endif
 }
-
