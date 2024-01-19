@@ -557,6 +557,29 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
+
+    func testListFieldUpdateAndRemovalExpression() throws {
+        let tableName = "TableName"
+        let theStruct = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let payloadA = TestTypeC(theString: "firstly", theNumber: 4, theStruct: theStruct, theList: ["thirdly", "fourthly"])
+        let payloadB = TestTypeC(theString: "firstly", theNumber: 4, theStruct: theStruct, theList: ["fourthly"])
+        
+        let compositeKey = StandardCompositePrimaryKey(partitionKey: "partitionKey",
+                                                                 sortKey: "sortKey")
+        let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
+        let databaseItemB = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadB)
+        
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        
+        let expression = try table.getUpdateExpression(tableName: tableName,
+                                                       newItem: databaseItemB,
+                                                       existingItem: databaseItemA)
+        XCTAssertEqual(expression, "UPDATE \"TableName\" "
+                                 + "SET \"theList\"[0]='fourthly' "
+                                 + "REMOVE \"theList\"[1] "
+                                 + "WHERE PK='partitionKey' AND SK='sortKey' "
+                                 + "AND RowVersion=1")
+    }
     
     func testDeleteItemExpression() throws {
         let tableName = "TableName"
