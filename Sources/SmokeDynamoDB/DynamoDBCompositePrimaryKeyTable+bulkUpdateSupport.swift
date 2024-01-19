@@ -170,33 +170,7 @@ extension DynamoDBCompositePrimaryKeyTable {
     private func diffListAttribute(path: String,
                                    newAttribute: [DynamoDBModel.AttributeValue],
                                    existingAttribute: [DynamoDBModel.AttributeValue]) throws -> [AttributeDifference] {
-        let maxIndex = max(newAttribute.count, existingAttribute.count)
-        var haveAppendedAdditionalValues = false
-        
-        return try (0..<maxIndex).flatMap { index -> [AttributeDifference] in
-            let newPath = "\(path)[\(index)]"
-
-            // if both new and existing attributes are present
-            if index < newAttribute.count && index < existingAttribute.count {
-                return try diffAttribute(path: newPath, newAttribute: newAttribute[index], existingAttribute: existingAttribute[index])
-            } else if index < existingAttribute.count {
-                return [.remove(path: newPath)]
-            } else if index < newAttribute.count {
-                let additionalAttributes = Array(newAttribute[index...])
-                let newValue = try getFlattenedListAttribute(attribute: additionalAttributes)
-                
-                if !haveAppendedAdditionalValues {
-                    haveAppendedAdditionalValues = true
-                    
-                    return [.listAppend(path: path, value: newValue)]
-                } else {
-                    // values have already been appended to the list
-                    return []
-                }
-            }
-            
-            return []
-        }
+        return [ .update(path: path, value: try getFlattenedListAttribute(attribute: newAttribute))]
     }
     
     private func diffMapAttribute(path: String?,
