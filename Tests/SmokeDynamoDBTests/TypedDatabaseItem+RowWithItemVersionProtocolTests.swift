@@ -241,7 +241,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let pathMap = differences.pathMap
 
         XCTAssertEqual(pathMap["\"theList\"[1]"], .update(path: "\"theList\"[1]", value: "'eigthly'"))
-        XCTAssertEqual(pathMap["\"theList\""], .listAppend(path: "\"theList\"", value: "['ninthly', 'tenthly']"))
+        XCTAssertEqual(pathMap["\"theList\"[2]"], .update(path: "\"theList\"[2]", value: "'ninthly'"))
+        XCTAssertEqual(pathMap["\"theList\"[3]"], .update(path: "\"theList\"[3]", value: "'tenthly'"))
         XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
@@ -265,8 +266,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let pathMap = differences.pathMap
 
         XCTAssertEqual(pathMap["\"nestedList\"[0][1]"], .update(path: "\"nestedList\"[0][1]", value: "'five'"))
-        XCTAssertEqual(pathMap["\"nestedList\"[1]"], .listAppend(path: "\"nestedList\"[1]", value: "['eight']"))
-        XCTAssertEqual(pathMap["\"nestedList\""], .listAppend(path: "\"nestedList\"", value: "[['six', 'seven']]"))
+        XCTAssertEqual(pathMap["\"nestedList\"[1][2]"], .update(path: "\"nestedList\"[1][2]", value: "'eight'"))
+        XCTAssertEqual(pathMap["\"nestedList\"[2]"], .update(path: "\"nestedList\"[2]", value: "['six', 'seven']"))
         XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
@@ -291,7 +292,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
         let pathMap = differences.pathMap
 
         XCTAssertEqual(pathMap["\"theList\"[1]"], .update(path: "\"theList\"[1]", value: "'eigth''''''ly'"))
-        XCTAssertEqual(pathMap["\"theList\""], .listAppend(path: "\"theList\"", value: "['ni''n''''thly', 'ten''thly''']"))
+        XCTAssertEqual(pathMap["\"theList\"[2]"], .update(path: "\"theList\"[2]", value: "'ni''n''''thly'"))
+        XCTAssertEqual(pathMap["\"theList\"[3]"], .update(path: "\"theList\"[3]", value: "'ten''thly'''"))
         XCTAssertEqual(pathMap["\"RowVersion\""], .update(path: "\"RowVersion\"", value: "2"))
     }
 
@@ -481,7 +483,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "SET \"theList\"[1]='eigthly' "
-                                 + "SET \"theList\"=list_append(\"theList\",['ninthly', 'tenthly']) "
+                                 + "SET \"theList\"[2]='ninthly' "
+                                 + "SET \"theList\"[3]='tenthly' "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }
@@ -506,7 +509,8 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "SET \"theList\"[1]='eigth''''ly' "
-                                 + "SET \"theList\"=list_append(\"theList\",['n''inthly', 'tenth''''''ly']) "
+                                 + "SET \"theList\"[2]='n''inthly' "
+                                 + "SET \"theList\"[3]='tenth''''''ly' "
                                  + "WHERE PK='pa''rtition''''Key' AND SK='so''rt''''Key' "
                                  + "AND RowVersion=1")
     }
@@ -550,6 +554,29 @@ class TypedDatabaseItemRowWithItemVersionProtocolTests: XCTestCase {
                                                        existingItem: databaseItemA)
         XCTAssertEqual(expression, "UPDATE \"TableName\" "
                                  + "REMOVE \"theList\" "
+                                 + "WHERE PK='partitionKey' AND SK='sortKey' "
+                                 + "AND RowVersion=1")
+    }
+
+    func testListFieldUpdateAndRemovalExpression() throws {
+        let tableName = "TableName"
+        let theStruct = TestTypeA(firstly: "firstly", secondly: "secondly")
+        let payloadA = TestTypeC(theString: "firstly", theNumber: 4, theStruct: theStruct, theList: ["thirdly", "fourthly"])
+        let payloadB = TestTypeC(theString: "firstly", theNumber: 4, theStruct: theStruct, theList: ["fourthly"])
+        
+        let compositeKey = StandardCompositePrimaryKey(partitionKey: "partitionKey",
+                                                                 sortKey: "sortKey")
+        let databaseItemA = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadA)
+        let databaseItemB = TypedDatabaseItem.newItem(withKey: compositeKey, andValue: payloadB)
+        
+        let table = InMemoryDynamoDBCompositePrimaryKeyTable(eventLoop: self.eventLoop)
+        
+        let expression = try table.getUpdateExpression(tableName: tableName,
+                                                       newItem: databaseItemB,
+                                                       existingItem: databaseItemA)
+        XCTAssertEqual(expression, "UPDATE \"TableName\" "
+                                 + "SET \"theList\"[0]='fourthly' "
+                                 + "REMOVE \"theList\"[1] "
                                  + "WHERE PK='partitionKey' AND SK='sortKey' "
                                  + "AND RowVersion=1")
     }

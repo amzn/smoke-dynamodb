@@ -171,7 +171,6 @@ extension DynamoDBCompositePrimaryKeyTable {
                                    newAttribute: [DynamoDBModel.AttributeValue],
                                    existingAttribute: [DynamoDBModel.AttributeValue]) throws -> [AttributeDifference] {
         let maxIndex = max(newAttribute.count, existingAttribute.count)
-        var haveAppendedAdditionalValues = false
         
         return try (0..<maxIndex).flatMap { index -> [AttributeDifference] in
             let newPath = "\(path)[\(index)]"
@@ -182,17 +181,7 @@ extension DynamoDBCompositePrimaryKeyTable {
             } else if index < existingAttribute.count {
                 return [.remove(path: newPath)]
             } else if index < newAttribute.count {
-                let additionalAttributes = Array(newAttribute[index...])
-                let newValue = try getFlattenedListAttribute(attribute: additionalAttributes)
-                
-                if !haveAppendedAdditionalValues {
-                    haveAppendedAdditionalValues = true
-                    
-                    return [.listAppend(path: path, value: newValue)]
-                } else {
-                    // values have already been appended to the list
-                    return []
-                }
+                return try updateAttribute(newPath: newPath, attribute: newAttribute[index])
             }
             
             return []
