@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.7
 //
 // Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
@@ -26,8 +26,8 @@ let package = Package(
             targets: ["SmokeDynamoDB"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.42.37"),
-        .package(url: "https://github.com/amzn/smoke-http.git", from: "2.16.0"),
+        .package(url: "https://github.com/amzn/smoke-aws.git", from: "3.0.0"),
+        .package(url: "https://github.com/amzn/smoke-http.git", from: "3.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0"..<"3.0.0"),
         .package(url: "https://github.com/JohnSundell/CollectionConcurrencyKit", from :"0.2.0")

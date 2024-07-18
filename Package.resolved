@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws.git",
         "state": {
           "branch": null,
-          "revision": "24c05c5faa12a4662584241bebee0a017c3ce9bf",
-          "version": "2.44.174"
+          "revision": "2ab12570ff4e45b41f3c1adf9204baf57d9c0147",
+          "version": "3.0.0"
         }
       },
       {
@@ -33,8 +33,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-aws-support.git",
         "state": {
           "branch": null,
-          "revision": "7bdcbdb7b01bf54dfbdeb99d38d8e6edd6a560c1",
-          "version": "1.1.0"
+          "revision": "b858670eac000b3a957d85672b915c03275c0d9b",
+          "version": "2.0.0"
         }
       },
       {
@@ -42,8 +42,8 @@
         "repositoryURL": "https://github.com/amzn/smoke-http.git",
         "state": {
           "branch": null,
-          "revision": "77c629dc155170e15cb845ac9504355744328204",
-          "version": "2.17.1"
+          "revision": "a6f386fc42d4758719b01a4e45f20c68bed88d50",
+          "version": "3.0.0"
         }
       },
       {
@@ -71,6 +71,15 @@
           "branch": null,
           "revision": "ddb07e896a2a8af79512543b1c7eb9797f8898a5",
           "version": "1.1.7"
+        }
+      },
+      {
+        "package": "swift-distributed-tracing",
+        "repositoryURL": "https://github.com/apple/swift-distributed-tracing.git",
+        "state": {
+          "branch": null,
+          "revision": "11c756c5c4d7de0eeed8595695cadd7fa107aa19",
+          "version": "1.1.1"
         }
       },
       {
@@ -134,6 +143,15 @@
           "branch": null,
           "revision": "c0d9a144cfaec8d3d596aadde3039286a266c15c",
           "version": "1.15.0"
+        }
+      },
+      {
+        "package": "swift-service-context",
+        "repositoryURL": "https://github.com/apple/swift-service-context.git",
+        "state": {
+          "branch": null,
+          "revision": "ce0141c8f123132dbd02fd45fea448018762df1b",
+          "version": "1.0.0"
         }
       },
       {
