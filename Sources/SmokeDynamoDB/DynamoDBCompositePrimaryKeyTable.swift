@@ -701,26 +701,3 @@ public extension DynamoDBCompositePrimaryKeyTable {
     }
 #endif
 }
-
-#if (os(Linux) && compiler(>=5.5)) || (!os(Linux) && compiler(>=5.5.2)) && canImport(_Concurrency)
-// Copy of extension from SwiftNIO; can be removed when the version in SwiftNIO removes its @available attribute
-internal extension EventLoopFuture {
-    /// Get the value/error from an `EventLoopFuture` in an `async` context.
-    ///
-    /// This function can be used to bridge an `EventLoopFuture` into the `async` world. Ie. if you're in an `async`
-    /// function and want to get the result of this future.
-    @inlinable
-    func get() async throws -> Value {
-        return try await withCheckedThrowingContinuation { cont in
-            self.whenComplete { result in
-                switch result {
-                case .success(let value):
-                    cont.resume(returning: value)
-                case .failure(let error):
-                    cont.resume(throwing: error)
-                }
-            }
-        }
-    }
-}
-#endif
